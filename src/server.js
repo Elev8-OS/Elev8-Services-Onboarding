@@ -96,12 +96,25 @@ async function syncTenant(tenant) {
  * holen wir ihn beim naechsten Aufruf aus dem Tenant nach und schreiben ihn
  * fest, damit der Tenant ab dann eine stabile Ansicht sieht.
  */
+async function tenantForIntake(intake) {
+  if (intake.tenant_id) return db.getTenant(intake.tenant_id);
+  // Aufnahmen aus der ersten Fassung tragen nur den Namen. Passt einer auf
+  // einen angelegten Tenant, tragen wir die Verknuepfung nach.
+  const name = String(intake.tenant_name || '').trim().toLowerCase();
+  if (!name) return null;
+  const all = await db.listTenants();
+  const hit = all.filter(function (t) { return String(t.name).trim().toLowerCase() === name; })[0];
+  if (!hit) return null;
+  await db.linkIntakeTenant(intake.id, hit.id);
+  intake.tenant_id = hit.id;
+  return db.getTenant(hit.id);
+}
+
 async function ensureSnapshot(intake) {
   const pre = intake.snapshot && intake.snapshot.prefill;
   if (pre && Object.keys(pre).length) return intake.snapshot;
-  if (!intake.tenant_id) return intake.snapshot || null;
 
-  const t = await db.getTenant(intake.tenant_id);
+  const t = await tenantForIntake(intake);
   if (!t || !t.prefill || !Object.keys(t.prefill).length) return intake.snapshot || null;
 
   const snap = {
@@ -187,9 +200,9 @@ app.post('/admin/i/:id/refresh', requireAdmin, async function (req, res, next) {
   try {
     const intake = await db.getIntakeById(Number(req.params.id));
     if (!intake) return res.redirect('/admin');
-    let msg = 'Kein Tenant mit dieser Aufnahme verknüpft.';
-    if (intake.tenant_id) {
-      const t = await db.getTenant(intake.tenant_id);
+    let msg = 'Kein Tenant mit diesem Namen angelegt — bitte den Tenant unter "Tenants verwalten" anlegen.';
+    {
+      const t = await tenantForIntake(intake);
       if (t) {
         const result = await syncTenant(t);
         const fresh = await db.getTenant(t.id);
