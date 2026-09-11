@@ -24,6 +24,11 @@
       for (var i = 0; i < els.length; i++) if (els[i].checked) return els[i].value;
       return '';
     }
+    if (els[0].type === 'checkbox') {
+      var picked = [];
+      for (var j = 0; j < els.length; j++) if (els[j].checked) picked.push(els[j].value);
+      return picked.join(', ');
+    }
     return els[0].value;
   }
 
@@ -35,10 +40,35 @@
   function isAnswered(fieldId) {
     var b = box(fieldId);
     if (b) {
+      if (b.classList.contains('dep-off')) return true;
       if (b.classList.contains('done')) return true;
       if (b.classList.contains('pre') && !b.classList.contains('editing')) return false;
     }
     return valueOf(fieldId).trim() !== '';
+  }
+
+  /**
+   * Felder, die an einer anderen Antwort haengen (z. B. alles rund um die
+   * Rezeption), werden ausgegraut und gesperrt, solange die Bedingung nicht
+   * erfuellt ist. Sie zaehlen dann weder im Fortschritt noch als Pflichtfeld.
+   */
+  function applyDeps() {
+    document.querySelectorAll('[data-depends]').forEach(function (b) {
+      var want = b.dataset.dependsValue;
+      var have = valueOf(b.dataset.depends);
+      var off = have !== '' && have !== want;
+      b.classList.toggle('dep-off', off);
+      b.querySelectorAll('input, textarea, button').forEach(function (el) { el.disabled = off; });
+      var note = b.querySelector('.dep-note');
+      if (off && !note) {
+        note = document.createElement('p');
+        note.className = 'fhelp dep-note';
+        note.textContent = 'Entfällt, weil Sie „' + have + '" angegeben haben.';
+        b.appendChild(note);
+      } else if (!off && note) {
+        note.remove();
+      }
+    });
   }
 
   function progress() {
@@ -184,7 +214,12 @@
 
   document.addEventListener('change', function (ev) {
     var el = ev.target;
-    if (el.type === 'radio' && el.name) { clearTimeout(timers[el.name]); save(el.name); }
+    if ((el.type === 'radio' || el.type === 'checkbox') && el.name) {
+      clearTimeout(timers[el.name]);
+      save(el.name);
+      applyDeps();
+      progress();
+    }
   });
 
   document.addEventListener('blur', function (ev) {
@@ -247,5 +282,6 @@
     });
   }
 
+  applyDeps();
   progress();
 })();
