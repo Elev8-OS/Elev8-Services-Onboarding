@@ -250,3 +250,10 @@ select:focus{outline:2px solid var(--gold);outline-offset:-1px}
   .rd{grid-template-columns:1fr 56px;}
   .rd-bar{display:none}
 }
+
+/* ---------- abhaengige Felder ---------- */
+.field.dep-off{opacity:.45}
+.field.dep-off .flabel{font-weight:500}
+.field.dep-off input,.field.dep-off textarea,.field.dep-off .choice{
+  background:var(--surface);pointer-events:none}
+.field.dep-off .dep-note{font-style:italic}
