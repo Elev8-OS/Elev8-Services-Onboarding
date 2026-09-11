@@ -90,6 +90,29 @@ async function syncTenant(tenant) {
   }
 }
 
+/**
+ * Eine Aufnahme haelt ihre Vorbelegung als Schnappschuss fest. Wurde sie
+ * angelegt, bevor Elev8-Daten da waren, ist der Schnappschuss leer - dann
+ * holen wir ihn beim naechsten Aufruf aus dem Tenant nach und schreiben ihn
+ * fest, damit der Tenant ab dann eine stabile Ansicht sieht.
+ */
+async function ensureSnapshot(intake) {
+  const pre = intake.snapshot && intake.snapshot.prefill;
+  if (pre && Object.keys(pre).length) return intake.snapshot;
+  if (!intake.tenant_id) return intake.snapshot || null;
+
+  const t = await db.getTenant(intake.tenant_id);
+  if (!t || !t.prefill || !Object.keys(t.prefill).length) return intake.snapshot || null;
+
+  const snap = {
+    facts: t.facts, prefill: t.prefill, readiness: t.readiness || [],
+    syncedAt: t.synced_at ? new Date(t.synced_at).toISOString() : new Date().toISOString()
+  };
+  await db.setIntakeSnapshot(intake.id, snap);
+  intake.snapshot = snap;
+  return snap;
+}
+
 /* ---------- health ---------- */
 
 app.get('/healthz', function (req, res) { res.type('text/plain').send('ok'); });
@@ -154,8 +177,35 @@ app.get('/admin/i/:id', requireAdmin, async function (req, res, next) {
   try {
     const intake = await db.getIntakeById(Number(req.params.id));
     if (!intake) return res.status(404).type('text/plain').send('Nicht gefunden');
+    await ensureSnapshot(intake);
     const a = await db.getAnswers(intake.id);
-    res.type('html').send(view.adminDetail(intake, a.values, a.sources, baseUrl(req)));
+    res.type('html').send(view.adminDetail(intake, a.values, a.sources, baseUrl(req), req.query.msg || null));
+  } catch (e) { next(e); }
+});
+
+app.post('/admin/i/:id/refresh', requireAdmin, async function (req, res, next) {
+  try {
+    const intake = await db.getIntakeById(Number(req.params.id));
+    if (!intake) return res.redirect('/admin');
+    let msg = 'Kein Tenant mit dieser Aufnahme verknüpft.';
+    if (intake.tenant_id) {
+      const t = await db.getTenant(intake.tenant_id);
+      if (t) {
+        const result = await syncTenant(t);
+        const fresh = await db.getTenant(t.id);
+        if (fresh && fresh.prefill && Object.keys(fresh.prefill).length) {
+          await db.setIntakeSnapshot(intake.id, {
+            facts: fresh.facts, prefill: fresh.prefill, readiness: fresh.readiness || [],
+            syncedAt: new Date().toISOString()
+          });
+          msg = Object.keys(fresh.prefill).length + ' Felder aus Elev8 übernommen' +
+            (result ? '.' : ' (letzter bekannter Stand, Elev8 antwortet gerade nicht).');
+        } else {
+          msg = 'Elev8 lieferte keine Daten: ' + ((fresh && fresh.sync_error) || 'unbekannter Grund');
+        }
+      }
+    }
+    res.redirect('/admin/i/' + intake.id + '?msg=' + encodeURIComponent(msg));
   } catch (e) { next(e); }
 });
 
@@ -283,9 +333,10 @@ app.get('/f/:token', async function (req, res, next) {
       title: 'Link nicht gültig',
       body: '<div class="page"><header class="hero"><h1>Dieser Link ist nicht gültig</h1><p class="lede">Bitte fragen Sie bei Ihrem Ansprechpartner bei Elev8 nach einem neuen Link.</p></header></div>'
     }));
+    const snapshot = await ensureSnapshot(intake);
     const a = await db.getAnswers(intake.id);
     res.setHeader('Cache-Control', 'no-store');
-    res.type('html').send(view.tenantForm(intake, a.values, a.sources, intake.snapshot));
+    res.type('html').send(view.tenantForm(intake, a.values, a.sources, snapshot));
   } catch (e) { next(e); }
 });
 
@@ -306,7 +357,8 @@ app.post('/api/f/:token/confirm', async function (req, res, next) {
   try {
     const intake = await db.getIntakeByToken(req.params.token);
     if (!intake) return res.status(404).json({ error: 'unknown token' });
-    const pre = (intake.snapshot && intake.snapshot.prefill) || {};
+    const snapshot = await ensureSnapshot(intake);
+    const pre = (snapshot && snapshot.prefill) || {};
     const existing = await db.getAnswers(intake.id);
 
     let ids;
