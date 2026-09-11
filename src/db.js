@@ -148,6 +148,10 @@ async function getIntakeById(id) {
   return rows[0] || null;
 }
 
+async function linkIntakeTenant(intakeId, tenantId) {
+  await pool.query('UPDATE intakes SET tenant_id = $2 WHERE id = $1', [intakeId, tenantId]);
+}
+
 async function setIntakeSnapshot(id, snapshot) {
   await pool.query('UPDATE intakes SET snapshot = $2 WHERE id = $1', [id, JSON.stringify(snapshot)]);
 }
@@ -188,6 +192,6 @@ async function deleteIntake(intakeId) {
 module.exports = {
   pool, init,
   listTenants, getTenant, upsertTenant, updateTenantToken, saveTenantSync, deleteTenant,
-  listIntakes, createIntake, getIntakeByToken, getIntakeById, setIntakeSnapshot,
+  listIntakes, createIntake, getIntakeByToken, getIntakeById, setIntakeSnapshot, linkIntakeTenant,
   getAnswers, saveAnswer, setStatus, deleteIntake
 };
