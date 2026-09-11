@@ -4,9 +4,24 @@
  * Fragenkatalog für das Tenant-Intake.
  * Abgeleitet aus der GRO-Checkliste: alles, was Elev8 nicht bereits im
  * eigenen System hat und beim Tenant abgeholt werden muss.
+ *
+ * Feld-Eigenschaften über die Standardfelder hinaus:
+ *   dependsOn  { field, equals }  – Feld wird ausgegraut, solange die
+ *                                   Bedingung nicht erfüllt ist
+ *   preset / presetNote           – Vorschlag von uns (nicht aus Elev8),
+ *                                   den der Tenant nur bestätigen muss
+ *   type 'multi'                  – Mehrfachauswahl, gespeichert als Liste
  */
 
 const YESNO = ['Ja', 'Nein', 'Nach Rücksprache'];
+
+const SCOPE_PRESET = [
+  'Alle Gästenachrichten über Ihre verbundenen Kanäle, vor, während und nach dem Aufenthalt',
+  'Beschwerden aufnehmen, lösen oder nach Ihren Regeln an Sie eskalieren',
+  'Anfragen zu Verlängerung, Late Check-out und Zusatzleistungen',
+  'Aufträge an Ihr Team vor Ort über Elev8-Aufgaben weitergeben',
+  'Bewertungen beantworten, sobald Sie das freigeben'
+].join('\n');
 
 const SECTIONS = [
   {
@@ -19,7 +34,6 @@ const SECTIONS = [
       { id: 'address', label: 'Adresse des Objekts', type: 'textarea', required: true },
       { id: 'units', label: 'Anzahl Zimmer bzw. Einheiten', type: 'number' },
       { id: 'channels', label: 'Über welche Kanäle buchen Ihre Gäste?', type: 'textarea', placeholder: 'z. B. Booking.com 70 %, Direktbuchungen 20 %, Telefon 10 %' },
-      { id: 'pms', label: 'Welches PMS oder Channel Manager nutzen Sie?', type: 'text' },
       { id: 'contact_main', label: 'Hauptansprechpartner (Name und Rolle)', type: 'text', required: true },
       { id: 'contact_phone', label: 'Telefonnummer', type: 'tel', required: true },
       { id: 'contact_email', label: 'E-Mail-Adresse', type: 'email', required: true },
@@ -32,15 +46,17 @@ const SECTIONS = [
     title: 'Betrieb und Anreise',
     intro: 'Was ein Gast erlebt, wenn er ankommt — und was wir ihm sagen können, wenn etwas nicht wie geplant läuft.',
     fields: [
-      { id: 'reception_hours', label: 'Rezeptionszeiten', type: 'textarea', placeholder: 'Mo–Fr 07:00–21:00, Sa/So 08:00–20:00' },
-      { id: 'after_hours', label: 'Was passiert bei Anreise nach Rezeptionsschluss?', type: 'textarea', required: true },
+      { id: 'reception', label: 'Gibt es bei Ihnen eine Rezeption?', type: 'radio', options: ['Ja', 'Nein'], required: true, help: 'Bei „Nein" überspringen wir alles, was eine Rezeption voraussetzt.' },
+      { id: 'reception_hours', label: 'Rezeptionszeiten', type: 'textarea', placeholder: 'Mo–Fr 07:00–21:00, Sa/So 08:00–20:00', dependsOn: { field: 'reception', equals: 'Ja' } },
+      { id: 'after_hours', label: 'Was passiert bei Anreise nach Rezeptionsschluss?', type: 'textarea', required: true, dependsOn: { field: 'reception', equals: 'Ja' } },
       { id: 'selfcheckin', label: 'Gibt es Self-Check-in?', type: 'radio', options: ['Ja', 'Nein', 'Teilweise'] },
       { id: 'access', label: 'Wie kommt der Gast in Haus und Zimmer?', type: 'textarea', help: 'Schlüsselbox, Smart Lock, Schlüsselübergabe — bitte inklusive Ablauf.' },
       { id: 'checkin_time', label: 'Check-in ab', type: 'text', placeholder: '15:00' },
       { id: 'checkout_time', label: 'Check-out bis', type: 'text', placeholder: '11:00' },
       { id: 'breakfast', label: 'Frühstück: Zeiten, Preis, Anmeldung nötig?', type: 'textarea' },
       { id: 'parking', label: 'Parken: verfügbar, Preis, reservierbar?', type: 'textarea' },
-      { id: 'wifi', label: 'WLAN-Name und Passwort', type: 'text' },
+      { id: 'wifi', label: 'WLAN-Name (SSID)', type: 'text' },
+      { id: 'wifi_pass', label: 'WLAN-Passwort', type: 'text', required: true, help: 'Bitte prüfen Sie, ob es noch stimmt — das ist die häufigste Gastfrage.' },
       { id: 'quirks', label: 'Was fragen Ihre Gäste am häufigsten?', type: 'textarea', help: 'Die drei bis fünf häufigsten Fragen sparen uns Wochen Einarbeitung.' }
     ]
   },
@@ -50,10 +66,14 @@ const SECTIONS = [
     title: 'Was wir übernehmen sollen',
     intro: 'Umfang und Zeiten. Danach richten wir unsere Schichtplanung aus.',
     fields: [
-      { id: 'scope', label: 'Welche Aufgaben soll unser Guest Relations Officer übernehmen?', type: 'textarea', required: true, placeholder: 'Gästenachrichten, Telefon, Beschwerden, Upsell, Koordination Housekeeping …' },
+      {
+        id: 'scope', label: 'Welche Aufgaben soll unser Guest Relations Officer übernehmen?',
+        type: 'textarea', required: true,
+        preset: SCOPE_PRESET,
+        presetNote: 'Unser Standardumfang — streichen oder ergänzen Sie, was für Sie gilt'
+      },
       { id: 'coverage', label: 'Welche Zeiten sollen wir abdecken?', type: 'textarea', required: true, help: 'Bitte in Ihrer Ortszeit angeben.' },
-      { id: 'languages', label: 'In welchen Sprachen müssen wir antworten?', type: 'text', required: true },
-      { id: 'response_target', label: 'Welche Antwortzeit erwarten Sie?', type: 'text', placeholder: 'z. B. innerhalb 15 Minuten während der Abdeckung' },
+      { id: 'languages', label: 'In welchen Sprachen sollen wir antworten?', type: 'multi', options: ['Deutsch', 'Englisch'], required: true, help: 'Mehrfachauswahl. Andere Sprachen können wir derzeit nicht zusagen.' },
       { id: 'volume', label: 'Ungefähres Nachrichtenaufkommen pro Tag', type: 'text' },
       { id: 'peaks', label: 'Wann ist bei Ihnen Hochbetrieb?', type: 'textarea', placeholder: 'Messen, Ferien, Wochenenden, Firmenreisezeiten' }
     ]
@@ -184,4 +204,18 @@ SECTIONS.forEach(function (sec) {
   });
 });
 
-module.exports = { SECTIONS, ALL_FIELDS, FIELD_MAP };
+/** Vorschläge, die von uns kommen und nicht aus Elev8. */
+function presets() {
+  const out = {};
+  ALL_FIELDS.forEach(function (f) {
+    if (f.preset) out[f.id] = { value: f.preset, evidence: f.presetNote || 'Vorschlag von Elev8 — bitte prüfen' };
+  });
+  return out;
+}
+
+/** Elev8-Vorbelegung über die eigenen Vorschläge legen. */
+function mergePrefill(fromElev8) {
+  return Object.assign({}, presets(), fromElev8 || {});
+}
+
+module.exports = { SECTIONS, ALL_FIELDS, FIELD_MAP, presets, mergePrefill };
