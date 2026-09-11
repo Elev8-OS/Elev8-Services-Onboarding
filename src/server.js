@@ -6,7 +6,7 @@ const path = require('path');
 
 const db = require('./db');
 const elev8 = require('./elev8');
-const { FIELD_MAP, SECTIONS } = require('./questions');
+const { FIELD_MAP, SECTIONS, mergePrefill } = require('./questions');
 const view = require('./render');
 
 const app = express();
@@ -371,7 +371,8 @@ app.post('/api/f/:token/confirm', async function (req, res, next) {
     const intake = await db.getIntakeByToken(req.params.token);
     if (!intake) return res.status(404).json({ error: 'unknown token' });
     const snapshot = await ensureSnapshot(intake);
-    const pre = (snapshot && snapshot.prefill) || {};
+    // Elev8-Daten plus unsere eigenen Vorschlaege - beides ist bestaetigbar.
+    const pre = mergePrefill(snapshot && snapshot.prefill);
     const existing = await db.getAnswers(intake.id);
 
     let ids;
