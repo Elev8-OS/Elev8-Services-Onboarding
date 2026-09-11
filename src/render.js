@@ -1,6 +1,6 @@
 'use strict';
 
-const { SECTIONS, ALL_FIELDS } = require('./questions');
+const { SECTIONS, ALL_FIELDS, mergePrefill } = require('./questions');
 
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -43,6 +43,12 @@ function control(f, v) {
       return `<label class="choice"><input type="radio" id="${id}_${i}" name="${f.id}" value="${esc(o)}"${v === o ? ' checked' : ''}><span>${esc(o)}</span></label>`;
     }).join('') + '</div>';
   }
+  if (f.type === 'multi') {
+    const chosen = String(v || '').split(',').map(function (x) { return x.trim(); });
+    return '<div class="choices">' + f.options.map(function (o, i) {
+      return `<label class="choice"><input type="checkbox" id="${id}_${i}" name="${f.id}" value="${esc(o)}"${chosen.indexOf(o) > -1 ? ' checked' : ''}><span>${esc(o)}</span></label>`;
+    }).join('') + '</div>';
+  }
   if (f.type === 'money') {
     return `<div class="money"><span class="cur">EUR</span><input type="text" inputmode="decimal" id="${id}" name="${f.id}" value="${esc(v)}" placeholder="0"></div>`;
   }
@@ -59,6 +65,9 @@ function control(f, v) {
 function field(f, value, source, pre) {
   const v = value == null ? '' : value;
   const has = String(v).trim() !== '';
+  const dep = f.dependsOn
+    ? ` data-depends="${esc(f.dependsOn.field)}" data-depends-value="${esc(f.dependsOn.equals)}"`
+    : '';
   const head = `<label class="flabel" for="f_${f.id}">${esc(f.label)}${f.required ? '<span class="star" title="Pflichtangabe">*</span>' : ''}</label>` +
     (f.help ? '<p class="fhelp">' + esc(f.help) + '</p>' : '');
 
@@ -66,7 +75,7 @@ function field(f, value, source, pre) {
     const badge = source === 'confirmed'
       ? '<span class="tick" aria-hidden="true">✓</span> aus Elev8, von Ihnen bestätigt'
       : '<span class="tick" aria-hidden="true">✓</span> Ihre Angabe';
-    return `<div class="field done${f.required ? ' req' : ''}" data-field="${f.id}">
+    return `<div class="field done${f.required ? ' req' : ''}" data-field="${f.id}"${dep}>
   ${head}
   <div class="answered">
     <div class="aval">${nl2br(v)}</div>
@@ -77,7 +86,7 @@ function field(f, value, source, pre) {
   }
 
   if (pre && pre.value) {
-    return `<div class="field pre${f.required ? ' req' : ''}" data-field="${f.id}">
+    return `<div class="field pre${f.required ? ' req' : ''}" data-field="${f.id}"${dep}>
   ${head}
   <div class="prebox">
     <div class="preval">${nl2br(pre.value)}</div>
@@ -93,7 +102,7 @@ function field(f, value, source, pre) {
 </div>`;
   }
 
-  return `<div class="field${f.required ? ' req' : ''}" data-field="${f.id}">
+  return `<div class="field${f.required ? ' req' : ''}" data-field="${f.id}"${dep}>
   ${head}
   ${control(f, v)}
 </div>`;
@@ -129,7 +138,8 @@ function readinessPanel(rows, facts) {
 /* ---------------- tenant form ---------------- */
 
 function tenantForm(intake, answers, sources, snapshot) {
-  const pre = (snapshot && snapshot.prefill) || {};
+  // Elev8-Daten plus unsere eigenen Vorschlaege (z. B. der Leistungsumfang).
+  const pre = mergePrefill(snapshot && snapshot.prefill);
   const filled = ALL_FIELDS.filter(function (f) { return (answers[f.id] || '').trim() !== ''; }).length;
   const open = ALL_FIELDS.filter(function (f) {
     return (answers[f.id] || '').trim() === '' && !(pre[f.id] && pre[f.id].value);
@@ -373,7 +383,8 @@ function tenantDetail(t, flash) {
     ['WLAN hinterlegt', facts.wifiCount],
     ['Kaution', (facts.deposits || []).map(function (d) { return d.value + ' × ' + d.n; }).join(', ')],
     ['Kanäle', (facts.channels || []).map(function (c) { return c.name + ' ' + c.share + ' %'; }).join(', ')],
-    ['AI aktiv', facts.aiActive]
+    ['AI aktiv', facts.aiActive],
+    ['Profil-Tool', facts.profile && facts.profile.tool]
   ].filter(function (r) { return r[1] !== undefined && r[1] !== null && String(r[1]) !== ''; })
     .map(function (r) { return '<div class="qa"><div class="q">' + esc(r[0]) + '</div><div class="a">' + r[1] + '</div></div>'; })
     .join('');
