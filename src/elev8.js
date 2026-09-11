@@ -13,6 +13,9 @@ const { SSEClientTransport } = require('@modelcontextprotocol/sdk/client/sse.js'
 const { StreamableHTTPClientTransport } = require('@modelcontextprotocol/sdk/client/streamableHttp.js');
 
 const MCP_URL = process.env.ELEV8_MCP_URL || 'https://mcp.elev8-suite.com/sse';
+// Optional: Name eines Tools, das Kontakt-/Profildaten des Tenants liefert.
+// Solange der MCP keines anbietet, bleibt die Sondierung wirkungslos.
+const PROFILE_TOOL = process.env.ELEV8_PROFILE_TOOL || '';
 const TIMEOUT_MS = Number(process.env.ELEV8_TIMEOUT_MS || 25000);
 
 /* ------------------------------------------------------------------ *
@@ -130,9 +133,61 @@ async function fetchRaw(token) {
       out.warnings.push('Kanalverteilung konnte nicht gelesen werden.');
     }
 
+    out.profile = await probeProfile(client);
+
     out.fetchedAt = new Date().toISOString();
     return out;
   });
+}
+
+/**
+ * Sucht ein Tool, das Stammdaten des Tenants liefert (Ansprechpartner,
+ * Telefon, E-Mail, Check-in-Zeiten). Aufgerufen wird nur, was der Server
+ * selbst anbietet und was ohne Pflichtparameter auskommt - es wird also
+ * nichts geraten. Bietet der MCP nichts dergleichen, bleibt das Ergebnis
+ * null und die betroffenen Felder bleiben normale Fragen.
+ */
+async function probeProfile(client) {
+  let tools = [];
+  try {
+    const res = await client.listTools();
+    tools = res.tools || [];
+  } catch (e) {
+    return null;
+  }
+
+  const candidates = [];
+  if (PROFILE_TOOL) candidates.push(PROFILE_TOOL);
+  tools.forEach(function (t) {
+    const req = (t.inputSchema && t.inputSchema.required) || [];
+    if (req.length) return;
+    if (/account|profile|host|contact|company|property_detail|listing_detail/i.test(t.name)) {
+      if (candidates.indexOf(t.name) === -1) candidates.push(t.name);
+    }
+  });
+
+  for (const name of candidates) {
+    try {
+      const data = await callTool(client, name, {});
+      const row = Array.isArray(data) ? data[0] : data;
+      if (row && typeof row === 'object' && !Array.isArray(row)) {
+        return Object.assign({ __tool: name }, row);
+      }
+    } catch (e) { /* naechster Kandidat */ }
+  }
+  return null;
+}
+
+/** Ersten Wert finden, dessen Schluessel zum Muster passt. */
+function pick(row, re) {
+  if (!row) return '';
+  const keys = Object.keys(row);
+  for (const k of keys) {
+    if (!re.test(k)) continue;
+    const v = nonEmpty(row[k]);
+    if (v) return v;
+  }
+  return '';
 }
 
 /* ------------------------------------------------------------------ *
@@ -212,6 +267,16 @@ function deriveFacts(raw) {
     cleaning: flag('is_have_cleaning_setup'),
     aiActive: flag('is_toggle_ai_active'),
     minibar: flag('is_activate_minibar'),
+    checkinTime: tally(base, function (l) { return nonEmpty(l.check_in_time || l.checkin_time || l.checkin_from); })[0],
+    checkoutTime: tally(base, function (l) { return nonEmpty(l.check_out_time || l.checkout_time || l.checkout_until); })[0],
+    profile: raw.profile ? {
+      tool: raw.profile.__tool || '',
+      contact: pick(raw.profile, /^(contact_name|owner|manager|host_name|primary_contact|full_name|name)$/i),
+      phone: pick(raw.profile, /phone|mobile|telefon|whatsapp/i),
+      email: pick(raw.profile, /e?_?mail/i),
+      checkin: pick(raw.profile, /check.?in.*(time|from)|time.*check.?in/i),
+      checkout: pick(raw.profile, /check.?out.*(time|until)|time.*check.?out/i)
+    } : null,
     channels: summariseChannels(raw.channels),
     warnings: raw.warnings || []
   };
@@ -304,10 +369,23 @@ function prefillAnswers(facts, tenantName) {
   }
 
   if (facts.ssids.length === 1 && facts.wifiCount === facts.total) {
-    put('wifi', facts.ssids[0].value, 'WLAN aus Elev8');
-  } else if (facts.wifiCount > 0) {
-    put('wifi', 'Je Einheit in Elev8 hinterlegt (' + facts.wifiCount + ' von ' + facts.total + ').', 'WLAN-Angaben aus Elev8');
+    put('wifi', facts.ssids[0].value, 'WLAN-Name aus Elev8');
+  } else if (facts.ssids.length) {
+    put('wifi', facts.ssids.map(function (x) { return x.value; }).join(', '),
+      'WLAN-Namen aus Elev8 (' + facts.wifiCount + ' von ' + facts.total + ' Einheiten)');
   }
+
+  const p = facts.profile;
+  if (p) {
+    put('contact_main', p.contact, 'aus Ihrem Elev8-Profil');
+    put('contact_phone', p.phone, 'aus Ihrem Elev8-Profil');
+    put('contact_email', p.email, 'aus Ihrem Elev8-Profil');
+  }
+
+  const ci = (facts.checkinTime && facts.checkinTime.value) || (p && p.checkin);
+  const co = (facts.checkoutTime && facts.checkoutTime.value) || (p && p.checkout);
+  put('checkin_time', ci, 'Check-in-Zeit aus Elev8');
+  put('checkout_time', co, 'Check-out-Zeit aus Elev8');
 
   if (facts.deposits.length) {
     put('deposit', 'In Elev8 hinterlegt: ' + facts.deposits.map(function (d) {
@@ -362,5 +440,5 @@ async function sync(token, tenantName) {
 
 module.exports = {
   MCP_URL, withClient, callTool, listTools, fetchRaw,
-  deriveFacts, prefillAnswers, readiness, sync, lockSummary
+  deriveFacts, prefillAnswers, readiness, sync, lockSummary, probeProfile
 };
