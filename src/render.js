@@ -446,7 +446,7 @@ function diagnosePage(t, result) {
   });
 }
 
-function adminDetail(intake, answers, sources, baseUrl) {
+function adminDetail(intake, answers, sources, baseUrl, flash) {
   const pre = (intake.snapshot && intake.snapshot.prefill) || {};
   const blocks = SECTIONS.map(function (s) {
     const rows = s.fields.map(function (f) {
@@ -468,6 +468,7 @@ function adminDetail(intake, answers, sources, baseUrl) {
   }).join('');
 
   const filled = ALL_FIELDS.filter(function (f) { return (answers[f.id] || '').trim() !== ''; }).length;
+  const preCount = Object.keys(pre).length;
 
   return layout({
     title: intake.tenant_name + ' — Aufnahme',
@@ -477,9 +478,12 @@ function adminDetail(intake, answers, sources, baseUrl) {
   <header class="hero tight">
     <p class="eyebrow"><a href="/admin">← Alle Aufnahmen</a></p>
     <h1>${esc(intake.tenant_name)}</h1>
-    <p class="lede">${filled} von ${ALL_FIELDS.length} Feldern beantwortet · ${intake.status === 'submitted' ? 'vom Tenant abgeschlossen' : 'noch offen'}</p>
+    <p class="lede">${filled} von ${ALL_FIELDS.length} Feldern beantwortet, ${preCount} aus Elev8 vorausgefüllt · ${intake.status === 'submitted' ? 'vom Tenant abgeschlossen' : 'noch offen'}</p>
+    ${flash ? '<p class="banner done">' + esc(flash) + '</p>' : ''}
+    ${preCount ? '' : '<p class="banner">Für diese Aufnahme ist noch nichts aus Elev8 vorausgefüllt. Wenn der Tenant inzwischen Daten liefert, hier neu holen — der Link an den Tenant bleibt derselbe.</p>'}
     <div class="actions">
       <button class="btn ghost copy" type="button" data-link="${esc(baseUrl)}/f/${esc(intake.token)}">Tenant-Link kopieren</button>
+      <form method="post" action="/admin/i/${intake.id}/refresh"><button class="btn ghost" type="submit">Vorbelegung aus Elev8 neu holen</button></form>
       <a class="btn ghost" href="/admin/i/${intake.id}/export.md">Als Markdown</a>
       <a class="btn ghost" href="/admin/i/${intake.id}/export.json">Als JSON</a>
     </div>
