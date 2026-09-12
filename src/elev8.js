@@ -6,7 +6,7 @@ const { L } = require('./i18n');
  * Anbindung an den Elev8-MCP-Server.
  *
  * Pro Tenant ist ein Bearer-Token hinterlegt. Damit holt die App die Daten,
- * die in Elev8 ohnehin schon stehen, und füllt das Intake damit vor.
+ * die in Elev8 Suite ohnehin schon stehen, und füllt das Intake damit vor.
  * Der Tenant bestätigt nur noch statt zu tippen.
  */
 
@@ -60,7 +60,7 @@ function makeTransport(kind, token) {
  * Versucht zuerst den Transport, der zur URL passt, dann den anderen.
  */
 async function withClient(token, fn) {
-  if (!token) throw new Error('Kein Elev8-Token hinterlegt.');
+  if (!token) throw new Error('Kein Elev8-Suite-Token hinterlegt.');
   const order = /\/sse\/?$/.test(MCP_URL) ? ['sse', 'http'] : ['http', 'sse'];
   const failures = [];
   for (const kind of order) {
@@ -87,7 +87,7 @@ async function withClient(token, fn) {
 
 async function callTool(client, name, args) {
   const res = await client.callTool({ name: name, arguments: args || {} }, undefined, { timeout: TIMEOUT_MS });
-  if (res && res.isError) throw new Error('Elev8-Tool "' + name + '" meldet einen Fehler.');
+  if (res && res.isError) throw new Error('Elev8-Suite-Tool "' + name + '" meldet einen Fehler.');
   const parts = (res && res.content) || [];
   for (const part of parts) {
     if (part.type !== 'text' || typeof part.text !== 'string') continue;
@@ -121,7 +121,7 @@ async function fetchRaw(token) {
     out.listings = await callTool(client, 'get_listings_overview');
     if (!Array.isArray(out.listings)) {
       out.listings = [];
-      out.warnings.push('Elev8 lieferte keine Listen-Übersicht.');
+      out.warnings.push('Elev8 Suite lieferte keine Listen-Übersicht.');
     }
 
     const now = new Date();
@@ -336,44 +336,44 @@ function prefillAnswers(facts, tenantName) {
   const out = {};
   const put = function (id, value, evidence) {
     const v = String(value == null ? '' : value).trim();
-    if (v) out[id] = { value: v, evidence: evidence || L('aus Elev8', 'from Elev8') };
+    if (v) out[id] = { value: v, evidence: evidence || L('aus Elev8 Suite', 'from Elev8 Suite') };
   };
 
-  put('company', tenantName, L('Ihr Tenant-Name in Elev8', 'Your tenant name in Elev8'));
+  put('company', tenantName, L('Ihr Tenant-Name in Elev8 Suite', 'Your tenant name in Elev8 Suite'));
 
   if (facts.primaryAddress) {
     const more = facts.addresses.length - 1;
-    put('address', facts.primaryAddress + (more > 0 ? '\n(und ' + plural(more, 'weitere Adresse', 'weitere Adressen') + ' in Elev8)' : ''),
-      L('Adresse der Einheiten in Elev8', 'Address of your units in Elev8'));
+    put('address', facts.primaryAddress + (more > 0 ? '\n(und ' + plural(more, 'weitere Adresse', 'weitere Adressen') + ' in Elev8 Suite)' : ''),
+      L('Adresse der Einheiten in Elev8 Suite', 'Address of your units in Elev8 Suite'));
   }
 
-  put('units', facts.total, L('aktive Einheiten in Elev8', 'active units in Elev8'));
+  put('units', facts.total, L('aktive Einheiten in Elev8 Suite', 'active units in Elev8 Suite'));
 
   if (facts.channels.length) {
     put('channels', facts.channels.map(function (c) {
       return c.name + (c.share ? ' ' + c.share + ' %' : '');
-    }).join(', '), L('Kanalverteilung des letzten Monats aus Elev8', 'Channel mix of the last month from Elev8'));
+    }).join(', '), L('Kanalverteilung des letzten Monats aus Elev8 Suite', 'Channel mix of the last month from Elev8 Suite'));
   }
 
   const lock = lockSummary(facts);
   if (lock) {
     const extra = facts.checkin.n
-      ? '\nCheck-in-Anleitung in Elev8 hinterlegt für ' + facts.checkin.n + ' von ' + facts.total +
+      ? '\nCheck-in-Anleitung in Elev8 Suite hinterlegt für ' + facts.checkin.n + ' von ' + facts.total +
         ' Einheiten (' + plural(facts.checkin.avg, 'Schritt', 'Schritte') + ' im Schnitt, max. ' + facts.checkin.max + ').'
       : '';
     put('access_note', 'Schlosssystem: ' + lock + '.' + extra,
-      L('Lock-Typ und Check-in-Steps aus Elev8', 'Lock type and check-in steps from Elev8'));
+      L('Lock-Typ und Check-in-Steps aus Elev8 Suite', 'Lock type and check-in steps from Elev8 Suite'));
   }
 
   // Nur vorschlagen, wenn der Wert zu einer der Auswahlmoeglichkeiten passt.
   if (facts.smartLocks > 0) {
     if (facts.smartLocks === facts.total) {
-      put('access', 'smart_lock', L('Alle Einheiten haben in Elev8 ein Smart Lock',
-        'All units have a smart lock in Elev8'));
+      put('access', 'smart_lock', L('Alle Einheiten haben in Elev8 Suite ein Smart Lock',
+        'All units have a smart lock in Elev8 Suite'));
     } else {
       put('access', 'mixed', L(
-        facts.smartLocks + ' von ' + facts.total + ' Einheiten haben in Elev8 ein Smart Lock',
-        facts.smartLocks + ' of ' + facts.total + ' units have a smart lock in Elev8'));
+        facts.smartLocks + ' von ' + facts.total + ' Einheiten haben in Elev8 Suite ein Smart Lock',
+        facts.smartLocks + ' of ' + facts.total + ' units have a smart lock in Elev8 Suite'));
     }
     put('smartlock', 'elev8_auto', L(
       plural(facts.smartLocks, 'Einheit ist', 'Einheiten sind') + ' mit einem Smart Lock verbunden',
@@ -381,16 +381,16 @@ function prefillAnswers(facts, tenantName) {
   }
 
   if (facts.ssids.length === 1 && facts.wifiCount === facts.total) {
-    put('wifi', facts.ssids[0].value, L('WLAN-Name aus Elev8', 'Wi-Fi name from Elev8'));
+    put('wifi', facts.ssids[0].value, L('WLAN-Name aus Elev8 Suite', 'Wi-Fi name from Elev8 Suite'));
   } else if (facts.ssids.length) {
     put('wifi', facts.ssids.map(function (x) { return x.value; }).join(', '), L(
-      'WLAN-Namen aus Elev8 (' + facts.wifiCount + ' von ' + facts.total + ' Einheiten)',
-      'Wi-Fi names from Elev8 (' + facts.wifiCount + ' of ' + facts.total + ' units)'));
+      'WLAN-Namen aus Elev8 Suite (' + facts.wifiCount + ' von ' + facts.total + ' Einheiten)',
+      'Wi-Fi names from Elev8 Suite (' + facts.wifiCount + ' of ' + facts.total + ' units)'));
   }
 
   const p = facts.profile;
   if (p) {
-    const fromProfile = L('aus Ihrem Elev8-Profil', 'from your Elev8 profile');
+    const fromProfile = L('aus Ihrem Elev8-Suite-Profil', 'from your Elev8 Suite profile');
     put('contact_main', p.contact, fromProfile);
     put('contact_phone', p.phone, fromProfile);
     put('contact_email', p.email, fromProfile);
@@ -398,22 +398,22 @@ function prefillAnswers(facts, tenantName) {
 
   const ci = (facts.checkinTime && facts.checkinTime.value) || (p && p.checkin);
   const co = (facts.checkoutTime && facts.checkoutTime.value) || (p && p.checkout);
-  put('checkin_time', ci, L('Check-in-Zeit aus Elev8', 'Check-in time from Elev8'));
-  put('checkout_time', co, L('Check-out-Zeit aus Elev8', 'Check-out time from Elev8'));
+  put('checkin_time', ci, L('Check-in-Zeit aus Elev8 Suite', 'Check-in time from Elev8 Suite'));
+  put('checkout_time', co, L('Check-out-Zeit aus Elev8 Suite', 'Check-out time from Elev8 Suite'));
 
   if (facts.deposits.length === 1) {
     put('deposit_amount', facts.deposits[0].value.trim(), L(
-      'Kaution aus Elev8 (' + plural(facts.deposits[0].n, 'Einheit', 'Einheiten') + ')',
-      'Deposit from Elev8 (' + facts.deposits[0].n + (facts.deposits[0].n === 1 ? ' unit' : ' units') + ')'));
+      'Kaution aus Elev8 Suite (' + plural(facts.deposits[0].n, 'Einheit', 'Einheiten') + ')',
+      'Deposit from Elev8 Suite (' + facts.deposits[0].n + (facts.deposits[0].n === 1 ? ' unit' : ' units') + ')'));
   } else if (!facts.deposits.length && facts.total) {
-    put('deposit', 'none', L('In Elev8 ist keine Kaution hinterlegt', 'No deposit is stored in Elev8'));
+    put('deposit', 'none', L('In Elev8 Suite ist keine Kaution hinterlegt', 'No deposit is stored in Elev8 Suite'));
   }
 
   return out;
 }
 
 /**
- * Bereitschaftsanzeige: was in Elev8 gepflegt ist und was fehlt.
+ * Bereitschaftsanzeige: was in Elev8 Suite gepflegt ist und was fehlt.
  * Reine Information — keine Frage an den Tenant.
  */
 function readiness(facts) {
