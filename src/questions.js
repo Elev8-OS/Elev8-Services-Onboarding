@@ -12,7 +12,7 @@
  *   dependsOn { field, equals }  – Feld entfällt, solange die Bedingung nicht
  *                                  erfüllt ist. `equals` ist ein Code oder eine
  *                                  Liste von Codes.
- *   preset / presetNote          – Vorschlag von uns (nicht aus Elev8)
+ *   preset / presetNote          – Vorschlag von uns (nicht aus Elev8 Suite)
  *   type 'multi'                 – Mehrfachauswahl, gespeichert als Codeliste
  *   type 'note'                  – reiner Hinweis, keine Frage
  *   contract: true               – Bestandteil des Vertrags; nach der
@@ -35,7 +35,7 @@ const SCOPE_OPTIONS = [
   o('complaints', 'Beschwerden aufnehmen und lösen', 'Taking and resolving complaints'),
   o('escalation', 'Eskalation an Sie nach Ihren Regeln', 'Escalation to you under your rules'),
   o('extensions', 'Verlängerung, Late Check-out, Zusatzleistungen', 'Extensions, late check-out, extras'),
-  o('tasks', 'Aufträge an Ihr Team vor Ort über Elev8', 'Dispatching your on-site team via Elev8'),
+  o('tasks', 'Aufträge an Ihr Team vor Ort über Elev8 Suite', 'Dispatching your on-site team via Elev8 Suite'),
   o('phone', 'Telefonische Erreichbarkeit für Gäste', 'Phone availability for guests')
 ];
 
@@ -167,7 +167,7 @@ const SECTIONS = [
         help: L('Ohne diese Information können wir Gästen keine verbindliche Auskunft geben.',
           'Without this we cannot give guests a reliable answer.'),
         options: [
-          o('elev8_upsell', 'Als Upsell in Elev8', 'As an upsell in Elev8'),
+          o('elev8_upsell', 'Als Upsell in Elev8 Suite', 'As an upsell in Elev8 Suite'),
           o('channel_booking', 'In der Buchung vom Kanal', 'In the booking from the channel'),
           o('team_list', 'Liste beim Team vor Ort', 'A list held by the on-site team'),
           o('guest_onsite', 'Gast meldet sich direkt vor Ort', 'The guest asks on site'),
@@ -361,8 +361,8 @@ const SECTIONS = [
       'Who do we call when there is a fire — literally and figuratively.'),
     fields: [
       { id: 'note_elev8_users', type: 'note',
-        label: L('Alle Personen, die informiert oder eskaliert werden sollen, müssen in Elev8 als Benutzer angelegt sein. Nur dann erreicht unser GRO sie über das System und der Vorgang bleibt nachvollziehbar. Bitte legen Sie fehlende Personen vor dem Start an.',
-          'Everyone who should be informed or escalated to must exist as a user in Elev8. Only then can our GRO reach them through the system and the case stays traceable. Please create any missing people before we start.') },
+        label: L('Alle Personen, die informiert oder eskaliert werden sollen, müssen in Elev8 Suite als Benutzer angelegt sein. Nur dann erreicht unser GRO sie über das System und der Vorgang bleibt nachvollziehbar. Bitte legen Sie fehlende Personen vor dem Start an.',
+          'Everyone who should be informed or escalated to must exist as a user in Elev8 Suite. Only then can our GRO reach them through the system and the case stays traceable. Please create any missing people before we start.') },
       { id: 'esc1', type: 'textarea', required: true, contract: true,
         label: L('Stufe 1: Name, Telefon, erreichbar wann', 'Level 1: name, phone, when reachable') },
       { id: 'esc2', type: 'textarea', contract: true,
@@ -370,10 +370,10 @@ const SECTIONS = [
       { id: 'esc3', type: 'textarea', contract: true,
         label: L('Stufe 3: Name, Telefon, erreichbar wann', 'Level 3: name, phone, when reachable') },
       { id: 'esc_in_elev8', type: 'radio', required: true,
-        label: L('Sind diese Personen bereits als Benutzer in Elev8 angelegt?',
-          'Do these people already exist as users in Elev8?'),
-        help: L('Zwingende Voraussetzung — ohne Elev8-Benutzer keine Eskalation.',
-          'A hard requirement — no Elev8 user, no escalation.'),
+        label: L('Sind diese Personen bereits als Benutzer in Elev8 Suite angelegt?',
+          'Do these people already exist as users in Elev8 Suite?'),
+        help: L('Zwingende Voraussetzung — ohne Elev8-Suite-Benutzer keine Eskalation.',
+          'A hard requirement — no Elev8 Suite user, no escalation.'),
         options: [o('all', 'Ja, alle', 'Yes, all of them'), o('partly', 'Teilweise', 'Some of them'),
           o('none', 'Nein, noch nicht', 'No, not yet')] },
       { id: 'esc_immediate', type: 'multi', required: true, contract: true,
@@ -411,10 +411,10 @@ const SECTIONS = [
         label: L('Wer ist vor Ort? Rolle, Name, Telefon, Arbeitszeiten',
           'Who is on site? Role, name, phone, working hours') },
       { id: 'staff_in_elev8', type: 'radio',
-        label: L('Sind diese Personen bereits als Benutzer in Elev8 angelegt?',
-          'Do these people already exist as users in Elev8?'),
-        help: L('Auch hier zwingend: Aufträge und Informationen laufen ausschliesslich über Elev8.',
-          'Also mandatory here: tasks and information run exclusively through Elev8.'),
+        label: L('Sind diese Personen bereits als Benutzer in Elev8 Suite angelegt?',
+          'Do these people already exist as users in Elev8 Suite?'),
+        help: L('Auch hier zwingend: Aufträge und Informationen laufen ausschliesslich über Elev8 Suite.',
+          'Also mandatory here: tasks and information run exclusively through Elev8 Suite.'),
         options: [o('yes', 'Ja', 'Yes'), o('no', 'Nein', 'No'), o('partly', 'Teilweise', 'Partly'),
           o('unknown', 'Weiss ich nicht', 'I do not know')] },
       { id: 'lockout', type: 'multi',
@@ -529,15 +529,15 @@ const SECTIONS = [
       'For properties in the EU we need this in writing before we serve the first guest.'),
     fields: [
       { id: 'note_meldeschein', type: 'note',
-        label: L('Meldescheine gehören nicht zum Leistungsumfang des Guest Relations Officer. Sie werden entweder über die direkt angebundenen Schnittstellen in Elev8 erfasst oder von Ihnen selbst.',
-          'Guest registration forms are not part of the Guest Relations Officer scope. They are captured either through the directly connected interfaces in Elev8 or by you.') },
+        label: L('Meldescheine gehören nicht zum Leistungsumfang des Guest Relations Officer. Sie werden entweder über die direkt angebundenen Schnittstellen in Elev8 Suite erfasst oder von Ihnen selbst.',
+          'Guest registration forms are not part of the Guest Relations Officer scope. They are captured either through the directly connected interfaces in Elev8 Suite or by you.') },
       { id: 'meldeschein', type: 'radio',
         label: L('Wie werden Meldescheine für ausländische Gäste heute erfasst?',
           'How are registration forms for foreign guests captured today?'),
         help: L('Für deutsche Staatsangehörige ist die besondere Meldepflicht seit 1.1.2025 entfallen, für ausländische Gäste besteht sie weiter.',
           'For German nationals the special registration duty ended on 1 January 2025; for foreign guests it still applies.'),
         options: [
-          o('elev8_interface', 'Über die Schnittstelle in Elev8', 'Through the interface in Elev8'),
+          o('elev8_interface', 'Über die Schnittstelle in Elev8 Suite', 'Through the interface in Elev8 Suite'),
           o('ourselves', 'Wir selbst vor Ort', 'By us on site'),
           o('unclear', 'Noch nicht geregelt', 'Not yet decided')
         ] },
@@ -571,18 +571,18 @@ const SECTIONS = [
       'Without the right access our team can only watch.'),
     fields: [
       { id: 'elev8_access', type: 'radio',
-        label: L('Wer legt die Elev8-Benutzer für unsere GROs an?',
-          'Who creates the Elev8 users for our GROs?'),
+        label: L('Wer legt die Elev8-Suite-Benutzer für unsere GROs an?',
+          'Who creates the Elev8 Suite users for our GROs?'),
         options: [
           o('we_create', 'Wir legen sie an', 'We will create them'),
-          o('elev8_creates', 'Bitte legt Elev8 sie an', 'Please have Elev8 create them'),
+          o('elev8_creates', 'Bitte legt Elevate Software AG sie an', 'Please have Elevate Software AG create them'),
           o('open', 'Noch offen', 'Still open')
         ] },
       { id: 'smartlock', type: 'radio',
         label: L('Wie werden Türcodes erzeugt und an Gäste geschickt?',
           'How are door codes generated and sent to guests?'),
         options: [
-          o('elev8_auto', 'Automatisch über Elev8', 'Automatically through Elev8'),
+          o('elev8_auto', 'Automatisch über Elev8 Suite', 'Automatically through Elev8 Suite'),
           o('manual_team', 'Manuell durch unser Team', 'Manually by our team'),
           o('fixed_per_unit', 'Fester Code je Einheit', 'A fixed code per unit'),
           o('keybox_fixed', 'Schlüsselbox mit festem Code', 'Key box with a fixed code'),
@@ -591,7 +591,7 @@ const SECTIONS = [
       { id: 'whatsapp', type: 'radio', label: L('Nutzen Sie WhatsApp Business?', 'Do you use WhatsApp Business?'),
         options: [
           o('ours', 'Ja, die Nummer gehört uns', 'Yes, the number is ours'),
-          o('via_elev8', 'Ja, soll über Elev8 laufen', 'Yes, it should run through Elev8'),
+          o('via_elev8', 'Ja, soll über Elev8 Suite laufen', 'Yes, it should run through Elev8 Suite'),
           o('no', 'Nein, nutzen wir nicht', 'No, we do not use it')
         ] },
       { id: 'other_tools', type: 'text',
@@ -673,21 +673,21 @@ function valueLabel(field, value, lang) {
     .filter(function (x) { return x !== ''; }).join(', ');
 }
 
-/** Vorschläge, die von uns kommen und nicht aus Elev8. */
+/** Vorschläge, die von uns kommen und nicht aus Elev8 Suite. */
 function presets() {
   const out = {};
   ALL_FIELDS.forEach(function (f) {
     if (f.preset) {
       out[f.id] = {
         value: f.preset,
-        evidence: f.presetNote || L('Vorschlag von Elev8 — bitte prüfen', 'Suggested by Elev8 — please check')
+        evidence: f.presetNote || L('Vorschlag von Elev8 Suite — bitte prüfen', 'Suggested by Elev8 Suite — please check')
       };
     }
   });
   return out;
 }
 
-/** Elev8-Vorbelegung über die eigenen Vorschläge legen. */
+/** Elev8-Suite-Vorbelegung über die eigenen Vorschläge legen. */
 function mergePrefill(fromElev8) {
   return Object.assign({}, presets(), fromElev8 || {});
 }

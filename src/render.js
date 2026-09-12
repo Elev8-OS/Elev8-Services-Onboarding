@@ -79,7 +79,7 @@ function control(f, v, lang) {
 /**
  * Drei Zustände:
  *  - offen                      → normales Eingabefeld
- *  - aus Elev8, unbestätigt     → Wert steht da, ein Klick auf "Stimmt" genügt
+ *  - aus Elev8 Suite, unbestätigt     → Wert steht da, ein Klick auf "Stimmt" genügt
  *  - beantwortet / bestätigt    → kompakte Zeile mit "Ändern"
  */
 function field(f, value, source, pre, conflict, lang) {
@@ -171,7 +171,7 @@ function readinessHints(rows, lang) {
 
 /**
  * Bereitschaftsanzeige. Neu: der Tenant kann selbst nachholen, wenn er in
- * Elev8 etwas nachgepflegt hat - ohne uns anzurufen.
+ * Elev8 Suite etwas nachgepflegt hat - ohne uns anzurufen.
  */
 function readinessPanel(rows, facts, opts) {
   const o = opts || {};
@@ -205,7 +205,7 @@ function tenantForm(intake, answers, sources, snapshot, opts) {
   const clashes = {};
   (o.conflicts || []).forEach(function (c) { clashes[c.field] = c; });
   const lockedSet = o.locked || {};
-  // Elev8-Daten plus unsere eigenen Vorschlaege (z. B. der Leistungsumfang).
+  // Elev8-Suite-Daten plus unsere eigenen Vorschlaege (z. B. der Leistungsumfang).
   const pre = mergePrefill(snapshot && snapshot.prefill);
   const filled = INPUT_FIELDS.filter(function (f) { return (answers[f.id] || '').trim() !== ''; }).length;
   const open = INPUT_FIELDS.filter(function (f) {
@@ -330,7 +330,7 @@ function loginPage(error) {
     bodyClass: 'admin login',
     body: `<div class="loginwrap">
   <form method="post" action="/admin/login" class="loginbox">
-    <p class="brandline"><span class="dot"></span>Elev8 · Guest Relations</p>
+    <p class="brandline"><span class="dot"></span>Elev8 Suite · Guest Relations</p>
     <h1>Tenant-Aufnahme</h1>
     <p class="lede small">Interner Bereich.</p>
     ${error ? '<p class="banner err">' + esc(error) + '</p>' : ''}
@@ -373,12 +373,12 @@ function adminList(intakes, tenants, baseUrl, flash) {
     script: '/admin.js',
     body: `<div class="page">
   <header class="hero tight">
-    <p class="eyebrow">Elev8 · Guest Relations · intern</p>
+    <p class="eyebrow">Elev8 Suite · Guest Relations · intern</p>
     <h1>Tenant-Aufnahmen</h1>
-    <p class="lede">Tenant auswählen, Link verschicken, Antworten mitlesen. Was in Elev8 schon steht, füllt sich von selbst.</p>
+    <p class="lede">Tenant auswählen, Link verschicken, Antworten mitlesen. Was in Elev8 Suite schon steht, füllt sich von selbst.</p>
     <div class="actions">
       <a class="btn ghost" href="/admin/tenants">Tenants verwalten (${tenants.length})</a>
-      <form method="post" action="/admin/resync-sweep"><button class="btn ghost" type="submit">Alle Aufnahmen aus Elev8 auffrischen</button></form>
+      <form method="post" action="/admin/resync-sweep"><button class="btn ghost" type="submit">Alle Aufnahmen aus Elev8 Suite auffrischen</button></form>
     </div>
   </header>
 
@@ -393,11 +393,11 @@ function adminList(intakes, tenants, baseUrl, flash) {
              <option value="" disabled selected>— auswählen —</option>
              ${tenants.map(tenantOption).join('')}
            </select>`
-        : '<p class="fhelp">Noch kein Tenant angelegt. <a href="/admin/tenants">Zuerst einen Tenant mit Elev8-Token hinzufügen.</a></p>'}
+        : '<p class="fhelp">Noch kein Tenant angelegt. <a href="/admin/tenants">Zuerst einen Tenant mit Elev8-Suite-Token hinzufügen.</a></p>'}
       </div>
       <button class="btn" type="submit"${ready.length ? '' : ' disabled'}>Aufnahme anlegen</button>
     </div>
-    <p class="fhelp">Beim Anlegen holt die App die aktuellen Elev8-Daten und füllt das Formular damit vor.</p>
+    <p class="fhelp">Beim Anlegen holt die App die aktuellen Elev8-Suite-Daten und füllt das Formular damit vor.</p>
   </form>
 
   <table class="tbl">
@@ -435,7 +435,7 @@ function tenantsPage(tenants, flash, error, discovery) {
   <header class="hero tight">
     <p class="eyebrow"><a href="/admin">← Aufnahmen</a></p>
     <h1>Tenants</h1>
-    <p class="lede">Ein Tenant wird einmal angelegt — mit dem Elev8-Token, mit dem die App seine Daten liest. Danach wählt man ihn nur noch aus.</p>
+    <p class="lede">Ein Tenant wird einmal angelegt — mit dem Elev8-Suite-Token, mit dem die App seine Daten liest. Danach wählt man ihn nur noch aus.</p>
   </header>
 
   ${flash ? '<p class="banner done">' + esc(flash) + '</p>' : ''}
@@ -450,7 +450,7 @@ function tenantsPage(tenants, flash, error, discovery) {
         <input type="text" id="nt" name="note" placeholder="Hotel Zimmermann, Filderstadt"></div>
     </div>
     <div class="field" style="margin-top:12px">
-      <label class="flabel" for="tk">Elev8-Token</label>
+      <label class="flabel" for="tk">Elev8-Suite-Token</label>
       <p class="fhelp">Bearer-Token für den Elev8-MCP dieses Tenants. Wird serverseitig gespeichert und nie im Formular angezeigt.</p>
       <input type="password" id="tk" name="elev8_token" autocomplete="off" placeholder="eyJ…">
     </div>
@@ -458,7 +458,7 @@ function tenantsPage(tenants, flash, error, discovery) {
   </form>
 
   <table class="tbl">
-    <thead><tr><th>Tenant</th><th>Elev8</th><th class="num">Einheiten</th><th class="num">Zuletzt geholt</th><th class="num">Aufnahmen</th><th></th></tr></thead>
+    <thead><tr><th>Tenant</th><th>Elev8 Suite</th><th class="num">Einheiten</th><th class="num">Zuletzt geholt</th><th class="num">Aufnahmen</th><th></th></tr></thead>
     <tbody>${rows}</tbody>
   </table>
 
@@ -500,7 +500,7 @@ function tenantDetail(t, flash) {
   <header class="hero tight">
     <p class="eyebrow"><a href="/admin/tenants">← Alle Tenants</a></p>
     <h1>${esc(t.name)}</h1>
-    <p class="lede">${t.synced_at ? 'Zuletzt aus Elev8 geholt am ' + new Date(t.synced_at).toLocaleString('de-CH') : 'Noch keine Daten aus Elev8 geholt.'}</p>
+    <p class="lede">${t.synced_at ? 'Zuletzt aus Elev8 Suite geholt am ' + new Date(t.synced_at).toLocaleString('de-CH') : 'Noch keine Daten aus Elev8 Suite geholt.'}</p>
     ${t.sync_error ? '<p class="banner err">' + esc(t.sync_error) + '</p>' : ''}
     ${flash ? '<p class="banner done">' + esc(flash) + '</p>' : ''}
     <div class="actions">
@@ -512,14 +512,14 @@ function tenantDetail(t, flash) {
 
   <form class="newbox" method="post" action="/admin/tenants/${t.id}/token">
     <div class="field">
-      <label class="flabel" for="tk">Elev8-Token ersetzen</label>
+      <label class="flabel" for="tk">Elev8-Suite-Token ersetzen</label>
       <input type="password" id="tk" name="elev8_token" autocomplete="off" placeholder="${t.elev8_token ? 'hinterlegt — neuen Wert eingeben zum Ersetzen' : 'noch keiner hinterlegt'}">
     </div>
     <div class="actions"><button class="btn" type="submit">Speichern und neu holen</button></div>
   </form>
 
   <section class="sec">
-    <div class="sec-head"><h2>Aus Elev8 gelesen</h2></div>
+    <div class="sec-head"><h2>Aus Elev8 Suite gelesen</h2></div>
     <div class="qalist">${factRows || '<p class="muted">Noch nichts geholt.</p>'}</div>
   </section>
 
@@ -533,7 +533,7 @@ function tenantDetail(t, flash) {
     ${rd.length ? '<ul class="rdlist">' + rd.map(function (r) {
       const pct = r.total ? Math.round((r.n / r.total) * 100) : 0;
       return `<li class="rd ${r.ok ? 'ok' : (r.partial ? 'partial' : 'gap')}"><span class="rd-label">${esc(r.label)}</span><span class="rd-bar"><span style="width:${pct}%"></span></span><span class="rd-n">${r.n}/${r.total}</span></li>`;
-    }).join('') + '</ul>' : '<p class="muted">Noch keine Daten aus Elev8 geholt.</p>'}
+    }).join('') + '</ul>' : '<p class="muted">Noch keine Daten aus Elev8 Suite geholt.</p>'}
   </section>
 
   <footer class="foot"><p><a href="/admin/tenants">Zurück</a></p></footer>
@@ -548,7 +548,7 @@ function diagnosePage(t, result) {
     body: `<div class="page">
   <header class="hero tight">
     <p class="eyebrow"><a href="/admin/tenants/${t.id}">← ${esc(t.name)}</a></p>
-    <h1>Verbindung zu Elev8</h1>
+    <h1>Verbindung zu Elev8 Suite</h1>
   </header>
   <pre class="code">${esc(JSON.stringify(result, null, 2))}</pre>
   <footer class="foot"><p><a href="/admin/tenants">Zurück</a></p></footer>
@@ -624,8 +624,8 @@ function adminDetail(intake, answers, sources, baseUrl, flash, extra) {
       const v = (answers[f.id] || '').trim();
       const src = sources[f.id];
       const tag = v
-        ? (src === 'confirmed' ? '<span class="tnote">aus Elev8, bestätigt</span>' : '')
-        : (pre[f.id] ? '<span class="tnote">Vorschlag aus Elev8, noch nicht bestätigt</span>' : '');
+        ? (src === 'confirmed' ? '<span class="tnote">aus Elev8 Suite, bestätigt</span>' : '')
+        : (pre[f.id] ? '<span class="tnote">Vorschlag aus Elev8 Suite, noch nicht bestätigt</span>' : '');
       return `<div class="qa${v ? '' : ' empty'}">
   <div class="q">${esc(t(f.label, 'de'))}</div>
   <div class="a">${v ? nl2br(valueLabel(f, v, 'de')) : (pre[f.id] ? '<span class="muted">' + nl2br(valueLabel(f, pre[f.id].value, 'de')) + '</span>' : '<span class="muted">— offen —</span>')}${tag}</div>
@@ -649,12 +649,12 @@ function adminDetail(intake, answers, sources, baseUrl, flash, extra) {
   <header class="hero tight">
     <p class="eyebrow"><a href="/admin">← Alle Aufnahmen</a></p>
     <h1>${esc(intake.tenant_name)}</h1>
-    <p class="lede">${filled} von ${INPUT_FIELDS.length} Feldern beantwortet, ${preCount} aus Elev8 vorausgefüllt · ${intake.status === 'submitted' ? 'vom Tenant abgeschlossen' : 'noch offen'}</p>
+    <p class="lede">${filled} von ${INPUT_FIELDS.length} Feldern beantwortet, ${preCount} aus Elev8 Suite vorausgefüllt · ${intake.status === 'submitted' ? 'vom Tenant abgeschlossen' : 'noch offen'}</p>
     ${flash ? '<p class="banner done">' + esc(flash) + '</p>' : ''}
-    ${preCount ? '' : '<p class="banner">Für diese Aufnahme ist noch nichts aus Elev8 vorausgefüllt. Wenn der Tenant inzwischen Daten liefert, hier neu holen — der Link an den Tenant bleibt derselbe.</p>'}
+    ${preCount ? '' : '<p class="banner">Für diese Aufnahme ist noch nichts aus Elev8 Suite vorausgefüllt. Wenn der Tenant inzwischen Daten liefert, hier neu holen — der Link an den Tenant bleibt derselbe.</p>'}
     <div class="actions">
       <button class="btn ghost copy" type="button" data-link="${esc(baseUrl)}/f/${esc(intake.token)}">Tenant-Link kopieren</button>
-      <form method="post" action="/admin/i/${intake.id}/refresh"><button class="btn ghost" type="submit">Vorbelegung aus Elev8 neu holen</button></form>
+      <form method="post" action="/admin/i/${intake.id}/refresh"><button class="btn ghost" type="submit">Vorbelegung aus Elev8 Suite neu holen</button></form>
       <a class="btn ghost" href="/admin/i/${intake.id}/export.md">Als Markdown</a>
       <a class="btn ghost" href="/admin/i/${intake.id}/export.json">Als JSON</a>
     </div>
@@ -678,7 +678,7 @@ function exportMarkdown(intake, answers, sources) {
     out.push('');
     s.fields.filter(isInput).forEach(function (f) {
       const v = (answers[f.id] || '').trim();
-      out.push('**' + t(f.label, 'de') + '**' + (sources[f.id] === 'confirmed' ? ' _(aus Elev8, bestätigt)_' : ''));
+      out.push('**' + t(f.label, 'de') + '**' + (sources[f.id] === 'confirmed' ? ' _(aus Elev8 Suite, bestätigt)_' : ''));
       out.push('');
       out.push(v ? valueLabel(f, v, 'de') : '_offen_');
       out.push('');
