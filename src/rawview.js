@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Rohdaten-Ansicht: zeigt Zeile für Zeile, was Elev8 zu den Einheiten eines
+ * Rohdaten-Ansicht: zeigt Zeile für Zeile, was Elev8 Suite zu den Einheiten eines
  * Tenants liefert. Gedacht für genau die Frage "warum steht da Manual,
  * obwohl ein Smart Lock verbunden ist" — die Antwort steht dann in der
  * Spalte lock_type, unverändert so, wie der MCP sie ausgibt.
@@ -60,9 +60,9 @@ function rawListingsPage(tenant, rows, error) {
 <div class="page wide">
   <header class="hero tight">
     <p class="eyebrow"><a href="/admin/tenants/${tenant.id}">← ${view.esc(tenant.name)}</a></p>
-    <h1>Was Elev8 wirklich liefert</h1>
+    <h1>Was Elev8 Suite wirklich liefert</h1>
     <p class="lede">Unverändert aus <code>get_listings_overview</code>, gerade eben geholt. Wenn hier
-    <code>Manual</code> steht, meldet Elev8 diese Einheit als manuelles Schloss — dann ist an dieser
+    <code>Manual</code> steht, meldet Elev8 Suite diese Einheit als manuelles Schloss — dann ist an dieser
     Einheit kein Smart Lock hinterlegt, unabhängig davon, was im Schloss-Konto verbunden ist.</p>
     ${error ? '<p class="banner err">' + view.esc(error) + '</p>' : ''}
     ${list.length ? '<p class="banner">' + list.length + ' Einheiten · Schlosssysteme: ' + lockLine + '</p>' : ''}

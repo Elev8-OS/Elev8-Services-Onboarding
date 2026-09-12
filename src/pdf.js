@@ -158,9 +158,9 @@ function blocks(d, bs) {
 function pageHeader(d, doc) {
   const y = 46;
   d.font(F.b).fontSize(7.6).fillColor(GOLD)
-    .text('ELEV8', M, y, { width: 60, characterSpacing: 1.1, lineBreak: false });
+    .text('ELEV8 SUITE', M, y, { width: 92, characterSpacing: 1.1, lineBreak: false });
   d.font(F.r).fontSize(7.6).fillColor(MUTED)
-    .text(doc.title, M + 60, y, { width: W - 60, align: 'right', lineBreak: false });
+    .text(doc.title, M + 92, y, { width: W - 92, align: 'right', lineBreak: false });
   d.moveTo(M, y + 13).lineTo(M + W, y + 13).lineWidth(0.6).strokeColor(RULE).stroke();
   d.y = TOP;
   reset(d);
@@ -299,9 +299,9 @@ function render(doc, sig) {
       d.page.margins.bottom = 0;
       if (i > 0) {
         d.font(F.b).fontSize(7.4).fillColor(GOLD)
-          .text('ELEV8', M, 44, { width: 60, characterSpacing: 1.1, lineBreak: false });
+          .text('ELEV8 SUITE', M, 44, { width: 92, characterSpacing: 1.1, lineBreak: false });
         d.font(F.r).fontSize(7.4).fillColor(MUTED)
-          .text(doc.title, M + 60, 44, { width: W - 60, align: 'right', lineBreak: false });
+          .text(doc.title, M + 92, 44, { width: W - 92, align: 'right', lineBreak: false });
         d.moveTo(M, 57).lineTo(M + W, 57).lineWidth(0.5).strokeColor(RULE).stroke();
       }
       d.moveTo(M, PAGE_H - 52).lineTo(M + W, PAGE_H - 52).lineWidth(0.5).strokeColor(RULE).stroke();

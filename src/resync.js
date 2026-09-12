@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Nachholen von Elev8-Daten, ausgeloest vom Tenant selbst.
+ * Nachholen von Elev8-Suite-Daten, ausgeloest vom Tenant selbst.
  *
  * Die eine Regel, die hier zaehlt: ergaenzen ja, ueberschreiben nie.
  * Ein fehlgeschlagener oder unvollstaendiger Abruf darf niemals dazu
@@ -20,7 +20,7 @@ function labelOf(id) {
 }
 
 /**
- * Widersprueche: der Tenant hat etwas eingetragen, Elev8 sagt inzwischen
+ * Widersprueche: der Tenant hat etwas eingetragen, Elev8 Suite sagt inzwischen
  * etwas anderes. Wir loesen das nicht still auf, sondern zeigen beides.
  */
 function conflictsFor(values, prefill) {
@@ -36,7 +36,7 @@ function conflictsFor(values, prefill) {
       label: labelOf(id),
       mine: String(mine),
       elev8: String(p),
-      evidence: (prefill[id] && prefill[id].evidence) || 'aus Elev8'
+      evidence: (prefill[id] && prefill[id].evidence) || 'aus Elev8 Suite'
     });
   });
   return out;
@@ -58,7 +58,7 @@ function closedGaps(oldRows, newRows) {
 }
 
 /**
- * Alten Schnappschuss mit frischen Elev8-Daten zusammenfuehren.
+ * Alten Schnappschuss mit frischen Elev8-Suite-Daten zusammenfuehren.
  * Liefert den neuen Schnappschuss plus das, was der Tenant sehen soll.
  */
 function mergeSnapshot(oldSnap, fresh, values) {
@@ -71,7 +71,7 @@ function mergeSnapshot(oldSnap, fresh, values) {
   Object.keys(freshPre).forEach(function (id) {
     if (!FIELD_MAP.has(id)) return;
     const nv = freshPre[id] && freshPre[id].value;
-    if (!norm(nv)) return;                    // Elev8 liefert nichts -> Altes behalten
+    if (!norm(nv)) return;                    // Elev8 Suite liefert nichts -> Altes behalten
     const before = oldPre[id] && oldPre[id].value;
     prefill[id] = freshPre[id];               // Vorschlag aktualisieren
     if (norm(vals[id])) return;               // schon beantwortet -> kein neuer Vorschlag
@@ -80,7 +80,7 @@ function mergeSnapshot(oldSnap, fresh, values) {
       field: id,
       label: labelOf(id),
       value: String(nv),
-      evidence: freshPre[id].evidence || 'aus Elev8'
+      evidence: freshPre[id].evidence || 'aus Elev8 Suite'
     });
   });
 
@@ -112,9 +112,9 @@ function summarize(r) {
     }).join(', '));
   }
   if (r.added.length) {
-    parts.push(r.added.length + (r.added.length === 1 ? ' neue Angabe' : ' neue Angaben') + ' aus Elev8');
+    parts.push(r.added.length + (r.added.length === 1 ? ' neue Angabe' : ' neue Angaben') + ' aus Elev8 Suite');
   }
-  if (!parts.length) return 'Nichts Neues — in Elev8 steht dasselbe wie vorhin.';
+  if (!parts.length) return 'Nichts Neues — in Elev8 Suite steht dasselbe wie vorhin.';
   return parts.join(' · ');
 }
 
