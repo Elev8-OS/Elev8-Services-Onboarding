@@ -50,7 +50,14 @@ function rawListingsPage(tenant, rows, error) {
   return view.layout({
     title: 'Rohdaten — ' + tenant.name,
     bodyClass: 'admin',
-    body: `<div class="page wide">
+    body: `<style>
+  .page.wide{max-width:1180px}
+  .scroller{overflow-x:auto;margin-top:8px}
+  .tbl.mono td{font-family:var(--f-mono);font-size:12px;white-space:nowrap;padding-right:16px}
+  .tbl.mono th{white-space:nowrap;padding-right:16px}
+  .tbl.mono td:first-child{font-family:var(--f-body);font-size:14px;white-space:normal;min-width:220px}
+</style>
+<div class="page wide">
   <header class="hero tight">
     <p class="eyebrow"><a href="/admin/tenants/${tenant.id}">← ${view.esc(tenant.name)}</a></p>
     <h1>Was Elev8 wirklich liefert</h1>
