@@ -595,35 +595,44 @@ function termsPanel(intake, extra) {
 
   return `<section class="panel">
   <div class="panel-head"><h2>Vertragsdaten</h2></div>
-  <p class="lede small">Mit „Muster-PDF" erzeugen Sie jederzeit einen gekennzeichneten Entwurf zum Verschicken — auch bevor etwas ausgefüllt oder unterschrieben ist. Diese Angaben stehen wörtlich in den Verträgen. Der Tenant sieht die Verträge erst, wenn Preise, Laufzeit und Kündigungsfrist für Rahmenvertrag und Leistungsschein hinterlegt sind.</p>
-  <form method="post" action="/admin/i/${intake.id}/terms" class="newbox">
-    <p class="fhelp" style="margin:0 0 10px">Rahmenvertrag Elev8 Suite</p>
-    <div class="newrow four">
+  <p class="lede small">Diese Angaben stehen wörtlich in den Verträgen. Mit „Muster-PDF" erzeugen Sie jederzeit einen gekennzeichneten Entwurf zum Verschicken — auch bevor etwas ausgefüllt oder unterschrieben ist.</p>
+  <form method="post" action="/admin/i/${intake.id}/terms" class="tbox">
+    <div class="tgroup">
+      <h3>Rahmenvertrag Elev8 Suite</h3>
       <div class="field">
-        <label class="flabel" for="t_platform_model">Abrechnungsmodell</label>
+        <label class="flabel">Abrechnungsmodell</label>
         <div class="choices">
           <label class="choice"><input type="radio" name="platform_model" value="per_unit"${perBooking ? '' : ' checked'}><span>pro Einheit</span></label>
           <label class="choice"><input type="radio" name="platform_model" value="per_booking"${perBooking ? ' checked' : ''}><span>pro Buchung</span></label>
         </div>
       </div>
-      ${inp('platform_price_per_unit', 'Plattform: Preis je Einheit und Monat', tm.platform_price_per_unit, '4.90')}
-      ${inp('platform_price_per_booking', 'Plattform: Preis je Buchung', tm.platform_price_per_booking, '2.50')}
-      ${inp('platform_term_months', 'Rahmen: Mindestlaufzeit (Monate)', tm.platform_term_months || '12', '12')}
-      ${inp('platform_notice_months', 'Rahmen: Kündigungsfrist (Monate)', tm.platform_notice_months || '3', '3')}
+      <div class="tgrid">
+        ${inp('platform_price_per_unit', 'Preis je Einheit/Monat', tm.platform_price_per_unit, '4.90')}
+        ${inp('platform_price_per_booking', 'Preis je Buchung', tm.platform_price_per_booking, '2.50')}
+        ${inp('platform_term_months', 'Mindestlaufzeit (Mt.)', tm.platform_term_months || '12', '12')}
+        ${inp('platform_notice_months', 'Kündigungsfrist (Mt.)', tm.platform_notice_months || '3', '3')}
+      </div>
     </div>
-    <p class="fhelp" style="margin:16px 0 10px">Leistungsschein Guest Relations</p>
-    <div class="newrow four">
-      ${inp('price_per_unit', 'GRO: Preis je Einheit und Monat', tm.price_per_unit, '9.50')}
-      ${inp('setup_fee', 'GRO: Einrichtung einmalig', tm.setup_fee, 'leer = entfällt')}
-      ${inp('term_months', 'GRO: Mindestlaufzeit (Monate)', tm.term_months || '12', '12')}
-      ${inp('notice_months', 'GRO: Kündigungsfrist (Monate)', tm.notice_months || '3', '3')}
+
+    <div class="tgroup">
+      <h3>Leistungsschein Guest Relations</h3>
+      <div class="tgrid">
+        ${inp('price_per_unit', 'Preis je Einheit/Monat', tm.price_per_unit, '9.50')}
+        ${inp('setup_fee', 'Einrichtung einmalig', tm.setup_fee, 'leer = entfällt')}
+        ${inp('term_months', 'Mindestlaufzeit (Mt.)', tm.term_months || '12', '12')}
+        ${inp('notice_months', 'Kündigungsfrist (Mt.)', tm.notice_months || '3', '3')}
+      </div>
     </div>
-    <p class="fhelp" style="margin:16px 0 10px">Für alle Dokumente</p>
-    <div class="newrow four">
-      ${inp('currency', 'Währung', tm.currency || 'EUR', 'EUR')}
-      ${inp('law', 'Recht (CH oder DE)', tm.law || 'CH', 'CH')}
-      ${inp('venue', 'Gerichtsstand', tm.venue || 'Solothurn, Schweiz', 'Solothurn, Schweiz')}
+
+    <div class="tgroup">
+      <h3>Für alle Dokumente</h3>
+      <div class="tgrid">
+        ${inp('currency', 'Währung', tm.currency || 'EUR', 'EUR')}
+        ${inp('law', 'Recht (CH oder DE)', tm.law || 'CH', 'CH')}
+        ${inp('venue', 'Gerichtsstand', tm.venue || 'Olten, Schweiz', 'Olten, Schweiz')}
+      </div>
     </div>
+
     <div class="actions"><button class="btn" type="submit">Vertragsdaten speichern</button></div>
   </form>
   <div class="clist">
@@ -634,7 +643,7 @@ function termsPanel(intake, extra) {
   <p class="lede small">${ready
     ? (missing.length
       ? 'Der Tenant sieht die Verträge noch nicht: ' + missing.length + ' Pflichtfeld' + (missing.length === 1 ? '' : 'er') + ' fehlt noch (' + esc(missing.slice(0, 6).join(', ')) + (missing.length > 6 ? ' …' : '') + ').'
-      : 'Der Tenant kann beide Verträge lesen und unterzeichnen.')
+      : 'Der Tenant kann alle drei Dokumente lesen und in der Reihenfolge Rahmenvertrag, AVV, Leistungsschein unterzeichnen.')
     : 'Sobald Preise, Mindestlaufzeit und Kündigungsfrist für beide Dokumente stehen, erscheinen die Verträge beim Tenant.'}</p>
 </section>`;
 }
