@@ -141,6 +141,8 @@ const UI = {
     'Non-binding reading version. Only the German version is binding and is the one to be signed.'),
   bindingNotice: L('Verbindliche Fassung. Der Vertrag wird in deutscher Sprache geschlossen; eine englische Lesefassung steht daneben.',
     'Binding version. The contract is concluded in German; an English reading version is available alongside.'),
+  needsPlatform: L('Bitte unterzeichnen Sie zuerst den Rahmenvertrag Elev8 Suite.',
+    'Please sign the Elev8 Suite framework agreement first.'),
   contractsH: L('Verträge', 'Contracts'),
   contractsP: L('Aus Ihren Angaben entstehen zwei Dokumente. Bitte lesen und unterzeichnen Sie beide — danach können wir starten.',
     'Two documents are generated from your entries. Please read and sign both — then we can start.'),

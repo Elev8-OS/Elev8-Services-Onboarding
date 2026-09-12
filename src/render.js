@@ -586,33 +586,55 @@ function termsPanel(intake, extra) {
         : ''}</div>
     </div>`;
   };
-  const ready = String(tm.price_per_unit || '').trim() && String(tm.term_months || '').trim() &&
-    String(tm.notice_months || '').trim();
+  const filled = function (k) { return String(tm[k] || '').trim() !== ''; };
+  const platformPriceKey = tm.platform_model === 'per_booking' ? 'platform_price_per_booking' : 'platform_price_per_unit';
+  const ready = filled(platformPriceKey) && filled('price_per_unit') &&
+    filled('term_months') && filled('notice_months');
+  const perBooking = tm.platform_model === 'per_booking';
 
   return `<section class="panel">
   <div class="panel-head"><h2>Vertragsdaten</h2></div>
-  <p class="lede small">Diese Angaben stehen wörtlich im GRO-Vertrag. Ohne Preis, Mindestlaufzeit und Kündigungsfrist sieht der Tenant keine Verträge.</p>
+  <p class="lede small">Diese Angaben stehen wörtlich in den Verträgen. Der Tenant sieht die Verträge erst, wenn Preise, Laufzeit und Kündigungsfrist für Rahmenvertrag und Leistungsschein hinterlegt sind.</p>
   <form method="post" action="/admin/i/${intake.id}/terms" class="newbox">
+    <p class="fhelp" style="margin:0 0 10px">Rahmenvertrag Elev8 Suite</p>
     <div class="newrow four">
-      ${inp('price_per_unit', 'Preis je Einheit und Monat', tm.price_per_unit, '9.50')}
+      <div class="field">
+        <label class="flabel" for="t_platform_model">Abrechnungsmodell</label>
+        <div class="choices">
+          <label class="choice"><input type="radio" name="platform_model" value="per_unit"${perBooking ? '' : ' checked'}><span>pro Einheit</span></label>
+          <label class="choice"><input type="radio" name="platform_model" value="per_booking"${perBooking ? ' checked' : ''}><span>pro Buchung</span></label>
+        </div>
+      </div>
+      ${inp('platform_price_per_unit', 'Plattform: Preis je Einheit und Monat', tm.platform_price_per_unit, '4.90')}
+      ${inp('platform_price_per_booking', 'Plattform: Preis je Buchung', tm.platform_price_per_booking, '2.50')}
+      ${inp('platform_term_months', 'Rahmen: Mindestlaufzeit (Monate)', tm.platform_term_months || '12', '12')}
+      ${inp('platform_notice_months', 'Rahmen: Kündigungsfrist (Monate)', tm.platform_notice_months || '3', '3')}
+    </div>
+    <p class="fhelp" style="margin:16px 0 10px">Leistungsschein Guest Relations</p>
+    <div class="newrow four">
+      ${inp('price_per_unit', 'GRO: Preis je Einheit und Monat', tm.price_per_unit, '9.50')}
+      ${inp('setup_fee', 'GRO: Einrichtung einmalig', tm.setup_fee, 'leer = entfällt')}
+      ${inp('term_months', 'GRO: Mindestlaufzeit (Monate)', tm.term_months || '12', '12')}
+      ${inp('notice_months', 'GRO: Kündigungsfrist (Monate)', tm.notice_months || '3', '3')}
+    </div>
+    <p class="fhelp" style="margin:16px 0 10px">Für alle Dokumente</p>
+    <div class="newrow four">
       ${inp('currency', 'Währung', tm.currency || 'EUR', 'EUR')}
-      ${inp('setup_fee', 'Einrichtung einmalig', tm.setup_fee, 'leer = entfällt')}
-      ${inp('term_months', 'Mindestlaufzeit (Monate)', tm.term_months || '12', '12')}
-      ${inp('notice_months', 'Kündigungsfrist (Monate)', tm.notice_months || '3', '3')}
       ${inp('law', 'Recht (CH oder DE)', tm.law || 'CH', 'CH')}
       ${inp('venue', 'Gerichtsstand', tm.venue || 'Solothurn, Schweiz', 'Solothurn, Schweiz')}
     </div>
     <div class="actions"><button class="btn" type="submit">Vertragsdaten speichern</button></div>
   </form>
   <div class="clist">
-    ${row('gro', 'Vertrag über Guest-Relations-Leistungen')}
+    ${row('platform', 'Rahmenvertrag Elev8 Suite')}
     ${row('avv', 'Vertrag zur Auftragsverarbeitung')}
+    ${row('gro', 'Leistungsschein Guest Relations')}
   </div>
   <p class="lede small">${ready
     ? (missing.length
       ? 'Der Tenant sieht die Verträge noch nicht: ' + missing.length + ' Pflichtfeld' + (missing.length === 1 ? '' : 'er') + ' fehlt noch (' + esc(missing.slice(0, 6).join(', ')) + (missing.length > 6 ? ' …' : '') + ').'
       : 'Der Tenant kann beide Verträge lesen und unterzeichnen.')
-    : 'Sobald Preis, Mindestlaufzeit und Kündigungsfrist stehen, erscheinen die Verträge beim Tenant.'}</p>
+    : 'Sobald Preise, Mindestlaufzeit und Kündigungsfrist für beide Dokumente stehen, erscheinen die Verträge beim Tenant.'}</p>
 </section>`;
 }
 
