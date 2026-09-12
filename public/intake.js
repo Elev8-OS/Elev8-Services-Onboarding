@@ -5,6 +5,16 @@
   try { boot = JSON.parse(document.getElementById('bootstrap').textContent); }
   catch (e) { return; }
 
+  var S = boot.s || {};
+  function say(key, fallback) { return S[key] || fallback || ''; }
+  function optLabel(fieldId, code) {
+    var m = boot.optLabels && boot.optLabels[fieldId];
+    if (!m) return code;
+    return String(code).split(',').map(function (c) {
+      c = c.trim(); return m[c] || c;
+    }).filter(Boolean).join(', ');
+  }
+
   var flag = document.getElementById('saveflag');
   var railfill = document.getElementById('railfill');
   var timers = {};
@@ -78,10 +88,10 @@
     }
   }
 
-  function depReason(have, parentOff) {
-    if (parentOff) return 'Entfällt aufgrund einer vorherigen Angabe.';
-    if (have) return 'Entfällt, weil Sie „' + have + '" angegeben haben.';
-    return 'Erscheint, sobald Sie die Frage darüber beantwortet haben.';
+  function depReason(parentId, have, parentOff) {
+    if (parentOff) return say('depPrev');
+    if (have) return say('depBecause').replace('%s', optLabel(parentId, have));
+    return say('depWait');
   }
 
   var depsReady = false;
@@ -109,12 +119,12 @@
         if (off && !note && b.classList.contains('field') && !b.classList.contains('note')) {
           note = document.createElement('p');
           note.className = 'fhelp dep-note';
-          note.textContent = depReason(have, parentOff);
+          note.textContent = depReason(parentId, have, parentOff);
           b.appendChild(note);
         } else if (!off && note) {
           note.remove();
         } else if (off && note) {
-          note.textContent = depReason(have, parentOff);
+          note.textContent = depReason(parentId, have, parentOff);
         }
       });
     }
@@ -173,14 +183,15 @@
       answered = document.createElement('div');
       answered.className = 'answered';
       answered.innerHTML = '<div class="aval"></div><div class="afoot">' +
-        '<span class="src"></span><button class="mini" type="button" data-act="edit">Ändern</button></div>';
+        '<span class="src"></span><button class="mini" type="button" data-act="edit"></button></div>';
+      answered.querySelector('[data-act="edit"]').textContent = say('change');
       if (edit) b.insertBefore(answered, edit); else b.appendChild(answered);
     }
     answered.querySelector('.aval').innerHTML = String(value)
       .replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; })
       .replace(/\n/g, '<br>');
     answered.querySelector('.src').innerHTML = '<span class="tick" aria-hidden="true">✓</span> ' +
-      (confirmed ? 'aus Elev8, von Ihnen bestätigt' : 'Ihre Angabe');
+      (confirmed ? say('fromElev8Confirmed') : say('yourAnswer'));
     b.classList.add('flash');
     setTimeout(function () { b.classList.remove('flash'); }, 1200);
   }
@@ -190,7 +201,7 @@
   function save(fieldId) {
     var value = valueOf(fieldId);
     pending++;
-    setFlag('Speichert …');
+    setFlag(say('saving'));
     fetch('/api/f/' + encodeURIComponent(boot.token) + '/answer', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -198,11 +209,11 @@
     }).then(function (r) {
       if (!r.ok) throw new Error('http ' + r.status);
       pending--;
-      if (pending <= 0) { pending = 0; setFlag('Alles gespeichert', 'ok'); }
+      if (pending <= 0) { pending = 0; setFlag(say('savedAll'), 'ok'); }
       progress();
     }).catch(function () {
       pending = Math.max(0, pending - 1);
-      setFlag('Nicht gespeichert — bitte Verbindung prüfen', 'err');
+      setFlag(say('saveFailed'), 'err');
     });
   }
 
@@ -212,7 +223,7 @@
   }
 
   function confirm(payload, label) {
-    setFlag(label || 'Übernimmt …');
+    setFlag(label || say('applying'));
     return fetch('/api/f/' + encodeURIComponent(boot.token) + '/confirm', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -221,12 +232,12 @@
       if (!r.ok) throw new Error('http ' + r.status);
       return r.json();
     }).then(function (data) {
-      (data.applied || []).forEach(function (a) { markDone(a.field, a.value, true); });
-      setFlag((data.applied || []).length + ' aus Elev8 übernommen', 'ok');
+      (data.applied || []).forEach(function (a) { markDone(a.field, a.display || a.value, true); });
+      setFlag((data.applied || []).length + ' ' + say('applied'), 'ok');
       progress();
       return data;
     }).catch(function () {
-      setFlag('Übernahme fehlgeschlagen — bitte nochmals', 'err');
+      setFlag(say('applyFailed'), 'err');
     });
   }
 
@@ -238,7 +249,7 @@
     var act = btn.dataset.act;
 
     if (act === 'okall') {
-      confirm({ section: btn.dataset.sec }, 'Abschnitt wird übernommen …');
+      confirm({ section: btn.dataset.sec }, say('applySection'));
       return;
     }
 
@@ -251,7 +262,7 @@
     // Widerspruch: entweder den Elev8-Wert nehmen oder die eigene Angabe behalten.
     if (act === 'takeelev8') {
       btn.disabled = true;
-      confirm({ field: id, override: true }, 'Wird übernommen …').then(function () {
+      confirm({ field: id, override: true }, say('taking')).then(function () {
         var c = b.querySelector('.conflict');
         if (c) c.remove();
         b.classList.remove('clash');
@@ -316,7 +327,7 @@
   if (okAll) {
     okAll.addEventListener('click', function () {
       okAll.disabled = true;
-      confirm({}, 'Alle Elev8-Angaben werden übernommen …').then(function () {
+      confirm({}, say('applyAll')).then(function () {
         var bar = okAll.closest('.bulkbar');
         if (bar) bar.remove();
       });
@@ -368,8 +379,8 @@
       var label = resyncBtn.textContent;
       resyncBtn.disabled = true;
       resyncBtn.classList.add('loading');
-      resyncBtn.textContent = 'Wir sehen in Elev8 nach …';
-      setResyncMsg('Das dauert ein paar Sekunden.');
+      resyncBtn.textContent = say('resyncBusy');
+      setResyncMsg(say('resyncWait'));
 
       fetch('/api/f/' + encodeURIComponent(boot.token) + '/resync', {
         method: 'POST',
@@ -380,27 +391,27 @@
       }).then(function (res) {
         var d = res.data || {};
         if (res.status === 429) {
-          setResyncMsg(d.message || 'Bitte einen Moment.', 'warn');
+          setResyncMsg(d.message || say('resyncWait'), 'warn');
           return;
         }
         if (!d.ok) {
-          setResyncMsg(d.message || 'Das hat nicht geklappt.', 'err');
+          setResyncMsg(d.message || say('resyncFail'), 'err');
           return;
         }
         renderReadiness(d.readiness);
         var stamp = document.getElementById('rdstamp');
-        if (stamp) stamp.textContent = 'gerade eben';
+        if (stamp) stamp.textContent = say('justNow');
         var units = document.getElementById('rdunits');
         if (units && d.units) units.textContent = d.units;
 
         if (d.changed) {
-          setResyncMsg(d.summary + ' — die Seite wird aktualisiert.', 'ok');
+          setResyncMsg(d.summary + ' — ' + say('resyncReload'), 'ok');
           setTimeout(function () { location.reload(); }, 1400);
         } else {
-          setResyncMsg(d.summary || 'Nichts Neues.', 'ok');
+          setResyncMsg(d.summary || say('resyncNone'), 'ok');
         }
       }).catch(function () {
-        setResyncMsg('Keine Verbindung. Bitte nochmals versuchen.', 'err');
+        setResyncMsg(say('resyncNoConn'), 'err');
       }).then(function () {
         // Nach dem Neuladen ist das egal, sonst muss der Knopf wieder gehen.
         setTimeout(function () {
@@ -424,26 +435,25 @@
         if (!isAnswered(b.dataset.field)) missing.push(b);
       });
       if (missing.length) {
-        finishNote.textContent = missing.length +
-          (missing.length === 1 ? ' Pflichtfeld fehlt' : ' Pflichtfelder fehlen') +
-          ' noch — wir springen zum ersten.';
+        finishNote.textContent = missing.length + ' ' +
+          (missing.length === 1 ? say('missingOne') : say('missingMany')) + ' ' + say('missingTail');
         missing[0].scrollIntoView({ block: 'center', behavior: 'smooth' });
         var el = missing[0].querySelector('input, textarea');
         if (el && !el.closest('[hidden]')) el.focus({ preventScroll: true });
         return;
       }
       submitBtn.disabled = true;
-      finishNote.textContent = 'Wird übermittelt …';
+      finishNote.textContent = say('submitting');
       fetch('/api/f/' + encodeURIComponent(boot.token) + '/submit', { method: 'POST' })
         .then(function (r) {
           if (!r.ok) throw new Error('http');
-          submitBtn.textContent = 'Abgeschlossen — danke';
-          finishNote.textContent = 'Wir melden uns. Sie können hier jederzeit noch etwas ändern, ' +
-            p.filled + ' von ' + p.total + ' Feldern sind ausgefüllt.';
+          submitBtn.textContent = say('submitOk');
+          finishNote.textContent = say('submitOkNote') + ' ' + p.filled + '/' + p.total + ' ' +
+            say('submitOkNote2');
         })
         .catch(function () {
           submitBtn.disabled = false;
-          finishNote.textContent = 'Das hat nicht geklappt — bitte nochmals versuchen.';
+          finishNote.textContent = say('submitFail');
         });
     });
   }

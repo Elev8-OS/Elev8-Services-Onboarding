@@ -291,3 +291,16 @@ select:focus{outline:2px solid var(--gold);outline-offset:-1px}
   .rdfoot{align-items:stretch}
   #resyncBtn{width:100%}
 }
+
+/* ---------- Sprachumschalter ---------- */
+.topright{display:flex;align-items:center;gap:14px;min-width:0}
+.langsw{font-family:var(--f-mono);font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;
+  color:var(--muted);text-decoration:none;border:1px solid var(--line-strong);
+  border-radius:999px;padding:3px 10px;white-space:nowrap}
+.langsw:hover{color:var(--ink);border-color:var(--ink-2)}
+
+/* ---------- vertraglich fixierte Felder ---------- */
+.field.locked .answered{background:var(--surface-2)}
+.lockflag{font-family:var(--f-mono);font-size:11px;text-transform:uppercase;letter-spacing:.06em;
+  color:var(--muted);border:1px solid var(--line-strong);border-radius:999px;padding:2px 9px;cursor:help}
+@media (max-width:560px){ .topright{gap:8px} }
