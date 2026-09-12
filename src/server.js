@@ -9,6 +9,7 @@ const elev8 = require('./elev8');
 const { FIELD_MAP, SECTIONS, mergePrefill } = require('./questions');
 const view = require('./render');
 const rawview = require('./rawview');
+const resync = require('./resync');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -16,6 +17,12 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
 const ELEV8_ADMIN_TOKEN = process.env.ELEV8_ADMIN_TOKEN || '';
 const ELEV8_TENANTS_TOOL = process.env.ELEV8_TENANTS_TOOL || '';
+// Nachtlauf: Aufnahmen, deren Schnappschuss aelter ist als das, werden
+// automatisch aufgefrischt. 0 schaltet den Lauf ab.
+const RESYNC_AGE_HOURS = Number(process.env.RESYNC_AGE_HOURS || 20);
+const RESYNC_MAX_DAYS = Number(process.env.RESYNC_MAX_DAYS || 90);
+// Wie oft der Tenant selbst nachholen darf.
+const RESYNC_COOLDOWN_MS = Number(process.env.RESYNC_COOLDOWN_MS || 60000);
 const COOKIE = 'e8sess';
 
 app.set('trust proxy', 1);
@@ -125,6 +132,33 @@ async function ensureSnapshot(intake) {
   await db.setIntakeSnapshot(intake.id, snap);
   intake.snapshot = snap;
   return snap;
+}
+
+/**
+ * Holt frische Elev8-Daten fuer eine Aufnahme und fuehrt sie mit dem
+ * bestehenden Schnappschuss zusammen. Ergaenzen ja, ueberschreiben nie.
+ */
+async function resyncIntake(intake, tenant) {
+  if (!tenant || !tenant.elev8_token) {
+    const e = new Error('Für diesen Zugang ist in Elev8 kein Token hinterlegt.');
+    e.code = 'no_token';
+    throw e;
+  }
+  const fresh = await elev8.sync(tenant.elev8_token, tenant.name || intake.tenant_name);
+  const answers = await db.getAnswers(intake.id);
+  const merged = resync.mergeSnapshot(intake.snapshot || null, fresh, answers.values);
+  await db.setIntakeSnapshot(intake.id, merged.snapshot);
+  intake.snapshot = merged.snapshot;
+  // Der Tenant-Datensatz profitiert davon gleich mit.
+  if (tenant.id) { try { await db.saveTenantSync(tenant.id, fresh, null); } catch (e) { /* egal */ } }
+  return merged;
+}
+
+let runSweep = async function () { return { skipped: true }; };
+
+function snapshotAgeMs(snap) {
+  const t = snap && snap.syncedAt ? Date.parse(snap.syncedAt) : NaN;
+  return isNaN(t) ? Infinity : Date.now() - t;
 }
 
 /* ---------- health ---------- */
@@ -342,6 +376,17 @@ app.get('/admin/tenants/:id/raw', requireAdmin, async function (req, res, next) 
   } catch (e) { next(e); }
 });
 
+/** Nachtlauf von Hand anstossen - nuetzlich nach einer grossen Pflegeaktion. */
+app.post('/admin/resync-sweep', requireAdmin, async function (req, res, next) {
+  try {
+    const r = await runSweep(true);
+    res.redirect('/admin?msg=' + encodeURIComponent(
+      r.skipped ? 'Nachtlauf läuft bereits.'
+        : 'Nachtlauf: ' + r.done + ' Aufnahmen aufgefrischt, ' + r.failed + ' fehlgeschlagen.'
+    ));
+  } catch (e) { next(e); }
+});
+
 app.get('/admin/tenants/:id/diagnose', requireAdmin, async function (req, res, next) {
   try {
     const t = await db.getTenant(Number(req.params.id));
@@ -366,8 +411,13 @@ app.get('/f/:token', async function (req, res, next) {
     }));
     const snapshot = await ensureSnapshot(intake);
     const a = await db.getAnswers(intake.id);
+    const tenant = await tenantForIntake(intake);
+    const opts = {
+      canResync: !!(tenant && tenant.elev8_token),
+      conflicts: resync.conflictsFor(a.values, snapshot && snapshot.prefill)
+    };
     res.setHeader('Cache-Control', 'no-store');
-    res.type('html').send(view.tenantForm(intake, a.values, a.sources, snapshot));
+    res.type('html').send(view.tenantForm(intake, a.values, a.sources, snapshot, opts));
   } catch (e) { next(e); }
 });
 
@@ -403,15 +453,70 @@ app.post('/api/f/:token/confirm', async function (req, res, next) {
       ids = Object.keys(pre);
     }
 
+    // Bei einem Widerspruch darf der Tenant den Elev8-Wert ausdruecklich
+    // uebernehmen - nur dann ueberschreiben wir eine vorhandene Antwort.
+    const override = req.body.override === true && !!req.body.field;
+
     const applied = [];
     for (const id of ids) {
       if (!FIELD_MAP.has(id)) continue;
       if (!pre[id] || !pre[id].value) continue;
-      if ((existing.values[id] || '').trim() !== '') continue;
+      if (!override && (existing.values[id] || '').trim() !== '') continue;
       await db.saveAnswer(intake.id, id, pre[id].value, 'confirmed');
       applied.push({ field: id, value: pre[id].value });
     }
     res.json({ ok: true, applied: applied });
+  } catch (e) { next(e); }
+});
+
+/**
+ * Der Tenant hat in Elev8 nachgepflegt und will das Ergebnis sehen.
+ * Braucht keinen Admin - der Link, den er ohnehin hat, genuegt.
+ */
+const resyncLast = new Map();
+
+app.post('/api/f/:token/resync', async function (req, res, next) {
+  const key = String(req.params.token);
+  try {
+    const intake = await db.getIntakeByToken(key);
+    if (!intake) return res.status(404).json({ error: 'unknown token' });
+
+    const last = resyncLast.get(key) || 0;
+    const wait = RESYNC_COOLDOWN_MS - (Date.now() - last);
+    if (wait > 0) {
+      return res.status(429).json({
+        error: 'cooldown',
+        retryIn: Math.ceil(wait / 1000),
+        message: 'Bitte einen Moment — wir haben gerade eben schon nachgesehen.'
+      });
+    }
+    resyncLast.set(key, Date.now());
+
+    const tenant = await tenantForIntake(intake);
+    let merged;
+    try {
+      merged = await resyncIntake(intake, tenant);
+    } catch (e) {
+      resyncLast.set(key, 0);
+      const known = e && e.code === 'no_token';
+      return res.status(known ? 400 : 502).json({
+        error: known ? 'no_token' : 'elev8',
+        message: known ? e.message : 'Elev8 antwortet gerade nicht. Bitte in ein paar Minuten nochmals.',
+        detail: errText(e)
+      });
+    }
+
+    res.json({
+      ok: true,
+      added: merged.added,
+      conflicts: merged.conflicts,
+      closed: merged.closed,
+      readiness: merged.snapshot.readiness || [],
+      units: (merged.snapshot.facts && merged.snapshot.facts.total) || 0,
+      syncedAt: merged.snapshot.syncedAt,
+      summary: resync.summarize(merged),
+      changed: merged.added.length > 0 || merged.closed.length > 0
+    });
   } catch (e) { next(e); }
 });
 
@@ -432,6 +537,47 @@ app.use(function (err, req, res, next) {
   res.status(500).type('text/plain').send('Serverfehler');
 });
 
+/* ---------- Nachtlauf ---------- */
+
+/**
+ * Frischt reihum alle Aufnahmen auf, deren Schnappschuss zu alt ist.
+ * Damit findet der Tenant beim naechsten Oeffnen ohnehin den aktuellen
+ * Stand vor, auch wenn er den Knopf nie drueckt. Laeuft bewusst seriell
+ * und mit Pause - der MCP ist kein Lastesel.
+ */
+let sweepRunning = false;
+
+async function resyncSweep(force) {
+  if (sweepRunning) return { skipped: true };
+  if (!RESYNC_AGE_HOURS && !force) return { skipped: true };
+  sweepRunning = true;
+  const maxAge = force ? 0 : RESYNC_AGE_HOURS * 3600 * 1000;
+  let done = 0, failed = 0;
+  try {
+    const rows = await db.listIntakesForResync(RESYNC_MAX_DAYS);
+    for (const row of rows) {
+      if (snapshotAgeMs(row.snapshot) < maxAge) continue;
+      const tenant = { id: row.tenant_id, name: row.tenant_real_name || row.tenant_name, elev8_token: row.elev8_token };
+      try {
+        await resyncIntake(row, tenant);
+        done++;
+      } catch (e) {
+        failed++;
+        console.warn('Nachtlauf: Aufnahme ' + row.id + ' fehlgeschlagen — ' + errText(e));
+      }
+      await new Promise(function (r) { setTimeout(r, 1500); });
+    }
+    if (done || failed) console.log('Nachtlauf: ' + done + ' aufgefrischt, ' + failed + ' fehlgeschlagen.');
+  } catch (e) {
+    console.warn('Nachtlauf konnte nicht starten: ' + errText(e));
+  } finally {
+    sweepRunning = false;
+  }
+  return { done: done, failed: failed };
+}
+
+runSweep = resyncSweep;
+
 /* ---------- boot ---------- */
 
 db.init()
@@ -440,6 +586,11 @@ db.init()
       console.log('Tenant-Intake laeuft auf Port ' + PORT);
       console.log('Elev8-MCP: ' + elev8.MCP_URL);
       if (!ADMIN_PASSWORD) console.warn('WARNUNG: ADMIN_PASSWORD ist nicht gesetzt — der Adminbereich ist gesperrt.');
+      if (RESYNC_AGE_HOURS) {
+        console.log('Nachtlauf aktiv: Aufnahmen aelter als ' + RESYNC_AGE_HOURS + ' h werden aufgefrischt.');
+        setTimeout(resyncSweep, 60000);                       // kurz nach dem Start einmal
+        setInterval(resyncSweep, 30 * 60 * 1000);             // danach halbstuendlich pruefen
+      }
     });
   })
   .catch(function (e) {

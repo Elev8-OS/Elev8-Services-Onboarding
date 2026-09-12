@@ -152,6 +152,25 @@ async function linkIntakeTenant(intakeId, tenantId) {
   await pool.query('UPDATE intakes SET tenant_id = $2 WHERE id = $1', [intakeId, tenantId]);
 }
 
+/**
+ * Aufnahmen, die fuer den Nachtlauf in Frage kommen: mit verknuepftem
+ * Tenant und hinterlegtem Elev8-Token. Aelter als maxDays wird ignoriert,
+ * damit wir nicht ewig gegen tote Aufnahmen laufen.
+ */
+async function listIntakesForResync(maxDays) {
+  const { rows } = await pool.query(`
+    SELECT i.id, i.token, i.tenant_id, i.tenant_name, i.status, i.snapshot,
+           t.elev8_token, t.name AS tenant_real_name
+    FROM intakes i
+    JOIN tenants t ON t.id = i.tenant_id
+    WHERE t.elev8_token IS NOT NULL
+      AND t.elev8_token <> ''
+      AND i.created_at > now() - ($1 || ' days')::interval
+    ORDER BY i.created_at DESC
+  `, [String(maxDays || 90)]);
+  return rows;
+}
+
 async function setIntakeSnapshot(id, snapshot) {
   await pool.query('UPDATE intakes SET snapshot = $2 WHERE id = $1', [id, JSON.stringify(snapshot)]);
 }
@@ -193,5 +212,6 @@ module.exports = {
   pool, init,
   listTenants, getTenant, upsertTenant, updateTenantToken, saveTenantSync, deleteTenant,
   listIntakes, createIntake, getIntakeByToken, getIntakeById, setIntakeSnapshot, linkIntakeTenant,
+  listIntakesForResync,
   getAnswers, saveAnswer, setStatus, deleteIntake
 };
