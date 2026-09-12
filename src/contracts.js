@@ -21,6 +21,20 @@ const { FIELD_MAP, valueLabel, optionLabel } = require('./questions');
 
 /* ---------------- Partei Elev8 Suite ---------------- */
 
+const GROUP = {
+  // Schwestergesellschaft in Indonesien; dort sind die GRO- und
+  // Revenue-Mitarbeitenden angestellt.
+  opsName: process.env.ELEV8_OPS_NAME || 'PT Elevate Property Management',
+  opsCountry: process.env.ELEV8_OPS_COUNTRY || 'Indonesien',
+  opsCountryEn: process.env.ELEV8_OPS_COUNTRY_EN || 'Indonesia',
+  // Öffentlich abrufbare, stets aktuelle Liste der technischen
+  // Unterauftragsverarbeiter. Muss erreichbar sein - der AVV verweist darauf.
+  subList: process.env.ELEV8_SUBPROCESSOR_URL || 'https://www.elev8-suite.com/subprozessoren',
+  cloud: process.env.ELEV8_CLOUD || 'Google Cloud Platform',
+  ticketUrl: process.env.ELEV8_SUPPORT_URL || 'https://support.elev8-suite.com',
+  suspendDays: process.env.ELEV8_SUSPEND_DAYS || '10'
+};
+
 const ELEV8 = {
   name: process.env.ELEV8_LEGAL_NAME || 'Elevate Software AG',
   street: process.env.ELEV8_STREET || 'Im Füler 7',
@@ -36,6 +50,11 @@ const ELEV8 = {
 
 const DEFAULT_TERMS = {
   currency: 'EUR',
+  platform_model: 'per_unit',
+  platform_price_per_unit: '',
+  platform_price_per_booking: '',
+  platform_term_months: '12',
+  platform_notice_months: '3',
   price_per_unit: '',
   setup_fee: '',
   term_months: '12',
@@ -191,8 +210,10 @@ function avv(ctx) {
   ]);
 
   S('5', L('Unterauftragsverarbeiter', 'Sub-processors'), [
-    P('Der Verantwortliche erteilt die allgemeine Genehmigung zur Beauftragung der in Anlage 2 aufgeführten Unterauftragsverarbeiter. Der Auftragsverarbeiter verpflichtet diese auf dieselben Datenschutzpflichten, die ihn selbst treffen.',
-      'The controller grants general authorisation for engaging the sub-processors listed in Annex 2. The processor imposes on them the same data protection obligations that apply to it.'),
+    P('Der Verantwortliche erteilt die allgemeine Genehmigung zur Beauftragung der in Anlage 2 aufgeführten Unterauftragsverarbeiter. Der Auftragsverarbeiter verpflichtet diese auf dieselben Datenschutzpflichten, die ihn selbst treffen; die technischen Dienstleister sind lizenzierte Whitelabel-Anbieter, mit denen inhaltsgleiche Verträge bestehen.',
+      'The controller grants general authorisation for engaging the sub-processors listed in Annex 2. The processor imposes on them the same data protection obligations that apply to it; the technical providers are licensed white-label providers with whom equivalent agreements are in place.'),
+    P('Die namentliche Aufstellung der technischen Dienstleister mit Sitz, Leistung und Ort der Verarbeitung ist jederzeit unter ' + GROUP.subList + ' abrufbar und ist Bestandteil dieses Vertrags. Der Verantwortliche kann dort eine Benachrichtigung über Änderungen abonnieren.',
+      'The list naming the technical providers with their registered office, service and place of processing is available at any time at ' + GROUP.subList + ' and forms part of this agreement. The controller can subscribe there to notifications of changes.'),
     P('Beabsichtigte Änderungen teilt der Auftragsverarbeiter dem Verantwortlichen mindestens 30 Tage vorher in Textform mit. Der Verantwortliche kann binnen 14 Tagen aus wichtigem, datenschutzbezogenem Grund widersprechen. Bleibt der Widerspruch bestehen und lässt sich keine Lösung finden, kann jede Partei den Hauptvertrag mit einer Frist von 30 Tagen kündigen.',
       'The processor informs the controller of intended changes in text form at least 30 days in advance. The controller may object within 14 days on substantial data protection grounds. If the objection persists and no solution is found, either party may terminate the main agreement on 30 days’ notice.'),
     { kvHead: [txt(L('Unterauftragsverarbeiter', 'Sub-processor'), l), txt(L('Leistung', 'Service'), l), txt(L('Ort der Verarbeitung', 'Place of processing'), l)],
@@ -202,10 +223,10 @@ function avv(ctx) {
   S('6', L('Verarbeitung in Drittländern', 'Processing in third countries'), [
     P('Der Auftragsverarbeiter hat seinen Sitz in der Schweiz. Für die Schweiz besteht ein Angemessenheitsbeschluss der Europäischen Kommission; eine Übermittlung dorthin bedarf daher keiner zusätzlichen Garantien nach Art. 46 DSGVO.',
       'The processor is established in Switzerland. An adequacy decision of the European Commission is in place for Switzerland; transfers there therefore require no additional safeguards under Art. 46 GDPR.'),
-    P('Das Guest-Relations-Team arbeitet im Regelfall rund um die Uhr aus Indonesien; Vertretung und Ausfallbetrieb können aus der Europäischen Union und aus der Schweiz erfolgen. Für die Übermittlung nach Indonesien gelten die Standardvertragsklauseln der Europäischen Kommission in der Fassung des Durchführungsbeschlusses (EU) 2021/914, Modul 3 (Auftragsverarbeiter an Auftragsverarbeiter), zusammen mit der in Anlage 3 dokumentierten Beurteilung des Übermittlungsrisikos und den dort beschriebenen zusätzlichen Massnahmen.',
-      'The guest relations team works, as a rule, around the clock from Indonesia; cover and fallback operation may take place from the European Union and from Switzerland. The transfer to Indonesia is governed by the Standard Contractual Clauses of the European Commission as set out in Implementing Decision (EU) 2021/914, Module Three (processor to processor), together with the transfer risk assessment documented in Annex 3 and the supplementary measures described there.'),
-    P('Der Verantwortliche wird hiermit ausdrücklich darauf hingewiesen, dass für Indonesien kein Angemessenheitsbeschluss vorliegt.',
-      'The controller is expressly informed that no adequacy decision exists for Indonesia.')
+    P('Die Mitarbeitenden, die den Verantwortlichen betreuen, sind bei ' + GROUP.opsName + ' angestellt, einer Schwestergesellschaft des Auftragsverarbeiters mit Sitz in ' + GROUP.opsCountry + '. Sie arbeiten im Regelfall rund um die Uhr; Vertretung und Ausfallbetrieb können aus der Europäischen Union und aus der Schweiz erfolgen. Für die Übermittlung nach ' + GROUP.opsCountry + ' haben der Auftragsverarbeiter und ' + GROUP.opsName + ' die Standardvertragsklauseln der Europäischen Kommission in der Fassung des Durchführungsbeschlusses (EU) 2021/914, Modul 3 (Auftragsverarbeiter an Auftragsverarbeiter), abgeschlossen. Sie gelten zusammen mit der in Anlage 3 dokumentierten Beurteilung des Übermittlungsrisikos und den dort beschriebenen zusätzlichen Massnahmen.',
+      'The staff serving the controller are employed by ' + GROUP.opsName + ', a sister company of the processor established in ' + GROUP.opsCountryEn + '. They work, as a rule, around the clock; cover and fallback operation may take place from the European Union and from Switzerland. For the transfer to ' + GROUP.opsCountryEn + ', the processor and ' + GROUP.opsName + ' have concluded the Standard Contractual Clauses of the European Commission as set out in Implementing Decision (EU) 2021/914, Module Three (processor to processor). They apply together with the transfer risk assessment documented in Annex 3 and the supplementary measures described there.'),
+    P('Der Verantwortliche wird hiermit ausdrücklich darauf hingewiesen, dass für ' + GROUP.opsCountry + ' kein Angemessenheitsbeschluss der Europäischen Kommission vorliegt.',
+      'The controller is expressly informed that no adequacy decision of the European Commission exists for ' + GROUP.opsCountryEn + '.')
   ]);
 
   S('7', L('Rechte der betroffenen Personen', 'Rights of data subjects'), [
@@ -260,17 +281,25 @@ function lawTextEn(ctx) {
   return ctx.terms.law === 'DE' ? 'German law' : 'Swiss law, excluding its conflict-of-law rules,';
 }
 
+/**
+ * Unterauftragsverarbeiter. Die Schwestergesellschaft wird namentlich
+ * genannt - sie stellt die Mitarbeitenden. Die technischen Dienstleister
+ * stehen als Kategorie im Vertrag und namentlich in der jederzeit
+ * abrufbaren Liste, auf die der Vertrag verweist. Das hält den Vertrag frei
+ * von Anbieternamen und erfüllt zugleich Art. 28 Abs. 2 DSGVO.
+ */
 function subprocessors(ctx) {
   return [
-    { name: ctx.elev8.name + ' — ' + (ctx.lang === 'en' ? 'guest relations team' : 'Guest-Relations-Team'),
-      service: L('Gästekommunikation im Regelfall rund um die Uhr, einschliesslich Nacht- und Wochenendschichten',
-        'Guest communication, as a rule around the clock, including night and weekend shifts'),
-      place: L('Indonesien; Vertretung und Ausfallbetrieb in der EU und/oder der Schweiz',
-        'Indonesia; cover and fallback operation in the EU and/or Switzerland') },
-    { name: 'Elev8 Suite',
-      service: L('Betrieb der Property-Management-Plattform, in der die Kommunikation stattfindet',
-        'Operation of the property management platform in which the communication takes place'),
-      place: L('EU / Schweiz', 'EU / Switzerland') }
+    { name: GROUP.opsName,
+      service: L('Gästekommunikation und, soweit beauftragt, Revenue Management; im Regelfall rund um die Uhr, einschliesslich Nacht- und Wochenendschichten',
+        'Guest communication and, where commissioned, revenue management; as a rule around the clock, including night and weekend shifts'),
+      place: L(GROUP.opsCountry + '; Vertretung und Ausfallbetrieb in der EU und/oder der Schweiz',
+        GROUP.opsCountryEn + '; cover and fallback operation in the EU and/or Switzerland') },
+    { name: txt(L('Technische Dienstleister der Plattform', 'Technical platform providers'), ctx.lang),
+      service: L('Hosting sowie Kanal- und Nachrichtenanbindung als lizenzierte Whitelabel-Leistungen; namentlich aufgeführt in der stets aktuellen Liste unter ' + GROUP.subList,
+        'Hosting and channel and messaging connectivity as licensed white-label services; named individually in the current list at ' + GROUP.subList),
+      place: L('EU, Schweiz und weitere in der Liste bezeichnete Länder',
+        'EU, Switzerland and further countries named in the list') }
   ];
 }
 
@@ -313,19 +342,19 @@ function avvAnnexes(ctx) {
       ]
     },
     {
-      h: txt(L('Anlage 3 — Übermittlung nach Indonesien', 'Annex 3 — Transfer to Indonesia'), l),
+      h: txt(L('Anlage 3 — Übermittlung nach ' + GROUP.opsCountry, 'Annex 3 — Transfer to ' + GROUP.opsCountryEn), l),
       blocks: [
-        { p: txt(L('Für Indonesien besteht kein Angemessenheitsbeschluss. Die Übermittlung stützt sich auf die Standardvertragsklauseln nach Durchführungsbeschluss (EU) 2021/914, Modul 3.',
-          'No adequacy decision exists for Indonesia. The transfer relies on the Standard Contractual Clauses under Implementing Decision (EU) 2021/914, Module Three.'), l) },
+        { p: txt(L('Für ' + GROUP.opsCountry + ' besteht kein Angemessenheitsbeschluss. Die Übermittlung an ' + GROUP.opsName + ' stützt sich auf die zwischen dem Auftragsverarbeiter und dieser Gesellschaft abgeschlossenen Standardvertragsklauseln nach Durchführungsbeschluss (EU) 2021/914, Modul 3.',
+          'No adequacy decision exists for ' + GROUP.opsCountryEn + '. The transfer to ' + GROUP.opsName + ' relies on the Standard Contractual Clauses concluded between the processor and that company under Implementing Decision (EU) 2021/914, Module Three.'), l) },
         { p: txt(L('Zusätzliche Massnahmen:', 'Supplementary measures:'), l) },
         { ul: en ? [
-          'No data at rest in Indonesia: staff work exclusively inside Elev8 Suite; downloads and exports are technically restricted.',
+          'No data at rest in ' + GROUP.opsCountryEn + ': staff work exclusively inside Elev8 Suite; downloads and exports are technically restricted.',
           'Minimisation: a GRO sees only the data needed for the current request.',
           'Encryption in transit; encrypted devices with enforced screen locking.',
           'Contractual commitment to notify the controller immediately of any request from a public authority, unless prohibited by law.',
           'Annual review of the assessment, and immediately if the legal situation changes materially.'
         ] : [
-          'Keine ruhende Datenhaltung in Indonesien: Die Mitarbeitenden arbeiten ausschliesslich in Elev8 Suite; Downloads und Exporte sind technisch eingeschränkt.',
+          'Keine ruhende Datenhaltung in ' + GROUP.opsCountry + ': Die Mitarbeitenden arbeiten ausschliesslich in Elev8 Suite; Downloads und Exporte sind technisch eingeschränkt.',
           'Datenminimierung: Ein GRO sieht nur die für das jeweilige Anliegen erforderlichen Daten.',
           'Verschlüsselung auf dem Transportweg; verschlüsselte Geräte mit erzwungener Bildschirmsperre.',
           'Vertragliche Pflicht, jede behördliche Herausgabeanordnung dem Verantwortlichen unverzüglich mitzuteilen, soweit gesetzlich zulässig.',
@@ -357,6 +386,176 @@ function partyBlock(ctx, roleA, roleB) {
   ];
 }
 
+/* ---------------- Rahmenvertrag Elev8 Suite ---------------- */
+
+function platformPrice(ctx) {
+  const tm = ctx.terms;
+  const l = ctx.lang;
+  if (tm.platform_model === 'per_booking') {
+    return money(tm.platform_price_per_booking, tm.currency, l) + ' ' +
+      txt(L('je bestätigter Buchung', 'per confirmed booking'), l);
+  }
+  return money(tm.platform_price_per_unit, tm.currency, l) + ' ' +
+    txt(L('je Einheit und Monat', 'per unit and month'), l);
+}
+
+function platform(ctx) {
+  const l = ctx.lang;
+  const en = l === 'en';
+  const tm = ctx.terms;
+  const sections = [];
+  const S = function (n, h, blocks) { sections.push({ n: n, h: txt(h, l), blocks: blocks }); };
+  const P = function (de, enTxt) { return { p: txt(L(de, enTxt), l) }; };
+
+  S('1', L('Vertragsgegenstand', 'Subject matter'), [
+    P('Elevate Software AG stellt dem Kunden ihre Software Elev8 Suite zur Nutzung über das Internet zur Verfügung (Software as a Service). Dieser Vertrag ist der Rahmen für die Nutzung der Plattform. Einzelne Zusatzleistungen — etwa Guest Relations oder Revenue Management — werden in gesonderten Leistungsscheinen vereinbart, die auf diesen Rahmenvertrag Bezug nehmen.',
+      'Elevate Software AG makes its software Elev8 Suite available to the client for use over the internet (software as a service). This agreement is the framework for using the platform. Individual additional services — such as guest relations or revenue management — are agreed in separate service schedules that refer to this framework agreement.'),
+    { kv: [
+      [txt(L('Kunde', 'Client'), l), orOpen(ans(ctx, 'company') || ctx.tenantName, l)],
+      [txt(L('Objekt', 'Property'), l), ansOr(ctx, 'address')],
+      [txt(L('Anzahl Einheiten bei Vertragsschluss', 'Number of units at signature'), l), ansOr(ctx, 'units')]
+    ] }
+  ]);
+
+  S('2', L('Nutzungsrecht', 'Right of use'), [
+    P('Der Kunde erhält für die Dauer einer gültigen Subscription ein nicht ausschliessliches, nicht übertragbares Recht, Elev8 Suite im vereinbarten Umfang zu nutzen. Das Recht ist inhaltlich nicht eingeschränkt, solange die Subscription gültig ist.',
+      'For the duration of a valid subscription the client receives a non-exclusive, non-transferable right to use Elev8 Suite within the agreed scope. The right is not restricted in substance for as long as the subscription is valid.'),
+    P('Die Zahl der Benutzerkonten ist unbegrenzt. Der Kunde verwaltet seine Benutzer selbst, verantwortet deren Berechtigungen und die Geheimhaltung der Zugangsdaten und entzieht Zugänge unverzüglich, wenn eine Person ausscheidet.',
+      'The number of user accounts is unlimited. The client manages its own users, is responsible for their permissions and for keeping credentials confidential, and withdraws access without delay when a person leaves.'),
+    P('Bleiben fällige Beträge länger als ' + GROUP.suspendDays + ' Tage offen, ist Elevate Software AG berechtigt, den Zugang zu deaktivieren, bis der Rückstand ausgeglichen ist. Der Vergütungsanspruch bleibt für diesen Zeitraum bestehen. Die Daten des Kunden bleiben während der Deaktivierung gespeichert.',
+      'If amounts due remain unpaid for more than ' + GROUP.suspendDays + ' days, Elevate Software AG is entitled to deactivate access until the arrears are settled. The right to remuneration for that period remains. The client’s data remains stored during deactivation.')
+  ]);
+
+  S('3', L('Verfügbarkeit und Betrieb', 'Availability and operation'), [
+    P('Elev8 Suite läuft auf professioneller Infrastruktur der ' + GROUP.cloud + '. Elevate Software AG strebt eine durchgehende Verfügbarkeit an, schuldet sie jedoch nicht. Eine bestimmte Verfügbarkeit, Reaktionszeit oder Wiederherstellungszeit wird ausdrücklich nicht zugesichert.',
+      'Elev8 Suite runs on professional infrastructure of ' + GROUP.cloud + '. Elevate Software AG aims for continuous availability but does not owe it. No particular availability, response time or recovery time is warranted.'),
+    P('Wartungsarbeiten, Aktualisierungen und Störungen können den Zugang vorübergehend einschränken. Elevate Software AG bemüht sich, planbare Arbeiten in verkehrsarme Zeiten zu legen, ist dazu aber nicht verpflichtet.',
+      'Maintenance, updates and faults may temporarily restrict access. Elevate Software AG endeavours to schedule planned work at quiet times but is not obliged to do so.')
+  ]);
+
+  S('4', L('Support', 'Support'), [
+    P('Support wird über das Ticketsystem unter ' + GROUP.ticketUrl + ' geleistet. Anfragen werden in der Reihenfolge ihres Eingangs und nach Dringlichkeit bearbeitet. Ein Service Level mit zugesicherten Reaktions- oder Lösungszeiten ist nicht Bestandteil dieses Vertrags; er kann auf Wunsch gesondert und gegen Aufpreis vereinbart werden.',
+      'Support is provided through the ticket system at ' + GROUP.ticketUrl + '. Requests are handled in order of receipt and by urgency. A service level with committed response or resolution times is not part of this agreement; it can be agreed separately and for an additional fee on request.')
+  ]);
+
+  S('5', L('Vergütung', 'Remuneration'), [
+    { kv: [
+      [txt(L('Abrechnungsmodell', 'Billing model'), l),
+        txt(tm.platform_model === 'per_booking'
+          ? L('pro Buchung', 'per booking')
+          : L('pro Einheit', 'per unit'), l)],
+      [txt(L('Preis', 'Price'), l), platformPrice(ctx)],
+      [txt(L('Einheiten bei Vertragsschluss', 'Units at signature'), l), ansOr(ctx, 'units')]
+    ] },
+    P('Als Einheit gilt jede in Elev8 Suite aktive Einheit des Kunden, unabhängig davon, wie viele Angebote daraus gebildet werden. Die Abrechnung erfolgt monatlich, zahlbar innert 30 Tagen ab Rechnungsdatum ohne Abzug. Alle Beträge verstehen sich netto zuzüglich allfälliger Steuern und Abgaben.',
+      'A unit means every unit of the client active in Elev8 Suite, regardless of how many listings are formed from it. Invoicing is monthly, payable within 30 days of the invoice date without deduction. All amounts are net and exclusive of any taxes and levies.'),
+    P('Ändert sich die Anzahl der Einheiten, wird taggenau pro rata abgerechnet: Jede Einheit wird ab dem Tag ihrer Aktivierung und bis zum Tag ihrer Deaktivierung berechnet.',
+      'If the number of units changes, billing is pro rata on a daily basis: each unit is charged from the day it is activated until the day it is deactivated.'),
+    P('Bei Zahlungsverzug fallen Verzugszinsen in gesetzlicher Höhe an. Aufrechnen darf der Kunde nur mit unbestrittenen oder rechtskräftig festgestellten Forderungen. Elevate Software AG kann die Vergütung einmal je Kalenderjahr mit einer Frist von zwei Monaten zum Monatsende anpassen; übersteigt die Erhöhung fünf Prozent, steht dem Kunden ein Sonderkündigungsrecht zum Wirksamwerden der Anpassung zu.',
+      'Late payment bears statutory default interest. The client may set off only against undisputed or legally established claims. Elevate Software AG may adjust the fee once per calendar year on two months’ notice to the end of a month; if the increase exceeds five percent, the client has a special right of termination effective as of the adjustment.')
+  ]);
+
+  S('6', L('Daten des Kunden', 'The client’s data'), [
+    P('Gäste-, Reservations- und Objektdaten, die der Kunde in Elev8 Suite einstellt oder die dort für ihn entstehen, gehören dem Kunden. Elevate Software AG erwirbt daran keine Rechte und nutzt sie nur, um diesen Vertrag zu erfüllen und den Betrieb sicherzustellen.',
+      'Guest, reservation and property data that the client enters into Elev8 Suite, or that arises there for the client, belongs to the client. Elevate Software AG acquires no rights to it and uses it only to perform this agreement and to ensure operation.'),
+    P('Solange die Subscription gültig ist, kann der Kunde seine Daten jederzeit selbst in einem gängigen Format exportieren. Nach Vertragsende stellt Elevate Software AG die Daten auf Anfrage noch 30 Tage zum Export bereit und löscht sie danach; gesetzliche Aufbewahrungspflichten bleiben unberührt.',
+      'While the subscription is valid the client can export its data at any time in a common format. After the agreement ends, Elevate Software AG keeps the data available for export for a further 30 days on request and deletes it thereafter; statutory retention obligations remain unaffected.'),
+    P('Elevate Software AG darf anonymisierte, nicht auf den Kunden oder einzelne Personen rückführbare Auswertungen erstellen und zur Verbesserung und Vermarktung der Plattform verwenden.',
+      'Elevate Software AG may create anonymised analyses that cannot be traced back to the client or to individuals and use them to improve and market the platform.')
+  ]);
+
+  S('7', L('Weiterentwicklung, neue Funktionen und Beta', 'Development, new features and beta'), [
+    P('Elevate Software AG entwickelt Elev8 Suite eigenständig weiter und entscheidet allein über Inhalt, Umfang und Zeitpunkt von Änderungen. Neue Funktionen können einzelnen Kunden, einzelnen Kundengruppen oder allen Kunden zur Verfügung gestellt werden.',
+      'Elevate Software AG develops Elev8 Suite independently and decides alone on the content, scope and timing of changes. New features may be made available to individual clients, to groups of clients or to all clients.'),
+    P('Neue Funktionen können entweder ohne Zusatzkosten in das Produkt aufgenommen oder gegen Aufpreis gesondert abonniert werden. Elevate Software AG entscheidet darüber im Einzelfall.',
+      'New features may either be included in the product at no extra cost or offered as a separate paid subscription. Elevate Software AG decides this case by case.'),
+    P('Funktionen im Beta-Status können einzelnen Kunden oder allen Kunden zugänglich gemacht werden. Sie werden ohne Gewähr bereitgestellt, können jederzeit geändert oder eingestellt werden und begründen keinen Anspruch auf dauerhafte Verfügbarkeit.',
+      'Features in beta status may be made available to individual clients or to all clients. They are provided without warranty, may be changed or discontinued at any time and give rise to no claim to permanent availability.'),
+    P('Ein Anspruch darauf, dass der heutige Funktionsumfang künftig unverändert bestehen bleibt, besteht nicht. Elevate Software AG kann Funktionen ändern, ersetzen oder einstellen. Führt der Wegfall einer Funktion für den Kunden zu einer erheblichen Beeinträchtigung, steht ihm ein Sonderkündigungsrecht mit einer Frist von 30 Tagen zu.',
+      'There is no claim that the current scope of functions will remain unchanged in future. Elevate Software AG may change, replace or discontinue features. If the removal of a feature significantly impairs the client, the client has a special right of termination on 30 days’ notice.')
+  ]);
+
+  S('8', L('Zulässige Nutzung', 'Permitted use'), [
+    P('Der Kunde nutzt Elev8 Suite nur für den vorgesehenen Zweck und im Rahmen der gesetzlichen Bestimmungen. Er stellt sicher, dass die von ihm eingestellten Daten richtig sind und keine Rechte Dritter verletzen.',
+      'The client uses Elev8 Suite only for its intended purpose and within the law. The client ensures that the data it enters is accurate and does not infringe third-party rights.'),
+    P('Unzulässig ist insbesondere jede Umgehung des vereinbarten Abrechnungsmodells. Beim Modell „pro Buchung" gilt es als Umgehung, Aufenthalte statt als Buchung als manuelle Blockierung im Kalender zu erfassen. Elevate Software AG prüft die Nutzung mit automatisierten Verfahren auf solche Muster.',
+      'In particular, any circumvention of the agreed billing model is prohibited. Under the "per booking" model it counts as circumvention to record stays as manual calendar blocks instead of as bookings. Elevate Software AG checks usage for such patterns using automated methods.'),
+    P('Stellt Elevate Software AG eine Umgehung fest, verwarnt sie den Kunden in Textform und setzt eine Frist zur Bereinigung. Bleibt die Bereinigung aus oder wiederholt sich der Vorgang, kann Elevate Software AG die tatsächlich angefallene Vergütung nachbelasten, den Zugang deaktivieren und den Vertrag aus wichtigem Grund kündigen.',
+      'If Elevate Software AG establishes circumvention, it warns the client in text form and sets a deadline for correction. If correction does not follow, or the conduct recurs, Elevate Software AG may charge the fees actually incurred, deactivate access and terminate the agreement for cause.'),
+    P('Untersagt sind das Zurückentwickeln, Dekompilieren und Disassemblieren der Software, jeder Versuch, den Quellcode oder die zugrunde liegende Logik zu ermitteln, das automatisierte Auslesen über die vorgesehenen Schnittstellen hinaus sowie die Überlassung des Zugangs an Dritte ausserhalb des eigenen Betriebs. Zwingende gesetzliche Rechte bleiben unberührt.',
+      'Reverse engineering, decompiling and disassembling the software, any attempt to determine the source code or underlying logic, automated extraction beyond the intended interfaces, and passing access to third parties outside the client’s own operation are prohibited. Mandatory statutory rights remain unaffected.')
+  ]);
+
+  S('9', L('Rechte an der Software', 'Rights in the software'), [
+    P('Alle Rechte an Elev8 Suite, ihrer Weiterentwicklung, ihrer Gestaltung und der zugrunde liegenden Verfahren verbleiben bei Elevate Software AG. Der Kunde erhält ausschliesslich das in Ziffer 2 beschriebene Nutzungsrecht. Rückmeldungen und Verbesserungsvorschläge des Kunden darf Elevate Software AG ohne Vergütung und ohne Einschränkung verwenden.',
+      'All rights in Elev8 Suite, its further development, its design and the underlying methods remain with Elevate Software AG. The client receives only the right of use described in section 2. Elevate Software AG may use the client’s feedback and suggestions without remuneration and without restriction.')
+  ]);
+
+  S('10', L('Laufzeit und Kündigung', 'Term and termination'), [
+    { kv: [
+      [txt(L('Mindestlaufzeit', 'Minimum term'), l),
+        (tm.platform_term_months || '12') + ' ' + txt(L('Monate', 'months'), l)],
+      [txt(L('Kündigungsfrist', 'Notice period'), l),
+        (tm.platform_notice_months || '3') + ' ' + txt(L('Monate zum Monatsende', 'months to the end of a month'), l)]
+    ] },
+    P('Nach Ablauf der Mindestlaufzeit verlängert sich der Vertrag unbefristet und kann mit der genannten Frist gekündigt werden. Das Recht zur Kündigung aus wichtigem Grund bleibt beiden Parteien vorbehalten. Kündigungen bedürfen der Textform. Mit dem Ende dieses Vertrags enden auch alle Leistungsscheine, die auf ihn Bezug nehmen.',
+      'After the minimum term the agreement continues indefinitely and may be terminated on the stated notice. Both parties reserve the right to terminate for cause. Termination requires text form. When this agreement ends, all service schedules referring to it end as well.')
+  ]);
+
+  S('11', L('Haftung', 'Liability'), [
+    P('Elevate Software AG haftet unbeschränkt nur für Vorsatz und grobe Fahrlässigkeit, für Schäden aus der Verletzung des Lebens, des Körpers oder der Gesundheit sowie in den Fällen zwingender gesetzlicher Haftung. Jede weitergehende Haftung ist im gesetzlich zulässigen Umfang ausgeschlossen.',
+      'Elevate Software AG is liable without limitation only for intent and gross negligence, for damage arising from injury to life, body or health, and in cases of mandatory statutory liability. Any further liability is excluded to the extent permitted by law.'),
+    P('Im Übrigen haftet Elevate Software AG nur für die Verletzung einer wesentlichen Vertragspflicht, deren Erfüllung die ordnungsgemässe Durchführung dieses Vertrags überhaupt erst ermöglicht und auf deren Einhaltung der Kunde regelmässig vertrauen darf, und der Höhe nach begrenzt auf den bei Vertragsschluss vorhersehbaren, vertragstypischen Schaden, höchstens jedoch auf die Nettovergütung der zwölf Monate vor dem schädigenden Ereignis.',
+      'Otherwise Elevate Software AG is liable only for breach of a material contractual obligation whose fulfilment makes the proper performance of this agreement possible in the first place and on whose observance the client may regularly rely, limited to the damage foreseeable at conclusion of the contract and typical for this type of contract, and in any event to the net fees of the twelve months preceding the damaging event.'),
+    P('Nicht ersetzt werden, soweit gesetzlich zulässig: entgangener Gewinn, ausgebliebene Einsparungen, mittelbare Schäden und Folgeschäden, Ansprüche Dritter, Schäden aus Nichtverfügbarkeit oder verzögerter Verfügbarkeit der Plattform, Schäden aus Beta-Funktionen sowie Datenverluste über den Aufwand hinaus, der bei ordnungsgemässer Datensicherung zur Wiederherstellung erforderlich gewesen wäre.',
+      'To the extent permitted by law the following are not compensated: lost profit, savings not realised, indirect and consequential damage, third-party claims, damage from unavailability or delayed availability of the platform, damage from beta features, and data loss beyond the effort that would have been required for restoration with proper data backup.'),
+    P('Die Software wird im jeweils verfügbaren Zustand bereitgestellt. Eine Eignung für einen bestimmten Zweck, ein bestimmter wirtschaftlicher Erfolg und die Fehlerfreiheit werden nicht zugesichert. Ansprüche gegen Elevate Software AG verjähren, soweit gesetzlich zulässig, zwölf Monate nach Kenntnis der anspruchsbegründenden Umstände. Die Beschränkungen gelten auch zugunsten der Mitarbeitenden, Organe und Erfüllungsgehilfen.',
+      'The software is provided as available. Fitness for a particular purpose, a particular commercial outcome and freedom from defects are not warranted. Claims against Elevate Software AG become time-barred, to the extent permitted by law, twelve months after the client becomes aware of the circumstances giving rise to the claim. The limitations also apply for the benefit of employees, officers and vicarious agents.')
+  ]);
+
+  S('12', L('Höhere Gewalt', 'Force majeure'), [
+    P('Ereignisse ausserhalb des Einflussbereichs von Elevate Software AG befreien sie für ihre Dauer von der Leistungspflicht, ohne dass daraus Ansprüche des Kunden entstehen. Dazu zählen insbesondere Ausfälle der eingesetzten Infrastruktur, Störungen von Internetverbindungen, Stromausfälle, Streik, behördliche Massnahmen, Naturereignisse, Epidemien und kriegerische Ereignisse. Dauert das Ereignis länger als 60 Tage, kann jede Partei den Vertrag mit einer Frist von 30 Tagen kündigen.',
+      'Events beyond the control of Elevate Software AG release it from its obligation to perform for their duration, without giving rise to claims by the client. These include in particular outages of the infrastructure used, disruptions to internet connections, power failures, strikes, official measures, natural events, epidemics and acts of war. If the event lasts longer than 60 days, either party may terminate the agreement on 30 days’ notice.')
+  ]);
+
+  S('13', L('Vertraulichkeit und Abwerbeverbot', 'Confidentiality and non-solicitation'), [
+    P('Beide Parteien behandeln alle im Rahmen dieses Vertrags erlangten Informationen vertraulich und nutzen sie nur zur Vertragserfüllung. Die Pflicht gilt für die Dauer des Vertrags und drei Jahre darüber hinaus.',
+      'Both parties treat all information obtained under this agreement as confidential and use it solely to perform the agreement. The obligation applies for the term of the agreement and for three years thereafter.'),
+    P('Der Kunde wird während der Vertragsdauer und zwölf Monate danach keine Mitarbeitenden von Elevate Software AG oder ihrer verbundenen Gesellschaften abwerben oder beschäftigen, die für ihn tätig waren. Bei Zuwiderhandlung schuldet er eine Vertragsstrafe in Höhe von sechs Monatsvergütungen der betroffenen Person; die Geltendmachung eines weitergehenden Schadens bleibt vorbehalten.',
+      'For the term of the agreement and twelve months thereafter, the client will not solicit or employ any staff of Elevate Software AG or its affiliated companies who worked for it. In case of breach the client owes a contractual penalty equal to six monthly salaries of the person concerned; the right to claim further damages is reserved.'),
+    P('Elevate Software AG darf den Kunden mit Namen und Logo als Referenz nennen. Der Kunde kann dem jederzeit in Textform widersprechen.',
+      'Elevate Software AG may name the client, with name and logo, as a reference. The client may object to this at any time in text form.')
+  ]);
+
+  S('14', L('Datenschutz', 'Data protection'), [
+    P('Die Verarbeitung personenbezogener Daten richtet sich nach dem gesondert abgeschlossenen Vertrag zur Auftragsverarbeitung nach Art. 28 DSGVO, der Bestandteil dieses Vertrags ist und für die Plattform ebenso wie für alle Leistungsscheine gilt.',
+      'The processing of personal data is governed by the separately concluded data processing agreement under Art. 28 GDPR, which forms part of this agreement and applies to the platform as well as to all service schedules.')
+  ]);
+
+  S('15', L('Schlussbestimmungen', 'Final provisions'), [
+    P('Änderungen und Ergänzungen bedürfen der Textform. Der Kunde kann Rechte und Pflichten aus diesem Vertrag nur mit vorheriger Zustimmung von Elevate Software AG übertragen; Elevate Software AG darf den Vertrag auf ein verbundenes Unternehmen übertragen.',
+      'Amendments and additions require text form. The client may transfer rights and obligations under this agreement only with the prior consent of Elevate Software AG; Elevate Software AG may transfer the agreement to an affiliated company.'),
+    P('Bei Widersprüchen gilt: Dieser Rahmenvertrag geht einem Leistungsschein vor, soweit der Leistungsschein nicht ausdrücklich etwas anderes bestimmt. In Datenschutzfragen geht der Vertrag zur Auftragsverarbeitung beiden vor.',
+      'In case of conflict: this framework agreement prevails over a service schedule unless the service schedule expressly provides otherwise. On data protection matters the data processing agreement prevails over both.'),
+    P('Sollte eine Bestimmung unwirksam sein oder werden, bleibt der Vertrag im Übrigen wirksam; Haftungsbeschränkungen gelten im gesetzlich zulässigen Umfang fort.',
+      'Should any provision be or become invalid, the remainder of the agreement stays effective; limitations of liability continue to apply to the extent permitted by law.'),
+    P('Dieser Vertrag liegt in deutscher und englischer Sprache vor. Verbindlich ist ausschliesslich die deutsche Fassung; die englische Fassung dient dem Verständnis.',
+      'This agreement exists in German and English. Only the German version is binding; the English version serves comprehension only.'),
+    P('Es gilt ' + lawText(ctx) + '. Gerichtsstand ist ' + tm.venue + '. Das UN-Kaufrecht ist ausgeschlossen.',
+      lawTextEn(ctx) + ' applies. The place of jurisdiction is ' + tm.venue + '. The UN Convention on Contracts for the International Sale of Goods is excluded.')
+  ]);
+
+  return {
+    key: 'platform',
+    title: txt(L('Rahmenvertrag Elev8 Suite', 'Elev8 Suite Framework Agreement'), l),
+    subtitle: txt(L('Nutzung der Plattform als Software as a Service',
+      'Use of the platform as software as a service'), l),
+    parties: partyBlock(ctx, L('Kunde', 'Client'), L('Anbieter', 'Provider')),
+    sections: sections,
+    annexes: []
+  };
+}
+
 /* ---------------- GRO-Dienstleistungsvertrag ---------------- */
 
 function gro(ctx) {
@@ -371,9 +570,11 @@ function gro(ctx) {
   const extra = ans(ctx, 'scope_extra');
   if (extra) scope.push(extra);
 
-  S('1', L('Vertragsgegenstand', 'Subject matter'), [
-    P('Elevate Software AG erbringt für den Kunden Guest-Relations-Leistungen. Sie erbringt diese Leistungen über ihre Plattform Elev8 Suite. Ein Guest Relations Officer (nachfolgend „GRO") führt die Kommunikation mit den Gästen des Kunden im Namen und im Auftrag des Kunden. Der GRO tritt gegenüber Gästen unter dem vom Kunden bestimmten Namen auf.',
-      'Elevate Software AG provides guest relations services to the client. It delivers those services through its platform, Elev8 Suite. A Guest Relations Officer (“GRO”) handles communication with the client’s guests in the client’s name and on the client’s behalf. Towards guests the GRO appears under the name specified by the client.'),
+  S('1', L('Gegenstand und Verhältnis zum Rahmenvertrag', 'Subject matter and relation to the framework agreement'), [
+    P('Dieser Leistungsschein ergänzt den zwischen den Parteien geschlossenen Rahmenvertrag Elev8 Suite und gilt nur zusammen mit ihm. Soweit hier nichts Abweichendes geregelt ist, gelten die Bestimmungen des Rahmenvertrags, insbesondere zu Vergütungsmodalitäten, Haftung, höherer Gewalt, Vertraulichkeit, Abwerbeverbot, anwendbarem Recht und Gerichtsstand.',
+      'This service schedule supplements the Elev8 Suite framework agreement concluded between the parties and applies only together with it. Unless otherwise provided here, the provisions of the framework agreement apply, in particular on payment terms, liability, force majeure, confidentiality, non-solicitation, applicable law and jurisdiction.'),
+    P('Elevate Software AG erbringt für den Kunden Guest-Relations-Leistungen. Sie erbringt diese Leistungen über ihre Plattform Elev8 Suite. Ein Guest Relations Officer (nachfolgend „GRO") führt die Kommunikation mit den Gästen des Kunden im Namen und im Auftrag des Kunden. Der GRO tritt gegenüber Gästen unter dem vom Kunden bestimmten Namen auf. Die betreuenden Mitarbeitenden sind bei ' + GROUP.opsName + ' angestellt, einer Schwestergesellschaft von Elevate Software AG.',
+      'Elevate Software AG provides guest relations services to the client. It delivers those services through its platform, Elev8 Suite. A Guest Relations Officer (“GRO”) handles communication with the client’s guests in the client’s name and on the client’s behalf. Towards guests the GRO appears under the name specified by the client. The staff serving the client are employed by ' + GROUP.opsName + ', a sister company of Elevate Software AG.'),
     { kv: [
       [txt(L('Objekt', 'Property'), l), ansOr(ctx, 'address')],
       [txt(L('Anzahl Einheiten', 'Number of units'), l), ansOr(ctx, 'units')],
@@ -484,10 +685,8 @@ function gro(ctx) {
       'A unit means every unit of the client active in Elev8 Suite, regardless of how many listings are formed from it. Invoicing is monthly in advance, payable within 30 days of the invoice date without deduction. All amounts are net and exclusive of any taxes and levies.'),
     P('Ändert sich die Anzahl der Einheiten, wird taggenau pro rata abgerechnet: Jede Einheit wird ab dem Tag ihrer Aktivierung und bis zum Tag ihrer Deaktivierung in Elev8 Suite berechnet. Die Differenz erscheint auf der nächsten Rechnung.',
       'If the number of units changes, billing is pro rata on a daily basis: each unit is charged from the day it is activated until the day it is deactivated in Elev8 Suite. The difference appears on the next invoice.'),
-    P('Bei Zahlungsverzug fallen Verzugszinsen in gesetzlicher Höhe an. Gerät der Kunde mit einer fälligen Zahlung mehr als 14 Tage in Verzug, ist Elevate Software AG nach einmaliger Mahnung berechtigt, die Leistungen bis zum Ausgleich auszusetzen; der Vergütungsanspruch bleibt für diesen Zeitraum bestehen. Aufrechnen darf der Kunde nur mit unbestrittenen oder rechtskräftig festgestellten Forderungen; ein Zurückbehaltungsrecht steht ihm nur wegen Ansprüchen aus diesem Vertrag zu.',
-      'Late payment bears statutory default interest. If the client is more than 14 days late with a due payment, Elevate Software AG is entitled, after one reminder, to suspend the services until payment is made; the right to remuneration for that period remains. The client may set off only against undisputed or legally established claims, and may exercise a right of retention only for claims arising from this agreement.'),
-    P('Elevate Software AG kann die Vergütung einmal je Kalenderjahr mit einer Frist von zwei Monaten zum Monatsende anpassen. Übersteigt die Erhöhung fünf Prozent, steht dem Kunden ein Sonderkündigungsrecht zum Wirksamwerden der Anpassung zu.',
-      'Elevate Software AG may adjust the fee once per calendar year on two months’ notice to the end of a month. If the increase exceeds five percent, the client has a special right of termination effective as of the adjustment.')
+    P('Zahlungsmodalitäten, Verzugsfolgen und Preisanpassung richten sich nach dem Rahmenvertrag Elev8 Suite.',
+      'Payment terms, consequences of default and price adjustment are governed by the Elev8 Suite framework agreement.')
   ]);
 
   S('9', L('Laufzeit und Kündigung', 'Term and termination'), [
@@ -503,61 +702,36 @@ function gro(ctx) {
   ]);
 
   S('10', L('Haftung', 'Liability'), [
-    P('Elevate Software AG haftet unbeschränkt für Vorsatz und grobe Fahrlässigkeit, für Schäden aus der Verletzung des Lebens, des Körpers oder der Gesundheit sowie in den Fällen zwingender gesetzlicher Haftung.',
-      'Elevate Software AG is liable without limitation for intent and gross negligence, for damage arising from injury to life, body or health, and in cases of mandatory statutory liability.'),
-    P('Im Übrigen haftet Elevate Software AG nur für die Verletzung einer wesentlichen Vertragspflicht, deren Erfüllung die ordnungsgemässe Durchführung dieses Vertrags überhaupt erst ermöglicht und auf deren Einhaltung der Kunde regelmässig vertrauen darf. Die Haftung ist in diesem Fall der Höhe nach begrenzt auf den bei Vertragsschluss vorhersehbaren, vertragstypischen Schaden, höchstens jedoch auf die Nettovergütung, die der Kunde in den zwölf Monaten vor dem schädigenden Ereignis gezahlt hat.',
-      'Otherwise Elevate Software AG is liable only for breach of a material contractual obligation whose fulfilment makes the proper performance of this agreement possible in the first place and on whose observance the client may regularly rely. In that case liability is limited to the damage foreseeable at the conclusion of the contract and typical for this type of contract, and in any event to the net fees paid by the client in the twelve months preceding the damaging event.'),
-    P('Nicht ersetzt werden, soweit gesetzlich zulässig: entgangener Gewinn, ausgebliebene Einsparungen, mittelbare Schäden und Folgeschäden, Ansprüche Dritter, Schäden aus Bewertungen oder Rufschädigung sowie Datenverluste über den Aufwand hinaus, der bei ordnungsgemässer Datensicherung zur Wiederherstellung erforderlich gewesen wäre.',
-      'To the extent permitted by law, the following are not compensated: lost profit, savings not realised, indirect and consequential damage, third-party claims, damage arising from reviews or reputational harm, and data loss beyond the effort that would have been required for restoration with proper data backup.'),
-    P('Elevate Software AG haftet nicht für Entscheidungen, die der GRO innerhalb der in Ziffer 3 gesetzten Grenzen trifft; diese gelten als vom Kunden autorisiert. Ebenso wenig haftet Elevate Software AG für Folgen unvollständiger, veralteter oder unrichtiger Angaben des Kunden, für Weisungen des Kunden sowie für Ausfälle oder Fehlfunktionen von Elev8 Suite, der Buchungskanäle, der Telefonie oder anderer Leistungen Dritter.',
-      'Elevate Software AG is not liable for decisions taken by the GRO within the limits set out in section 3; these are deemed authorised by the client. Nor is Elevate Software AG liable for the consequences of incomplete, outdated or incorrect information provided by the client, for the client’s instructions, or for outages or malfunctions of Elev8 Suite, the booking channels, telephony or other third-party services.'),
-    P('Der Kunde stellt Elevate Software AG von Ansprüchen Dritter frei, die auf Angaben, Inhalten oder Weisungen des Kunden beruhen, soweit den Kunden ein Verschulden trifft.',
-      'The client indemnifies Elevate Software AG against third-party claims based on information, content or instructions supplied by the client, to the extent the client is at fault.'),
-    P('Ansprüche gegen Elevate Software AG verjähren, soweit gesetzlich zulässig, zwölf Monate nach dem Zeitpunkt, in dem der Kunde von den anspruchsbegründenden Umständen Kenntnis erlangt hat oder ohne grobe Fahrlässigkeit erlangen musste. Die vorstehenden Beschränkungen gelten auch zugunsten der Mitarbeitenden, Organe und Erfüllungsgehilfen von Elevate Software AG.',
-      'Claims against Elevate Software AG become time-barred, to the extent permitted by law, twelve months after the client became aware of the circumstances giving rise to the claim or should have become aware without gross negligence. The above limitations also apply for the benefit of the employees, officers and vicarious agents of Elevate Software AG.')
+    P('Es gilt die Haftungsregelung des Rahmenvertrags Elev8 Suite. Ergänzend gilt für diesen Leistungsschein:',
+      'The liability provisions of the Elev8 Suite framework agreement apply. In addition, the following applies to this service schedule:'),
+    { ul: en ? [
+      'Decisions taken by the GRO within the limits set out in section 3 are deemed authorised by the client and do not give rise to liability on the part of Elevate Software AG.',
+      'Elevate Software AG is not liable for the consequences of incomplete, outdated or incorrect information provided by the client, nor for the client’s instructions.',
+      'Elevate Software AG is not liable for outages or malfunctions of the booking channels, telephony or other third-party services.',
+      'No particular commercial outcome is owed, in particular no rating, response time or occupancy.',
+      'The client indemnifies Elevate Software AG against third-party claims based on information, content or instructions supplied by the client, to the extent the client is at fault.'
+    ] : [
+      'Entscheidungen, die der GRO innerhalb der in Ziffer 3 gesetzten Grenzen trifft, gelten als vom Kunden autorisiert und begründen keine Haftung von Elevate Software AG.',
+      'Elevate Software AG haftet nicht für Folgen unvollständiger, veralteter oder unrichtiger Angaben des Kunden und nicht für Weisungen des Kunden.',
+      'Elevate Software AG haftet nicht für Ausfälle oder Fehlfunktionen der Buchungskanäle, der Telefonie oder anderer Leistungen Dritter.',
+      'Ein bestimmter wirtschaftlicher Erfolg wird nicht geschuldet, insbesondere keine Bewertung, keine Antwortzeit und keine Auslastung.',
+      'Der Kunde stellt Elevate Software AG von Ansprüchen Dritter frei, die auf Angaben, Inhalten oder Weisungen des Kunden beruhen, soweit den Kunden ein Verschulden trifft.'
+    ] }
   ]);
 
-  S('11', L('Höhere Gewalt und Leistungsstörungen', 'Force majeure and disruptions'), [
-    P('Ereignisse ausserhalb des Einflussbereichs von Elevate Software AG befreien sie für ihre Dauer von der Leistungspflicht, ohne dass daraus Ansprüche des Kunden entstehen. Dazu zählen insbesondere Ausfälle von Elev8 Suite oder anderer Plattformen, Störungen von Telefon- und Internetverbindungen, Stromausfälle, Streik, behördliche Massnahmen, Naturereignisse, Epidemien und kriegerische Ereignisse.',
-      'Events beyond the control of Elevate Software AG release it from its obligation to perform for their duration, without giving rise to claims by the client. These include in particular outages of Elev8 Suite or other platforms, disruptions to telephone and internet connections, power failures, strikes, official measures, natural events, epidemics and acts of war.'),
-    P('Dauert das Ereignis länger als 60 Tage, kann jede Partei den Vertrag mit einer Frist von 30 Tagen kündigen. Elevate Software AG darf einzelne Leistungen durch gleichwertige ersetzen und Dritte zur Leistungserbringung heranziehen.',
-      'If the event lasts longer than 60 days, either party may terminate the agreement on 30 days’ notice. Elevate Software AG may replace individual services with equivalent ones and engage third parties to perform.')
-  ]);
-
-  S('12', L('Vertraulichkeit, Abwerbeverbot und Rechte', 'Confidentiality, non-solicitation and rights'), [
-    P('Beide Parteien behandeln alle im Rahmen dieses Vertrags erlangten Informationen vertraulich und nutzen sie nur zur Vertragserfüllung. Die Pflicht gilt für die Dauer des Vertrags und drei Jahre darüber hinaus.',
-      'Both parties treat all information obtained under this agreement as confidential and use it solely to perform the agreement. The obligation applies for the term of the agreement and for three years thereafter.'),
-    P('Der Kunde wird während der Vertragsdauer und zwölf Monate danach keine Mitarbeitenden von Elevate Software AG abwerben oder beschäftigen, die für ihn tätig waren. Bei Zuwiderhandlung schuldet er eine Vertragsstrafe in Höhe von sechs Monatsvergütungen der betroffenen Person; die Geltendmachung eines weitergehenden Schadens bleibt vorbehalten.',
-      'For the term of the agreement and twelve months thereafter, the client will not solicit or employ any Elevate Software AG staff who worked for it. In case of breach the client owes a contractual penalty equal to six monthly salaries of the person concerned; the right to claim further damages is reserved.'),
-    P('Alle Rechte an den von Elevate Software AG eingesetzten Verfahren, Vorlagen, Textbausteinen, Auswertungen und Werkzeugen verbleiben bei Elevate Software AG. Der Kunde erhält daran für die Vertragsdauer ein einfaches, nicht übertragbares Nutzungsrecht zum vertragsgemässen Gebrauch.',
-      'All rights to the procedures, templates, text modules, analyses and tools used by Elevate Software AG remain with Elevate Software AG. For the term of the agreement the client receives a simple, non-transferable right to use them as intended under this agreement.'),
-    P('Elevate Software AG darf den Kunden mit Namen und Logo als Referenz nennen. Der Kunde kann dem jederzeit in Textform widersprechen.',
-      'Elevate Software AG may name the client, with name and logo, as a reference. The client may object to this at any time in text form.')
-  ]);
-
-  S('13', L('Datenschutz', 'Data protection'), [
-    P('Die Verarbeitung personenbezogener Daten richtet sich nach dem gesondert abgeschlossenen Vertrag zur Auftragsverarbeitung nach Art. 28 DSGVO, der Bestandteil dieses Vertrags ist. Teile des Teams arbeiten in Indonesien; die dafür erforderlichen Garantien sind dort geregelt.',
-      'The processing of personal data is governed by the separately concluded data processing agreement under Art. 28 GDPR, which forms part of this agreement. Parts of the team work in Indonesia; the safeguards required for this are set out there.')
-  ]);
-
-  S('14', L('Schlussbestimmungen', 'Final provisions'), [
+  S('11', L('Schlussbestimmungen', 'Final provisions'), [
     P('Änderungen und Ergänzungen bedürfen der Textform. Angaben, die als vertragsrelevant gekennzeichnet sind, können nach der Unterzeichnung nur durch einen von beiden Seiten bestätigten Nachtrag geändert werden. Alle übrigen Angaben im Aufnahmeformular sind Betriebswissen und jederzeit durch den Kunden anpassbar.',
       'Amendments and additions require text form. Entries marked as contractually relevant can be changed after signature only by an addendum confirmed by both sides. All other entries in the onboarding form are operational knowledge and can be adjusted by the client at any time.'),
-    P('Der Kunde kann Rechte und Pflichten aus diesem Vertrag nur mit vorheriger Zustimmung von Elevate Software AG übertragen. Elevate Software AG darf den Vertrag auf ein verbundenes Unternehmen übertragen.',
-      'The client may transfer rights and obligations under this agreement only with the prior consent of Elevate Software AG. Elevate Software AG may transfer the agreement to an affiliated company.'),
-    P('Sollte eine Bestimmung dieses Vertrags unwirksam sein oder werden, bleibt der Vertrag im Übrigen wirksam. Die Parteien ersetzen die unwirksame Bestimmung durch eine wirksame, die dem wirtschaftlichen Zweck am nächsten kommt; Haftungsbeschränkungen gelten im gesetzlich zulässigen Umfang fort.',
-      'Should any provision of this agreement be or become invalid, the remainder of the agreement stays effective. The parties will replace the invalid provision with a valid one that comes closest to its economic purpose; limitations of liability continue to apply to the extent permitted by law.'),
-    P('Dieser Vertrag liegt in deutscher und englischer Sprache vor. Verbindlich ist ausschliesslich die deutsche Fassung; die englische Fassung dient dem Verständnis.',
-      'This agreement exists in German and English. Only the German version is binding; the English version serves comprehension only.'),
-    P('Es gilt ' + lawText(ctx) + '. Gerichtsstand ist ' + tm.venue + '. Das UN-Kaufrecht ist ausgeschlossen.',
-      lawTextEn(ctx) + ' applies. The place of jurisdiction is ' + tm.venue + '. The UN Convention on Contracts for the International Sale of Goods is excluded.')
+    P('Bei Widersprüchen geht der Rahmenvertrag diesem Leistungsschein vor, soweit hier nicht ausdrücklich etwas anderes bestimmt ist. In Datenschutzfragen geht der Vertrag zur Auftragsverarbeitung beiden vor.',
+      'In case of conflict the framework agreement prevails over this service schedule unless expressly provided otherwise here. On data protection matters the data processing agreement prevails over both.'),
+    P('Dieser Leistungsschein liegt in deutscher und englischer Sprache vor. Verbindlich ist ausschliesslich die deutsche Fassung; die englische Fassung dient dem Verständnis.',
+      'This service schedule exists in German and English. Only the German version is binding; the English version serves comprehension only.')
   ]);
 
   return {
     key: 'gro',
-    title: txt(L('Vertrag über Guest-Relations-Leistungen', 'Guest Relations Services Agreement'), l),
-    subtitle: txt(L('Dienstleistungsvertrag zwischen Kunde und Elevate Software AG',
-      'Service agreement between the client and Elevate Software AG'), l),
+    title: txt(L('Leistungsschein Guest Relations', 'Guest Relations Service Schedule'), l),
+    subtitle: txt(L('Zum Rahmenvertrag Elev8 Suite', 'To the Elev8 Suite framework agreement'), l),
     parties: partyBlock(ctx, L('Kunde', 'Client'), L('Dienstleister', 'Service provider')),
     sections: sections,
     annexes: []
@@ -642,10 +816,12 @@ function documentText(doc) {
 
 function build(kind, intake, answers, terms, lang) {
   const ctx = buildContext(intake, answers, terms, lang);
-  return kind === 'avv' ? avv(ctx) : gro(ctx);
+  if (kind === 'avv') return avv(ctx);
+  if (kind === 'platform') return platform(ctx);
+  return gro(ctx);
 }
 
 module.exports = {
-  ELEV8, DEFAULT_TERMS, buildContext, build, avv, gro,
+  ELEV8, GROUP, DEFAULT_TERMS, buildContext, build, avv, gro, platform,
   subprocessors, documentHtml, documentText, today, money
 };
