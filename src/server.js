@@ -224,9 +224,23 @@ function termsReady(terms, kind) {
   return true;   // der AVV braucht keine kaufmaennischen Angaben
 }
 
-/** Welche Vertraege lassen sich mit dem aktuellen Stand erzeugen? */
-function readyKinds(terms) {
-  return KINDS.filter(function (k) { return termsReady(terms, k); });
+/**
+ * Kann dieses Dokument jetzt unterzeichnet werden - und wenn nicht, warum?
+ * Der Entwurf steht dem Kunden immer offen; die Unterschrift erst, wenn
+ * alles Nötige da ist.
+ */
+function signability(kind, terms, missing, signedByKind, lang) {
+  if (signedByKind[kind]) return { signed: signedByKind[kind], canSign: false, reason: null };
+  if (!termsReady(terms, kind)) {
+    return { canSign: false, reason: i18n.t(i18n.UI.contractsMissingTerms, lang) };
+  }
+  if (missing.length) {
+    return { canSign: false, reason: i18n.t(i18n.UI.contractsMissingFields, lang) };
+  }
+  if (kind === 'gro' && !signedByKind.platform) {
+    return { canSign: false, reason: i18n.t(i18n.UI.needsPlatform, lang) };
+  }
+  return { canSign: true, reason: null };
 }
 
 /** Welche Pflichtfelder fehlen noch? Abhaengige Felder zaehlen nur, wenn aktiv. */
@@ -597,18 +611,10 @@ app.get('/f/:token', async function (req, res, next) {
     const signedByKind = {};
     signedList.forEach(function (c) { signedByKind[c.kind] = c; });
 
-    const ready = readyKinds(terms);
-    let block;
-    if (missing.length) {
-      block = contractview.contractsBlock(intake, [], {}, lang,
-        i18n.t(i18n.UI.contractsMissingFields, lang));
-    } else if (ready.length < KINDS.length) {
-      block = contractview.contractsBlock(intake, [], {}, lang,
-        i18n.t(i18n.UI.contractsMissingTerms, lang));
-    } else {
-      const docs = KINDS.map(function (k) { return contracts.build(k, intake, a.values, terms, CONTRACT_LANG); });
-      block = contractview.contractsBlock(intake, docs, signedByKind, lang, null);
-    }
+    const docs = KINDS.map(function (k) { return contracts.build(k, intake, a.values, terms, CONTRACT_LANG); });
+    const statusByKind = {};
+    KINDS.forEach(function (k) { statusByKind[k] = signability(k, terms, missing, signedByKind, lang); });
+    const block = contractview.contractsBlock(intake, docs, statusByKind, lang);
 
     const opts = {
       lang: lang,
@@ -753,11 +759,20 @@ app.get('/f/:token/vertrag/:kind.pdf', async function (req, res, next) {
     const kind = String(req.params.kind || '');
     if (KINDS.indexOf(kind) < 0) return res.status(404).type('text/plain').send('Nicht gefunden');
     const signed = await db.getContract(intake.id, kind);
-    if (!signed || !signed.pdf) return res.status(404).type('text/plain').send('Noch nicht unterzeichnet');
+    const stem = String(intake.tenant_name).replace(/[^A-Za-z0-9_-]+/g, '-');
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'inline; filename="' + kind + '-' +
-      String(intake.tenant_name).replace(/[^A-Za-z0-9_-]+/g, '-') + '.pdf"');
-    res.send(signed.pdf);
+
+    if (signed && signed.pdf) {
+      res.setHeader('Content-Disposition', 'inline; filename="' + kind + '-' + stem + '.pdf"');
+      return res.send(signed.pdf);
+    }
+    // Noch nicht unterzeichnet: gekennzeichneter Entwurf aus dem aktuellen Stand.
+    const a = await db.getAnswers(intake.id);
+    const doc = contracts.build(kind, intake, a.values, intake.terms || {}, CONTRACT_LANG);
+    const buf = await pdfout.render(doc, null, { draft: DRAFT_MARK });
+    res.setHeader('Content-Disposition', 'inline; filename="Muster-' + kind + '-' + stem + '.pdf"');
+    res.setHeader('Cache-Control', 'no-store');
+    res.send(buf);
   } catch (e) { next(e); }
 });
 
@@ -771,9 +786,15 @@ app.get('/f/:token/vertrag/:kind', async function (req, res, next) {
     // wurde - nicht neu aus inzwischen geaenderten Antworten gebaut.
     const src = signed ? { a: signed.answers, t: signed.terms } : { a: c.answers, t: c.terms };
     const doc = contracts.build(c.kind, c.intake, src.a, src.t, reading ? 'en' : CONTRACT_LANG);
+    const all = await db.listContracts(c.intake.id);
+    const byKind = {};
+    all.forEach(function (x) { byKind[x.kind] = x; });
+    const st = signability(c.kind, c.terms, missingRequired(c.answers), byKind, c.lang);
+
     res.setHeader('Cache-Control', 'no-store');
     res.type('html').send(contractview.contractPage(
-      c.intake, doc, signed, c.lang, '/f/' + c.intake.token + '/vertrag', { reading: reading }));
+      c.intake, doc, signed, c.lang, '/f/' + c.intake.token + '/vertrag',
+      { reading: reading, blockReason: st.reason }));
   } catch (e) { next(e); }
 });
 
