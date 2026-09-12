@@ -55,6 +55,36 @@ async function init() {
   `);
   await pool.query(`ALTER TABLE answers ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'tenant';`);
   await pool.query(`CREATE INDEX IF NOT EXISTS answers_intake_idx ON answers(intake_id);`);
+  await pool.query(`ALTER TABLE intakes ADD COLUMN IF NOT EXISTS lang TEXT;`);
+  await migrateOptionCodes();
+}
+
+/**
+ * Vor der Zweisprachigkeit standen in den Antworten die deutschen
+ * Optionstexte. Jetzt stehen dort Codes. Was noch alt ist, wird einmalig
+ * uebersetzt - alles, was sich nicht zuordnen laesst, bleibt unangetastet.
+ */
+async function migrateOptionCodes() {
+  const { legacyCodeMap, FIELD_MAP } = require('./questions');
+  const map = legacyCodeMap();
+  const { rows } = await pool.query(
+    `SELECT intake_id, field_id, value FROM answers WHERE value <> ''`);
+  let changed = 0;
+  for (const r of rows) {
+    const f = FIELD_MAP.get(r.field_id);
+    if (!f || !f.options) continue;
+    const parts = String(r.value).split(',').map(function (x) { return x.trim(); }).filter(Boolean);
+    const known = f.options.map(function (x) { return x.code; });
+    if (parts.every(function (x) { return known.indexOf(x) > -1; })) continue;   // schon Codes
+    const mapped = parts.map(function (x) {
+      return map.get(r.field_id + '::' + x.toLowerCase()) || null;
+    });
+    if (mapped.some(function (x) { return !x; })) continue;                      // unklar -> lassen
+    await pool.query('UPDATE answers SET value = $3 WHERE intake_id = $1 AND field_id = $2',
+      [r.intake_id, r.field_id, mapped.join(', ')]);
+    changed++;
+  }
+  if (changed) console.log('Antworten auf Optionscodes umgestellt: ' + changed);
 }
 
 /* ---------------- tenants ---------------- */
@@ -197,6 +227,10 @@ async function saveAnswer(intakeId, fieldId, value, source) {
   );
 }
 
+async function setIntakeLang(id, lang) {
+  await pool.query('UPDATE intakes SET lang = $2 WHERE id = $1', [id, lang]);
+}
+
 async function setStatus(intakeId, status) {
   await pool.query(
     `UPDATE intakes SET status = $2, submitted_at = CASE WHEN $2 = 'submitted' THEN now() ELSE submitted_at END WHERE id = $1`,
@@ -212,6 +246,6 @@ module.exports = {
   pool, init,
   listTenants, getTenant, upsertTenant, updateTenantToken, saveTenantSync, deleteTenant,
   listIntakes, createIntake, getIntakeByToken, getIntakeById, setIntakeSnapshot, linkIntakeTenant,
-  listIntakesForResync,
+  listIntakesForResync, setIntakeLang,
   getAnswers, saveAnswer, setStatus, deleteIntake
 };

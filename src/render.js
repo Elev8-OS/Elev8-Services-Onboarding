@@ -1,6 +1,7 @@
 'use strict';
 
-const { SECTIONS, INPUT_FIELDS, isInput, mergePrefill } = require('./questions');
+const { SECTIONS, INPUT_FIELDS, isInput, mergePrefill, valueLabel } = require('./questions');
+const { t, UI, clientStrings, DEFAULT_LANG } = require('./i18n');
 
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -11,23 +12,25 @@ function esc(s) {
 function nl2br(s) { return esc(s).replace(/\n/g, '<br>'); }
 
 /** "vor 3 Minuten" - der Tenant soll sehen, worauf er gerade schaut. */
-function ago(iso) {
-  const t = iso ? Date.parse(iso) : NaN;
-  if (isNaN(t)) return 'noch nie';
-  const m = Math.max(0, Math.round((Date.now() - t) / 60000));
-  if (m < 1) return 'gerade eben';
-  if (m === 1) return 'vor 1 Minute';
-  if (m < 60) return 'vor ' + m + ' Minuten';
+function ago(iso, lang) {
+  const en = lang === 'en';
+  const ts = iso ? Date.parse(iso) : NaN;
+  if (isNaN(ts)) return en ? 'never' : 'noch nie';
+  const m = Math.max(0, Math.round((Date.now() - ts) / 60000));
+  if (m < 1) return en ? 'just now' : 'gerade eben';
+  if (m === 1) return en ? '1 minute ago' : 'vor 1 Minute';
+  if (m < 60) return en ? m + ' minutes ago' : 'vor ' + m + ' Minuten';
   const h = Math.round(m / 60);
-  if (h === 1) return 'vor 1 Stunde';
-  if (h < 24) return 'vor ' + h + ' Stunden';
+  if (h === 1) return en ? '1 hour ago' : 'vor 1 Stunde';
+  if (h < 24) return en ? h + ' hours ago' : 'vor ' + h + ' Stunden';
   const d = Math.round(h / 24);
-  return d === 1 ? 'gestern' : 'vor ' + d + ' Tagen';
+  if (d === 1) return en ? 'yesterday' : 'gestern';
+  return en ? d + ' days ago' : 'vor ' + d + ' Tagen';
 }
 
 function layout(opts) {
   return `<!doctype html>
-<html lang="de">
+<html lang="${opts.lang || 'de'}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -48,28 +51,29 @@ ${opts.script ? '<script src="' + opts.script + '" defer></script>' : ''}
 
 /* ---------------- form controls ---------------- */
 
-function control(f, v) {
+function control(f, v, lang) {
   const id = 'f_' + f.id;
   if (f.type === 'note') return '';
+  const ph = esc(t(f.placeholder, lang));
   if (f.type === 'textarea') {
-    return `<textarea id="${id}" name="${f.id}" rows="3" placeholder="${esc(f.placeholder || '')}">${esc(v)}</textarea>`;
+    return `<textarea id="${id}" name="${f.id}" rows="3" placeholder="${ph}">${esc(v)}</textarea>`;
   }
   if (f.type === 'radio') {
     return '<div class="choices">' + f.options.map(function (o, i) {
-      return `<label class="choice"><input type="radio" id="${id}_${i}" name="${f.id}" value="${esc(o)}"${v === o ? ' checked' : ''}><span>${esc(o)}</span></label>`;
+      return `<label class="choice"><input type="radio" id="${id}_${i}" name="${f.id}" value="${esc(o.code)}"${v === o.code ? ' checked' : ''}><span>${esc(t(o, lang))}</span></label>`;
     }).join('') + '</div>';
   }
   if (f.type === 'multi') {
     const chosen = String(v || '').split(',').map(function (x) { return x.trim(); });
     return '<div class="choices">' + f.options.map(function (o, i) {
-      return `<label class="choice"><input type="checkbox" id="${id}_${i}" name="${f.id}" value="${esc(o)}"${chosen.indexOf(o) > -1 ? ' checked' : ''}><span>${esc(o)}</span></label>`;
+      return `<label class="choice"><input type="checkbox" id="${id}_${i}" name="${f.id}" value="${esc(o.code)}"${chosen.indexOf(o.code) > -1 ? ' checked' : ''}><span>${esc(t(o, lang))}</span></label>`;
     }).join('') + '</div>';
   }
   if (f.type === 'money') {
     return `<div class="money"><span class="cur">EUR</span><input type="text" inputmode="decimal" id="${id}" name="${f.id}" value="${esc(v)}" placeholder="0"></div>`;
   }
-  const t = f.type === 'number' ? 'number' : (f.type === 'tel' ? 'tel' : (f.type === 'email' ? 'email' : 'text'));
-  return `<input type="${t}" id="${id}" name="${f.id}" value="${esc(v)}" placeholder="${esc(f.placeholder || '')}">`;
+  const kind = f.type === 'number' ? 'number' : (f.type === 'tel' ? 'tel' : (f.type === 'email' ? 'email' : 'text'));
+  return `<input type="${kind}" id="${id}" name="${f.id}" value="${esc(v)}" placeholder="${ph}">`;
 }
 
 /**
@@ -78,40 +82,43 @@ function control(f, v) {
  *  - aus Elev8, unbestätigt     → Wert steht da, ein Klick auf "Stimmt" genügt
  *  - beantwortet / bestätigt    → kompakte Zeile mit "Ändern"
  */
-function field(f, value, source, pre, conflict) {
+function field(f, value, source, pre, conflict, lang) {
   const v = value == null ? '' : value;
   const has = String(v).trim() !== '';
+  const locked = !!(f.lockedNow);
   const dep = f.dependsOn
     ? ` data-depends="${esc(f.dependsOn.field)}" data-depends-value="${esc([].concat(f.dependsOn.equals).join('|'))}"`
     : '';
   if (f.type === 'note') {
-    return `<div class="field note" data-field="${f.id}"${dep}><p class="notebox">${nl2br(f.label)}</p></div>`;
+    return `<div class="field note" data-field="${f.id}"${dep}><p class="notebox">${nl2br(t(f.label, lang))}</p></div>`;
   }
 
-  const head = `<label class="flabel" for="f_${f.id}">${esc(f.label)}${f.required ? '<span class="star" title="Pflichtangabe">*</span>' : ''}</label>` +
-    (f.help ? '<p class="fhelp">' + esc(f.help) + '</p>' : '');
+  const head = `<label class="flabel" for="f_${f.id}">${esc(t(f.label, lang))}${f.required ? '<span class="star" title="' + esc(t(UI.required, lang)) + '">*</span>' : ''}</label>` +
+    (f.help ? '<p class="fhelp">' + esc(t(f.help, lang)) + '</p>' : '');
 
   if (has) {
-    const badge = source === 'confirmed'
-      ? '<span class="tick" aria-hidden="true">✓</span> aus Elev8, von Ihnen bestätigt'
-      : '<span class="tick" aria-hidden="true">✓</span> Ihre Angabe';
+    const shown = valueLabel(f, v, lang);
+    const badge = '<span class="tick" aria-hidden="true">✓</span> ' +
+      esc(t(source === 'confirmed' ? UI.fromElev8Confirmed : UI.yourAnswer, lang));
     const clash = conflict ? `
   <div class="conflict">
-    <p class="cft"><b>In Elev8 steht inzwischen etwas anderes.</b></p>
-    <p class="cfl"><span class="cflab">Ihre Angabe</span> ${nl2br(conflict.mine)}</p>
-    <p class="cfl"><span class="cflab">Aus Elev8</span> ${nl2br(conflict.elev8)}</p>
+    <p class="cft"><b>${esc(t(UI.clashH, lang))}</b></p>
+    <p class="cfl"><span class="cflab">${esc(t(UI.clashMine, lang))}</span> ${nl2br(valueLabel(f, conflict.mine, lang))}</p>
+    <p class="cfl"><span class="cflab">${esc(t(UI.clashTheirs, lang))}</span> ${nl2br(valueLabel(f, conflict.elev8, lang))}</p>
     <div class="cfacts">
-      <button class="mini primary" type="button" data-act="takeelev8">Elev8-Wert übernehmen</button>
-      <button class="mini" type="button" data-act="keepmine">Meine Angabe behalten</button>
+      <button class="mini primary" type="button" data-act="takeelev8">${esc(t(UI.clashTake, lang))}</button>
+      <button class="mini" type="button" data-act="keepmine">${esc(t(UI.clashKeep, lang))}</button>
     </div>
   </div>` : '';
-    return `<div class="field done${f.required ? ' req' : ''}${conflict ? ' clash' : ''}" data-field="${f.id}"${dep}>
+    return `<div class="field done${f.required ? ' req' : ''}${conflict ? ' clash' : ''}${locked ? ' locked' : ''}" data-field="${f.id}"${dep}>
   ${head}
   <div class="answered">
-    <div class="aval">${nl2br(v)}</div>
-    <div class="afoot"><span class="src">${badge}</span><button class="mini" type="button" data-act="edit">Ändern</button></div>
+    <div class="aval">${nl2br(shown)}</div>
+    <div class="afoot"><span class="src">${badge}</span>${locked
+      ? '<span class="lockflag" title="' + esc(t(UI.lockedHint, lang)) + '">' + esc(t(UI.locked, lang)) + '</span>'
+      : '<button class="mini" type="button" data-act="edit">' + esc(t(UI.change, lang)) + '</button>'}</div>
   </div>${clash}
-  <div class="editwrap" hidden>${control(f, v)}</div>
+  ${locked ? '' : '<div class="editwrap" hidden>' + control(f, v, lang) + '</div>'}
 </div>`;
   }
 
@@ -119,44 +126,44 @@ function field(f, value, source, pre, conflict) {
     return `<div class="field pre${f.required ? ' req' : ''}" data-field="${f.id}"${dep}>
   ${head}
   <div class="prebox">
-    <div class="preval">${nl2br(pre.value)}</div>
+    <div class="preval">${nl2br(valueLabel(f, pre.value, lang))}</div>
     <div class="prefoot">
-      <span class="src elev8"><span class="dot"></span>${esc(pre.evidence || 'aus Elev8')}</span>
+      <span class="src elev8"><span class="dot"></span>${esc(t(pre.evidence, lang) || t(UI.fromElev8, lang))}</span>
       <span class="preacts">
-        <button class="mini primary" type="button" data-act="ok">Stimmt</button>
-        <button class="mini" type="button" data-act="edit">Ändern</button>
+        <button class="mini primary" type="button" data-act="ok">${esc(t(UI.ok, lang))}</button>
+        <button class="mini" type="button" data-act="edit">${esc(t(UI.change, lang))}</button>
       </span>
     </div>
   </div>
-  <div class="editwrap" hidden>${control(f, pre.value)}</div>
+  <div class="editwrap" hidden>${control(f, pre.value, lang)}</div>
 </div>`;
   }
 
   return `<div class="field${f.required ? ' req' : ''}" data-field="${f.id}"${dep}>
   ${head}
-  ${control(f, v)}
+  ${control(f, v, lang)}
 </div>`;
 }
 
 /* ---------------- readiness panel ---------------- */
 
-function readinessRows(rows) {
+function readinessRows(rows, lang) {
   return (rows || []).map(function (r) {
     const cls = r.ok ? 'ok' : (r.partial ? 'partial' : 'gap');
     const pct = r.total ? Math.round((r.n / r.total) * 100) : 0;
     return `<li class="rd ${cls}">
-  <span class="rd-label">${esc(r.label)}</span>
+  <span class="rd-label">${esc(t(r.label, lang))}</span>
   <span class="rd-bar"><span style="width:${pct}%"></span></span>
   <span class="rd-n">${r.n}/${r.total}</span>
 </li>`;
   }).join('');
 }
 
-function readinessHints(rows) {
-  const gaps = (rows || []).filter(function (r) { return !r.ok && r.hint; }).slice(0, 2);
+function readinessHints(rows, lang) {
+  const gaps = (rows || []).filter(function (r) { return !r.ok && t(r.hint, lang); }).slice(0, 2);
   if (!gaps.length) return '';
   return gaps.map(function (g) {
-    return '<p><b>' + esc(g.label) + ':</b> ' + esc(g.hint) + '</p>';
+    return '<p><b>' + esc(t(g.label, lang)) + ':</b> ' + esc(t(g.hint, lang)) + '</p>';
   }).join('');
 }
 
@@ -166,23 +173,23 @@ function readinessHints(rows) {
  */
 function readinessPanel(rows, facts, opts) {
   const o = opts || {};
+  const lang = o.lang || DEFAULT_LANG;
   const has = rows && rows.length;
   if (!has && !o.canResync) return '';
-  const hints = readinessHints(rows);
   return `<section class="panel elev8panel">
   <div class="panel-head">
-    <span class="src elev8"><span class="dot"></span>Direkt aus Ihrem Elev8-Konto</span>
-    <h2>Was schon gepflegt ist</h2>
+    <span class="src elev8"><span class="dot"></span>${esc(t(UI.panelSrc, lang))}</span>
+    <h2>${esc(t(UI.panelH, lang))}</h2>
   </div>
-  <p class="lede small">${facts && facts.total ? '<span id="rdunits">' + facts.total + '</span> Einheiten gefunden. ' : ''}Diese Angaben mussten Sie nicht eintippen — wir haben sie aus Elev8 gelesen. Sie sehen sie hier nur zur Kontrolle.</p>
-  <ul class="rdlist" id="rdlist">${readinessRows(rows)}</ul>
-  <div class="rdhints" id="rdhints">${hints}</div>
+  <p class="lede small">${facts && facts.total ? '<span id="rdunits">' + facts.total + '</span> ' + esc(t(UI.panelUnits, lang)) + ' ' : ''}${esc(t(UI.panelLede, lang))}</p>
+  <ul class="rdlist" id="rdlist">${readinessRows(rows, lang)}</ul>
+  <div class="rdhints" id="rdhints">${readinessHints(rows, lang)}</div>
   ${o.canResync ? `<div class="rdfoot">
     <div class="rdstampwrap">
-      <span class="rdstamp">Zuletzt aus Elev8 geholt: <b id="rdstamp">${esc(ago(o.syncedAt))}</b></span>
+      <span class="rdstamp">${esc(t(UI.lastFetched, lang))} <b id="rdstamp">${esc(ago(o.syncedAt, lang))}</b></span>
       <span class="rdmsg" id="resyncMsg"></span>
     </div>
-    <button class="btn ghost" type="button" id="resyncBtn">In Elev8 nachgepflegt? Jetzt neu prüfen</button>
+    <button class="btn ghost" type="button" id="resyncBtn">${esc(t(UI.resyncBtn, lang))}</button>
   </div>` : ''}
 </section>`;
 }
@@ -191,8 +198,11 @@ function readinessPanel(rows, facts, opts) {
 
 function tenantForm(intake, answers, sources, snapshot, opts) {
   const o = opts || {};
+  const lang = o.lang || DEFAULT_LANG;
+  const other = lang === 'de' ? 'en' : 'de';
   const clashes = {};
   (o.conflicts || []).forEach(function (c) { clashes[c.field] = c; });
+  const lockedSet = o.locked || {};
   // Elev8-Daten plus unsere eigenen Vorschlaege (z. B. der Leistungsumfang).
   const pre = mergePrefill(snapshot && snapshot.prefill);
   const filled = INPUT_FIELDS.filter(function (f) { return (answers[f.id] || '').trim() !== ''; }).length;
@@ -205,79 +215,101 @@ function tenantForm(intake, answers, sources, snapshot, opts) {
   const submitted = intake.status === 'submitted';
 
   const nav = SECTIONS.map(function (s, i) {
-    return `<a href="#s-${s.id}"><span class="n">${String(i + 1).padStart(2, '0')}</span>${esc(s.title)}</a>`;
+    return `<a href="#s-${s.id}"><span class="n">${String(i + 1).padStart(2, '0')}</span>${esc(t(s.title, lang))}</a>`;
   }).join('');
 
   const body = SECTIONS.map(function (s, i) {
     const secPre = s.fields.filter(function (f) {
       return isInput(f) && (answers[f.id] || '').trim() === '' && pre[f.id] && pre[f.id].value;
     }).length;
+    const bulkLabel = secPre + ' ' + t(secPre === 1 ? UI.confirmSecOne : UI.confirmSecMany, lang);
     return `<section class="sec" id="s-${s.id}" data-sec="${s.id}">
   <div class="sec-head">
     <span class="sec-n">${String(i + 1).padStart(2, '0')}</span>
-    <h2>${esc(s.title)}</h2>
+    <h2>${esc(t(s.title, lang))}</h2>
     <span class="sec-prog" data-secprog="${s.id}"></span>
   </div>
-  ${s.intro ? '<p class="sec-intro">' + esc(s.intro) + '</p>' : ''}
-  ${secPre ? '<div class="secbulk"><button class="mini primary" type="button" data-act="okall" data-sec="' + s.id + '">Die ' + secPre + ' Elev8-Angaben hier bestätigen</button></div>' : ''}
+  ${s.intro ? '<p class="sec-intro">' + esc(t(s.intro, lang)) + '</p>' : ''}
+  ${secPre ? '<div class="secbulk"><button class="mini primary" type="button" data-act="okall" data-sec="' + s.id + '">' + esc(bulkLabel) + '</button></div>' : ''}
   <div class="fields">${s.fields.map(function (f) {
-      return field(f, answers[f.id], sources[f.id], pre[f.id], clashes[f.id]);
+      const withLock = lockedSet[f.id] ? Object.assign({}, f, { lockedNow: true }) : f;
+      return field(withLock, answers[f.id], sources[f.id], pre[f.id], clashes[f.id], lang);
     }).join('')}</div>
 </section>`;
   }).join('');
 
+  const minutes = waiting ? (lang === 'en' ? '10 to 15' : '10 bis 15') : (lang === 'en' ? '20 to 30' : '20 bis 30');
+
   return layout({
-    title: 'Aufnahme — ' + intake.tenant_name,
+    lang: lang,
+    title: (lang === 'en' ? 'Onboarding — ' : 'Aufnahme — ') + intake.tenant_name,
     bodyClass: 'tenant',
     script: '/intake.js',
     body: `
 <div class="topbar">
   <div class="topbar-in">
-    <div class="brandline"><span class="dot"></span>Elev8 · Guest Relations</div>
-    <div class="saveline"><span id="saveflag">Jede Eingabe wird sofort gespeichert</span></div>
+    <div class="brandline"><span class="dot"></span>${esc(t(UI.brandline, lang))}</div>
+    <div class="topright">
+      <a class="langsw" href="?lang=${other}" rel="nofollow">${esc(t(UI.langSwitch, lang))}</a>
+      <div class="saveline"><span id="saveflag">${esc(t(UI.saveHint, lang))}</span></div>
+    </div>
   </div>
   <div class="rail"><span id="railfill"></span></div>
 </div>
 
 <div class="page">
   <header class="hero">
-    <p class="eyebrow">Aufnahme für ${esc(intake.tenant_name)}</p>
-    <h1>Was unser Team über Ihr Haus wissen muss</h1>
-    <p class="lede">Wir übernehmen die Gästekommunikation für Sie. Alles, was in Ihrem Elev8-Konto schon steht, haben wir bereits eingetragen — Sie bestätigen es nur. Tippen müssen Sie nur das, was in keinem System steht: was unser Guest Relations Officer entscheiden darf, wen er anruft, und wie Sie klingen wollen.</p>
+    <p class="eyebrow">${esc(t(UI.eyebrow, lang))} ${esc(intake.tenant_name)}</p>
+    <h1>${esc(t(UI.h1, lang))}</h1>
+    <p class="lede">${esc(t(UI.lede, lang))}</p>
     ${waiting ? `<div class="bulkbar">
-      <div><b>${waiting}</b> ${waiting === 1 ? 'Angabe kommt' : 'Angaben kommen'} aus Elev8 und ${waiting === 1 ? 'wartet' : 'warten'} nur auf Ihr Okay.</div>
-      <button class="btn" type="button" id="okAll">Alle auf einmal bestätigen</button>
+      <div><b>${waiting}</b> ${esc(t(waiting === 1 ? UI.waitingOne : UI.waitingMany, lang))}</div>
+      <button class="btn" type="button" id="okAll">${esc(t(UI.confirmAll, lang))}</button>
     </div>` : ''}
-    <p class="lede small">Jede Antwort wird sofort gespeichert; Sie können jederzeit aufhören und über denselben Link weitermachen. Rechnen Sie mit ${waiting ? '10 bis 15' : '20 bis 30'} Minuten.</p>
-    ${submitted ? '<p class="banner done">Sie haben diese Aufnahme abgeschlossen. Änderungen sind weiterhin möglich und werden gespeichert.</p>' : ''}
+    <p class="lede small">${esc(t(UI.timeHint, lang))} ${minutes} ${esc(t(UI.minutes, lang))}</p>
+    ${submitted ? '<p class="banner done">' + esc(t(UI.submittedBanner, lang)) + '</p>' : ''}
   </header>
 
   ${readinessPanel(snapshot && snapshot.readiness, snapshot && snapshot.facts,
-    { canResync: !!o.canResync, syncedAt: snapshot && snapshot.syncedAt })}
+    { canResync: !!o.canResync, syncedAt: snapshot && snapshot.syncedAt, lang: lang })}
 
-  <nav class="toc" aria-label="Abschnitte">${nav}</nav>
+  <nav class="toc" aria-label="${esc(t(UI.sections, lang))}">${nav}</nav>
 
   <main>${body}</main>
 
   <div class="finish">
-    <h3>Fertig?</h3>
-    <p>Alles Weitere klären wir im Gespräch. Mit dem Abschluss sagen Sie uns, dass wir mit der Einarbeitung starten können.</p>
-    <button type="button" class="btn big" id="submitBtn"${submitted ? ' disabled' : ''}>${submitted ? 'Bereits abgeschlossen' : 'Aufnahme abschliessen'}</button>
+    <h3>${esc(t(UI.finishH, lang))}</h3>
+    <p>${esc(t(UI.finishP, lang))}</p>
+    <button type="button" class="btn big" id="submitBtn"${submitted ? ' disabled' : ''}>${esc(t(submitted ? UI.finishDone : UI.finishBtn, lang))}</button>
     <p class="finish-note" id="finishNote"></p>
   </div>
 
   <footer class="foot">
-    <p>Elev8 · Guest Relations Service. Diese Seite ist nur über Ihren persönlichen Link erreichbar und nicht öffentlich auffindbar.</p>
+    <p>${esc(t(UI.footer, lang))}</p>
   </footer>
 </div>
 
 <script id="bootstrap" type="application/json">${JSON.stringify({
       token: intake.token,
+      lang: lang,
       total: INPUT_FIELDS.length,
       filled: filled,
       open: open,
       submitted: submitted,
       canResync: !!o.canResync,
+      s: clientStrings(lang),
+      optLabels: (function () {
+        // Der Browser braucht die Beschriftungen zu den Codes, sonst steht in
+        // den Hinweisen "Entfaellt, weil Sie paid angegeben haben".
+        const m = {};
+        INPUT_FIELDS.forEach(function (f) {
+          if (!f.options) return;
+          const one = {};
+          f.options.forEach(function (op) { one[op.code] = t(op, lang); });
+          m[f.id] = one;
+        });
+        return m;
+      })(),
       sections: SECTIONS.map(function (s) {
         return { id: s.id, fields: s.fields.filter(isInput).map(function (f) { return f.id; }) };
       })
@@ -531,13 +563,13 @@ function adminDetail(intake, answers, sources, baseUrl, flash) {
         ? (src === 'confirmed' ? '<span class="tnote">aus Elev8, bestätigt</span>' : '')
         : (pre[f.id] ? '<span class="tnote">Vorschlag aus Elev8, noch nicht bestätigt</span>' : '');
       return `<div class="qa${v ? '' : ' empty'}">
-  <div class="q">${esc(f.label)}</div>
-  <div class="a">${v ? nl2br(v) : (pre[f.id] ? '<span class="muted">' + nl2br(pre[f.id].value) + '</span>' : '<span class="muted">— offen —</span>')}${tag}</div>
+  <div class="q">${esc(t(f.label, 'de'))}</div>
+  <div class="a">${v ? nl2br(valueLabel(f, v, 'de')) : (pre[f.id] ? '<span class="muted">' + nl2br(valueLabel(f, pre[f.id].value, 'de')) + '</span>' : '<span class="muted">— offen —</span>')}${tag}</div>
 </div>`;
     }).join('');
     const filled = inputs.filter(function (f) { return (answers[f.id] || '').trim() !== ''; }).length;
     return `<section class="sec">
-  <div class="sec-head"><h2>${esc(s.title)}</h2><span class="sec-prog">${filled}/${inputs.length}</span></div>
+  <div class="sec-head"><h2>${esc(t(s.title, 'de'))}</h2><span class="sec-prog">${filled}/${inputs.length}</span></div>
   <div class="qalist">${rows}</div>
 </section>`;
   }).join('');
@@ -577,13 +609,13 @@ function exportMarkdown(intake, answers, sources) {
   out.push('Status: ' + (intake.status === 'submitted' ? 'abgeschlossen' : 'offen'));
   out.push('');
   SECTIONS.forEach(function (s) {
-    out.push('## ' + s.title);
+    out.push('## ' + t(s.title, 'de'));
     out.push('');
     s.fields.filter(isInput).forEach(function (f) {
       const v = (answers[f.id] || '').trim();
-      out.push('**' + f.label + '**' + (sources[f.id] === 'confirmed' ? ' _(aus Elev8, bestätigt)_' : ''));
+      out.push('**' + t(f.label, 'de') + '**' + (sources[f.id] === 'confirmed' ? ' _(aus Elev8, bestätigt)_' : ''));
       out.push('');
-      out.push(v ? v : '_offen_');
+      out.push(v ? valueLabel(f, v, 'de') : '_offen_');
       out.push('');
     });
   });
