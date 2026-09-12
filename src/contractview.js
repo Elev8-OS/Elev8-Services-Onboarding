@@ -21,6 +21,8 @@ const STYLE = `<style>
   .cbanner{margin:0 0 26px;padding:11px 15px;border-radius:8px;background:var(--surface-2);
     border:1px solid var(--line);border-left:3px solid var(--gold);font-size:13.5px;color:var(--ink-2)}
   .cbanner.warn{border-left-color:#b3261e}
+  .cbanner.draft{background:#fdf6e0;border-left-color:var(--gold)}
+  .cwait{color:var(--muted)}
   .cbanner a{margin-left:6px}
   .contract{font-size:15px;line-height:1.62}
   .chead h2{font-family:var(--f-display);font-weight:600;font-size:26px;margin:0 0 4px}
@@ -77,13 +79,23 @@ function contractPage(intake, doc, signed, lang, baseHref, opts) {
   const o = opts || {};
   const body = contracts.documentHtml(doc);
 
+  const pdfHref = baseHref + '/' + doc.key + '.pdf';
   const banner = o.reading
     ? '<p class="cbanner warn">' + esc(t(UI.readingNotice, l)) + ' <a href="' + baseHref + '/' + doc.key + '">' +
       esc(t(UI.readingDe, l)) + '</a></p>'
     : '<p class="cbanner">' + esc(t(UI.bindingNotice, l)) + ' <a href="' + baseHref + '/' + doc.key + '?read=en">' +
-      esc(t(UI.readingEn, l)) + '</a></p>';
+      esc(t(UI.readingEn, l)) + '</a></p>' +
+      (signed ? '' : '<p class="cbanner draft">' + esc(t(UI.draftLive, l)) +
+        ' <a href="' + pdfHref + '">' + esc(t(UI.musterPdf, l)) + '</a></p>');
 
-  const tail = o.reading ? '' : signed
+  const blocked = !signed && !o.reading && o.blockReason
+    ? `<div class="signednote">
+    <h3>${esc(t(UI.notSignableYet, l))}</h3>
+    <p>${esc(o.blockReason)}</p>
+    <p><a class="btn ghost" href="${pdfHref}">${esc(t(UI.musterPdf, l))}</a></p>
+  </div>` : '';
+
+  const tail = o.reading ? '' : blocked ? blocked : signed
     ? `<div class="signednote">
     <h3>${esc(t(UI.contractSigned, l))}</h3>
     <p>${esc(t(UI.lockedNotice, l))}</p>
@@ -108,6 +120,7 @@ function contractPage(intake, doc, signed, lang, baseHref, opts) {
     </div>
     <label class="agree"><input type="checkbox" id="sg_ok"><span>${esc(t(UI.signConfirm, l))}</span></label>
     <button class="btn big" type="button" id="signBtn">${esc(t(UI.signBtn, l))}</button>
+    <a class="btn ghost" href="${pdfHref}">${esc(t(UI.musterPdf, l))}</a>
     <p class="finish-note" id="signNote"></p>
   </div>`;
 
@@ -133,28 +146,31 @@ function contractPage(intake, doc, signed, lang, baseHref, opts) {
 }
 
 /** Block am Ende des Formulars. */
-function contractsBlock(intake, docs, signedByKind, lang, reason) {
+/**
+ * Block am Ende des Formulars. Die Dokumente sind immer sichtbar - als
+ * Entwurf, solange nicht unterzeichnet ist. So weiss der Kunde von Anfang
+ * an, worauf das Ausfüllen hinausläuft.
+ */
+function contractsBlock(intake, docs, statusByKind, lang) {
   const l = lang;
-  if (reason) {
-    return `<div class="finish">
-  <h3>${esc(t(UI.contractsH, l))}</h3>
-  <p>${esc(t(UI.contractsBlocked, l))}</p>
-  <p class="finish-note">${esc(reason)}</p>
-</div>`;
-  }
+  const base = '/f/' + esc(intake.token) + '/vertrag/';
   const rows = docs.map(function (d) {
-    const s = signedByKind[d.key];
+    const st = statusByKind[d.key] || {};
+    const s = st.signed;
+    const meta = s
+      ? esc(t(UI.contractSigned, l)) + ' · ' + esc(s.signer_name) + ' · ' +
+        esc(new Date(s.signed_at).toISOString().slice(0, 10))
+      : (st.reason
+        ? '<span class="cwait">' + esc(t(UI.draftLabel, l)) + ' · ' + esc(st.reason) + '</span>'
+        : esc(d.subtitle || ''));
     return `<div class="crow${s ? ' cdone' : ''}">
     <div>
       <div class="cttl">${esc(d.title)}</div>
-      <div class="cmeta">${s
-        ? esc(t(UI.contractSigned, l)) + ' · ' + esc(s.signer_name) + ' · ' +
-          esc(new Date(s.signed_at).toISOString().slice(0, 10))
-        : esc(d.subtitle || '')}</div>
+      <div class="cmeta">${meta}</div>
     </div>
     <div class="cacts">
-      <a class="btn ghost" href="/f/${esc(intake.token)}/vertrag/${d.key}">${esc(t(s ? UI.contractSigned : UI.contractOpen, l))}</a>
-      ${s ? '<a class="btn ghost" href="/f/' + esc(intake.token) + '/vertrag/' + d.key + '.pdf">' + esc(t(UI.contractPdf, l)) + '</a>' : ''}
+      <a class="btn ghost" href="${base}${d.key}">${esc(t(s ? UI.contractSigned : (st.reason ? UI.viewDraft : UI.contractOpen), l))}</a>
+      <a class="btn ghost" href="${base}${d.key}.pdf">${esc(t(s ? UI.contractPdf : UI.musterPdf, l))}</a>
     </div>
   </div>`;
   }).join('');
