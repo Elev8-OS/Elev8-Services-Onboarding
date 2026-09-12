@@ -18,6 +18,10 @@ const STYLE = `<style>
   .cnav{display:flex;justify-content:space-between;align-items:center;gap:12px;
     padding:16px 0;border-bottom:1px solid var(--line);margin-bottom:28px;flex-wrap:wrap}
   .cnav a{color:var(--ink-2);font-size:14px}
+  .cbanner{margin:0 0 26px;padding:11px 15px;border-radius:8px;background:var(--surface-2);
+    border:1px solid var(--line);border-left:3px solid var(--gold);font-size:13.5px;color:var(--ink-2)}
+  .cbanner.warn{border-left-color:#b3261e}
+  .cbanner a{margin-left:6px}
   .contract{font-size:15px;line-height:1.62}
   .chead h2{font-family:var(--f-display);font-weight:600;font-size:26px;margin:0 0 4px}
   .chead .csub{margin:0 0 22px;color:var(--muted);font-size:14px}
@@ -63,12 +67,23 @@ const STYLE = `<style>
   @media (max-width:640px){ .parties,.signgrid{grid-template-columns:1fr} .kv{grid-template-columns:1fr} }
 </style>`;
 
-/** Vertragsseite mit Unterschriftsfeld oder Unterschriftsprotokoll. */
-function contractPage(intake, doc, signed, lang, baseHref) {
+/**
+ * Vertragsseite. Der Vertrag selbst ist immer deutsch — so wurde es
+ * vereinbart. Daneben steht eine englische Lesefassung, die ausdrücklich
+ * nicht unterzeichnet werden kann.
+ */
+function contractPage(intake, doc, signed, lang, baseHref, opts) {
   const l = lang;
+  const o = opts || {};
   const body = contracts.documentHtml(doc);
 
-  const tail = signed
+  const banner = o.reading
+    ? '<p class="cbanner warn">' + esc(t(UI.readingNotice, l)) + ' <a href="' + baseHref + '/' + doc.key + '">' +
+      esc(t(UI.readingDe, l)) + '</a></p>'
+    : '<p class="cbanner">' + esc(t(UI.bindingNotice, l)) + ' <a href="' + baseHref + '/' + doc.key + '?read=en">' +
+      esc(t(UI.readingEn, l)) + '</a></p>';
+
+  const tail = o.reading ? '' : signed
     ? `<div class="signednote">
     <h3>${esc(t(UI.contractSigned, l))}</h3>
     <p>${esc(t(UI.lockedNotice, l))}</p>
@@ -107,6 +122,7 @@ function contractPage(intake, doc, signed, lang, baseHref) {
     <a href="${baseHref.replace(/\/vertrag$/, '')}">← ${esc(t(UI.backToForm, l))}</a>
     <span class="cmeta">${esc(intake.tenant_name)}</span>
   </div>
+  ${banner}
   ${body}
   ${tail}
 </div>

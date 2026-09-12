@@ -135,6 +135,12 @@ const UI = {
   newEntries: L('neue Angaben aus Elev8', 'new entries from Elev8'),
   newEntry: L('neue Angabe aus Elev8', 'new entry from Elev8'),
 
+  readingEn: L('English reading version', 'English reading version'),
+  readingDe: L('Zur verbindlichen deutschen Fassung', 'Go to the binding German version'),
+  readingNotice: L('Unverbindliche Lesefassung. Verbindlich und zu unterzeichnen ist ausschliesslich die deutsche Fassung.',
+    'Non-binding reading version. Only the German version is binding and is the one to be signed.'),
+  bindingNotice: L('Verbindliche Fassung. Der Vertrag wird in deutscher Sprache geschlossen; eine englische Lesefassung steht daneben.',
+    'Binding version. The contract is concluded in German; an English reading version is available alongside.'),
   contractsH: L('Verträge', 'Contracts'),
   contractsP: L('Aus Ihren Angaben entstehen zwei Dokumente. Bitte lesen und unterzeichnen Sie beide — danach können wir starten.',
     'Two documents are generated from your entries. Please read and sign both — then we can start.'),
