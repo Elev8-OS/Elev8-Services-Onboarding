@@ -19,7 +19,7 @@
 const { t, L } = require('./i18n');
 const { FIELD_MAP, valueLabel, optionLabel } = require('./questions');
 
-/* ---------------- Partei Elev8 ---------------- */
+/* ---------------- Partei Elev8 Suite ---------------- */
 
 const ELEV8 = {
   name: process.env.ELEV8_LEGAL_NAME || 'Elevate Software AG',
@@ -157,11 +157,11 @@ function avv(ctx) {
         txt(L('Gäste und Buchende des Verantwortlichen, deren Begleitpersonen sowie Mitarbeitende und Dienstleister des Verantwortlichen, soweit sie im Rahmen der Betreuung kontaktiert werden.',
           'Guests and bookers of the controller, their companions, and employees and service providers of the controller insofar as they are contacted in the course of the service.'), l)],
       [txt(L('Datenarten', 'Categories of data'), l),
-        txt(L('Name, Anrede, Sprache, Kontaktdaten (E-Mail, Telefon, Messenger-Kennung), Buchungsdaten (Objekt, Zeitraum, Personenzahl, Kanal, Preis), Kommunikationsinhalte, Angaben zu Sonderwünschen und Beschwerden, Zahlungsstatus ohne vollständige Kartendaten, Zugangscodes zur Unterkunft.',
-          'Name, salutation, language, contact details (email, phone, messenger identifier), booking data (property, period, number of persons, channel, price), content of communications, special requests and complaints, payment status without full card data, accommodation access codes.'), l)],
+        txt(L('Name, Anrede, Geburtsdatum, Staatsangehörigkeit, Anschrift, Sprache; Ausweisdaten, soweit sie in Elev8 Suite hinterlegt oder von Gästen übermittelt werden (Personalausweis, Reisepass, Führerschein, einschliesslich Ausweisnummer, Gültigkeit und Lichtbild); Kontaktdaten (E-Mail, Telefon, Messenger-Kennung); Buchungsdaten (Objekt, Zeitraum, Personenzahl, Kanal, Preis); Kommunikationsinhalte einschliesslich Gesprächsaufzeichnungen; Angaben zu Sonderwünschen und Beschwerden; Zahlungsstatus ohne vollständige Kartendaten; Zugangscodes zur Unterkunft; Reisedaten wie Flugnummer und Ankunftszeit.',
+          'Name, salutation, date of birth, nationality, address, language; identity document data where stored in Elev8 Suite or supplied by guests (identity card, passport, driving licence, including document number, validity and photograph); contact details (email, phone, messenger identifier); booking data (property, period, number of persons, channel, price); content of communications including call recordings; special requests and complaints; payment status without full card data; accommodation access codes; travel data such as flight number and arrival time.'), l)],
       [txt(L('Besondere Kategorien', 'Special categories'), l),
-        txt(L('Nicht Gegenstand des Auftrags. Teilt ein Gast von sich aus Gesundheitsangaben mit (z. B. Allergien, Barrierefreiheit), werden diese ausschliesslich zur Bearbeitung des Anliegens verwendet und nicht gesondert ausgewertet.',
-          'Not part of the assignment. If a guest volunteers health information (e.g. allergies, accessibility needs), it is used solely to handle that request and is not evaluated separately.'), l)]
+        txt(L('Nicht Gegenstand des Auftrags. Teilt ein Gast von sich aus Gesundheitsangaben mit (z. B. Allergien, Barrierefreiheit) oder ergibt sich aus einem Ausweisdokument ein Hinweis auf eine besondere Kategorie, werden diese Angaben ausschliesslich zur Bearbeitung des konkreten Anliegens verwendet, nicht gesondert ausgewertet und nicht weitergegeben.',
+          'Not part of the assignment. If a guest volunteers health information (e.g. allergies, accessibility needs), or if an identity document reveals an indication of a special category, that information is used solely to handle the specific request, is not evaluated separately and is not passed on.'), l)]
     ] }
   ]);
 
@@ -202,8 +202,8 @@ function avv(ctx) {
   S('6', L('Verarbeitung in Drittländern', 'Processing in third countries'), [
     P('Der Auftragsverarbeiter hat seinen Sitz in der Schweiz. Für die Schweiz besteht ein Angemessenheitsbeschluss der Europäischen Kommission; eine Übermittlung dorthin bedarf daher keiner zusätzlichen Garantien nach Art. 46 DSGVO.',
       'The processor is established in Switzerland. An adequacy decision of the European Commission is in place for Switzerland; transfers there therefore require no additional safeguards under Art. 46 GDPR.'),
-    P('Teile des Guest-Relations-Teams arbeiten in Indonesien. Für diese Übermittlung gelten die Standardvertragsklauseln der Europäischen Kommission in der Fassung des Durchführungsbeschlusses (EU) 2021/914, Modul 3 (Auftragsverarbeiter an Auftragsverarbeiter), zusammen mit der in Anlage 3 dokumentierten Beurteilung des Übermittlungsrisikos und den dort beschriebenen zusätzlichen Massnahmen.',
-      'Parts of the guest relations team work in Indonesia. That transfer is governed by the Standard Contractual Clauses of the European Commission as set out in Implementing Decision (EU) 2021/914, Module Three (processor to processor), together with the transfer risk assessment documented in Annex 3 and the supplementary measures described there.'),
+    P('Das Guest-Relations-Team arbeitet im Regelfall rund um die Uhr aus Indonesien; Vertretung und Ausfallbetrieb können aus der Europäischen Union und aus der Schweiz erfolgen. Für die Übermittlung nach Indonesien gelten die Standardvertragsklauseln der Europäischen Kommission in der Fassung des Durchführungsbeschlusses (EU) 2021/914, Modul 3 (Auftragsverarbeiter an Auftragsverarbeiter), zusammen mit der in Anlage 3 dokumentierten Beurteilung des Übermittlungsrisikos und den dort beschriebenen zusätzlichen Massnahmen.',
+      'The guest relations team works, as a rule, around the clock from Indonesia; cover and fallback operation may take place from the European Union and from Switzerland. The transfer to Indonesia is governed by the Standard Contractual Clauses of the European Commission as set out in Implementing Decision (EU) 2021/914, Module Three (processor to processor), together with the transfer risk assessment documented in Annex 3 and the supplementary measures described there.'),
     P('Der Verantwortliche wird hiermit ausdrücklich darauf hingewiesen, dass für Indonesien kein Angemessenheitsbeschluss vorliegt.',
       'The controller is expressly informed that no adequacy decision exists for Indonesia.')
   ]);
@@ -262,10 +262,11 @@ function lawTextEn(ctx) {
 
 function subprocessors(ctx) {
   return [
-    { name: ctx.elev8.name + ' — ' + (ctx.lang === 'en' ? 'guest relations team, Indonesia' : 'Guest-Relations-Team Indonesien'),
-      service: L('Gästekommunikation ausserhalb der europäischen Tagesschicht',
-        'Guest communication outside the European day shift'),
-      place: L('Indonesien', 'Indonesia') },
+    { name: ctx.elev8.name + ' — ' + (ctx.lang === 'en' ? 'guest relations team' : 'Guest-Relations-Team'),
+      service: L('Gästekommunikation im Regelfall rund um die Uhr, einschliesslich Nacht- und Wochenendschichten',
+        'Guest communication, as a rule around the clock, including night and weekend shifts'),
+      place: L('Indonesien; Vertretung und Ausfallbetrieb in der EU und/oder der Schweiz',
+        'Indonesia; cover and fallback operation in the EU and/or Switzerland') },
     { name: 'Elev8 Suite',
       service: L('Betrieb der Property-Management-Plattform, in der die Kommunikation stattfindet',
         'Operation of the property management platform in which the communication takes place'),
@@ -371,8 +372,8 @@ function gro(ctx) {
   if (extra) scope.push(extra);
 
   S('1', L('Vertragsgegenstand', 'Subject matter'), [
-    P('Elevate Software AG (nachfolgend „Elev8") erbringt für den Kunden Guest-Relations-Leistungen. Ein Guest Relations Officer (nachfolgend „GRO") führt die Kommunikation mit den Gästen des Kunden im Namen und im Auftrag des Kunden. Der GRO tritt gegenüber Gästen unter dem vom Kunden bestimmten Namen auf.',
-      'Elevate Software AG (“Elev8”) provides guest relations services to the client. A Guest Relations Officer (“GRO”) handles communication with the client’s guests in the client’s name and on the client’s behalf. Towards guests the GRO appears under the name specified by the client.'),
+    P('Elevate Software AG erbringt für den Kunden Guest-Relations-Leistungen. Sie erbringt diese Leistungen über ihre Plattform Elev8 Suite. Ein Guest Relations Officer (nachfolgend „GRO") führt die Kommunikation mit den Gästen des Kunden im Namen und im Auftrag des Kunden. Der GRO tritt gegenüber Gästen unter dem vom Kunden bestimmten Namen auf.',
+      'Elevate Software AG provides guest relations services to the client. It delivers those services through its platform, Elev8 Suite. A Guest Relations Officer (“GRO”) handles communication with the client’s guests in the client’s name and on the client’s behalf. Towards guests the GRO appears under the name specified by the client.'),
     { kv: [
       [txt(L('Objekt', 'Property'), l), ansOr(ctx, 'address')],
       [txt(L('Anzahl Einheiten', 'Number of units'), l), ansOr(ctx, 'units')],
@@ -383,7 +384,7 @@ function gro(ctx) {
   ]);
 
   S('2', L('Leistungsumfang', 'Scope of services'), [
-    P('Elev8 übernimmt die folgenden Aufgaben:', 'Elev8 takes on the following tasks:'),
+    P('Elevate Software AG übernimmt die folgenden Aufgaben:', 'Elevate Software AG takes on the following tasks:'),
     { ul: scope.length ? scope : [orOpen('', l)] },
     { kv: [
       [txt(L('Abdeckungszeiten', 'Coverage hours'), l), coverageText(ctx)],
@@ -433,17 +434,17 @@ function gro(ctx) {
       'Keep the data in Elev8 Suite current and complete, in particular check-in steps, Wi-Fi credentials, house rules and access codes.',
       'Create every person who is to be informed or escalated to as a user in Elev8 Suite, and keep those users current.',
       'Provide the GRO users with the access rights required for the service.',
-      'Name a permanent contact for Elev8 and ensure that person is reachable during the agreed coverage hours.',
+      'Name a permanent contact for Elevate Software AG and ensure that person is reachable during the agreed coverage hours.',
       'Report changes that affect guests — construction work, closures, changed times — without delay.'
     ] : [
       'Die Daten in Elev8 Suite aktuell und vollständig halten, insbesondere Check-in-Schritte, WLAN-Zugangsdaten, Hausregeln und Zugangscodes.',
       'Jede Person, die informiert oder eskaliert werden soll, als Benutzer in Elev8 Suite anlegen und aktuell halten.',
       'Den GRO-Benutzern die für die Leistung erforderlichen Zugriffsrechte einräumen.',
-      'Einen festen Ansprechpartner für Elev8 benennen und dessen Erreichbarkeit während der vereinbarten Abdeckungszeiten sicherstellen.',
+      'Einen festen Ansprechpartner für Elevate Software AG benennen und dessen Erreichbarkeit während der vereinbarten Abdeckungszeiten sicherstellen.',
       'Änderungen, die Gäste betreffen — Bauarbeiten, Schliessungen, geänderte Zeiten — unverzüglich melden.'
     ] },
-    P('Kommt der Kunde diesen Pflichten nicht nach, kann Elev8 die betroffenen Leistungen nicht erbringen; ein Vergütungsanspruch bleibt bestehen.',
-      'If the client fails to meet these duties, Elev8 cannot deliver the affected services; the right to remuneration remains.')
+    P('Kommt der Kunde diesen Pflichten nicht nach, kann Elevate Software AG die betroffenen Leistungen nicht erbringen; ein Vergütungsanspruch bleibt bestehen.',
+      'If the client fails to meet these duties, Elevate Software AG cannot deliver the affected services; the right to remuneration remains.')
   ]);
 
   S('6', L('Nicht enthaltene Leistungen', 'Services not included'), [
@@ -452,21 +453,23 @@ function gro(ctx) {
       'Replying to reviews and public reputation management.',
       'Active selling and upselling on commission.',
       'Issuing or correcting guest invoices.',
-      'Revenue management, pricing and access to the OTA extranets. These are the subject of a separate package.',
+      'Revenue management, pricing and access to the OTA extranets. These services are not covered by this agreement; if the client orders them in addition, they are governed by a separate agreement.',
       'Any activity requiring physical presence at the property.'
     ] : [
       'Meldescheine. Diese werden entweder über die in Elev8 Suite angebundenen Schnittstellen oder durch den Kunden erfasst.',
       'Beantwortung von Bewertungen und öffentliche Reputationspflege.',
       'Aktiver Verkauf und Upselling auf Provisionsbasis.',
       'Ausstellung oder Korrektur von Gästerechnungen.',
-      'Revenue Management, Preissetzung und Zugriff auf die OTA-Extranets. Diese sind Gegenstand eines gesonderten Pakets.',
+      'Revenue Management, Preissetzung und Zugriff auf die OTA-Extranets. Diese Leistungen sind nicht Gegenstand dieses Vertrags; beauftragt der Kunde sie zusätzlich, werden sie in einem gesonderten Vertrag geregelt.',
       'Jede Tätigkeit, die körperliche Anwesenheit vor Ort erfordert.'
     ] }
   ]);
 
   S('7', L('Aufzeichnung von Telefonaten', 'Recording of telephone calls'), [
-    P('Elev8 zeichnet alle Telefonate mit Gästen auf. Der Anrufer wird zu Beginn des Gesprächs darauf hingewiesen und kann stattdessen WhatsApp, E-Mail oder den Chat des Buchungsportals nutzen. Die Aufzeichnungen dienen der Qualitätssicherung und der Klärung von Vorfällen und werden spätestens nach 90 Tagen gelöscht.',
-      'Elev8 records all telephone calls with guests. Callers are informed at the start of the call and may instead use WhatsApp, email or the booking portal chat. Recordings serve quality assurance and incident clarification and are deleted after 90 days at the latest.')
+    P('Elevate Software AG zeichnet alle Telefonate mit Gästen auf. Der Anrufer wird zu Beginn des Gesprächs darauf hingewiesen. Willigt er in die Aufzeichnung nicht ein, stehen ihm die schriftlichen Kanäle offen: WhatsApp, E-Mail und der Chat des Buchungsportals. Ein Gespräch ohne Aufzeichnung findet nicht statt.',
+      'Elevate Software AG records all telephone calls with guests. The caller is informed at the start of the call. If the caller does not consent to the recording, the written channels remain available: WhatsApp, email and the booking portal chat. Calls are not conducted without recording.'),
+    P('Die Aufzeichnungen dienen der Qualitätssicherung und der Klärung von Vorfällen und werden spätestens nach 90 Tagen gelöscht.',
+      'Recordings serve quality assurance and incident clarification and are deleted after 90 days at the latest.')
   ]);
 
   S('8', L('Vergütung', 'Remuneration'), [
@@ -477,10 +480,14 @@ function gro(ctx) {
       [txt(L('Einmalige Einrichtung', 'One-off setup'), l),
         tm.setup_fee ? money(tm.setup_fee, tm.currency, l) : txt(L('entfällt', 'not applicable'), l)]
     ] },
-    P('Als Einheit gilt jede in Elev8 Suite aktive Einheit des Kunden, unabhängig davon, wie viele Angebote daraus gebildet werden. Die Abrechnung erfolgt monatlich im Voraus, zahlbar innert 30 Tagen. Alle Beträge verstehen sich zuzüglich allfälliger Steuern.',
-      'A unit means every unit of the client active in Elev8 Suite, regardless of how many listings are formed from it. Invoicing is monthly in advance, payable within 30 days. All amounts are exclusive of any taxes.'),
-    P('Ändert sich die Anzahl der Einheiten um mehr als zehn Prozent, wird die Vergütung ab dem folgenden Monat angepasst.',
-      'If the number of units changes by more than ten percent, the fee is adjusted from the following month.')
+    P('Als Einheit gilt jede in Elev8 Suite aktive Einheit des Kunden, unabhängig davon, wie viele Angebote daraus gebildet werden. Die Abrechnung erfolgt monatlich im Voraus, zahlbar innert 30 Tagen ab Rechnungsdatum ohne Abzug. Alle Beträge verstehen sich netto zuzüglich allfälliger Steuern und Abgaben.',
+      'A unit means every unit of the client active in Elev8 Suite, regardless of how many listings are formed from it. Invoicing is monthly in advance, payable within 30 days of the invoice date without deduction. All amounts are net and exclusive of any taxes and levies.'),
+    P('Ändert sich die Anzahl der Einheiten, wird taggenau pro rata abgerechnet: Jede Einheit wird ab dem Tag ihrer Aktivierung und bis zum Tag ihrer Deaktivierung in Elev8 Suite berechnet. Die Differenz erscheint auf der nächsten Rechnung.',
+      'If the number of units changes, billing is pro rata on a daily basis: each unit is charged from the day it is activated until the day it is deactivated in Elev8 Suite. The difference appears on the next invoice.'),
+    P('Bei Zahlungsverzug fallen Verzugszinsen in gesetzlicher Höhe an. Gerät der Kunde mit einer fälligen Zahlung mehr als 14 Tage in Verzug, ist Elevate Software AG nach einmaliger Mahnung berechtigt, die Leistungen bis zum Ausgleich auszusetzen; der Vergütungsanspruch bleibt für diesen Zeitraum bestehen. Aufrechnen darf der Kunde nur mit unbestrittenen oder rechtskräftig festgestellten Forderungen; ein Zurückbehaltungsrecht steht ihm nur wegen Ansprüchen aus diesem Vertrag zu.',
+      'Late payment bears statutory default interest. If the client is more than 14 days late with a due payment, Elevate Software AG is entitled, after one reminder, to suspend the services until payment is made; the right to remuneration for that period remains. The client may set off only against undisputed or legally established claims, and may exercise a right of retention only for claims arising from this agreement.'),
+    P('Elevate Software AG kann die Vergütung einmal je Kalenderjahr mit einer Frist von zwei Monaten zum Monatsende anpassen. Übersteigt die Erhöhung fünf Prozent, steht dem Kunden ein Sonderkündigungsrecht zum Wirksamwerden der Anpassung zu.',
+      'Elevate Software AG may adjust the fee once per calendar year on two months’ notice to the end of a month. If the increase exceeds five percent, the client has a special right of termination effective as of the adjustment.')
   ]);
 
   S('9', L('Laufzeit und Kündigung', 'Term and termination'), [
@@ -491,29 +498,59 @@ function gro(ctx) {
       [txt(L('Kündigungsfrist', 'Notice period'), l),
         tm.notice_months + ' ' + txt(L('Monate zum Monatsende', 'months to the end of a month'), l)]
     ] },
-    P('Nach Ablauf der Mindestlaufzeit verlängert sich der Vertrag unbefristet und kann mit der genannten Frist gekündigt werden. Das Recht zur Kündigung aus wichtigem Grund bleibt beiden Parteien vorbehalten. Kündigungen bedürfen der Textform.',
-      'After the minimum term the agreement continues indefinitely and may be terminated on the stated notice. Both parties reserve the right to terminate for cause. Termination requires text form.')
+    P('Nach Ablauf der Mindestlaufzeit verlängert sich der Vertrag unbefristet und kann mit der genannten Frist gekündigt werden. Das Recht zur Kündigung aus wichtigem Grund bleibt beiden Parteien vorbehalten; für Elevate Software AG liegt ein wichtiger Grund insbesondere vor, wenn der Kunde seinen Mitwirkungspflichten nach Ziffer 5 trotz Aufforderung nicht nachkommt oder mit zwei Monatsvergütungen in Verzug ist. Kündigungen bedürfen der Textform.',
+      'After the minimum term the agreement continues indefinitely and may be terminated on the stated notice. Both parties reserve the right to terminate for cause; for Elevate Software AG, cause exists in particular if the client fails to meet its duties to cooperate under section 5 despite a request, or is in arrears with two monthly fees. Termination requires text form.')
   ]);
 
   S('10', L('Haftung', 'Liability'), [
-    P('Elev8 haftet unbeschränkt für Vorsatz und grobe Fahrlässigkeit sowie für Schäden aus der Verletzung des Lebens, des Körpers oder der Gesundheit. Bei leichter Fahrlässigkeit haftet Elev8 nur für die Verletzung wesentlicher Vertragspflichten und der Höhe nach begrenzt auf den vertragstypischen, vorhersehbaren Schaden, höchstens jedoch auf die in den zwölf Monaten vor dem schädigenden Ereignis gezahlte Vergütung.',
-      'Elev8 is liable without limitation for intent and gross negligence and for damage arising from injury to life, body or health. In cases of slight negligence Elev8 is liable only for breach of material contractual obligations, limited to the foreseeable damage typical for this type of contract and in any case to the fees paid in the twelve months preceding the damaging event.'),
-    P('Entscheidungen, die der GRO innerhalb der in Ziffer 3 gesetzten Grenzen trifft, gelten als vom Kunden autorisiert.',
-      'Decisions taken by the GRO within the limits set out in section 3 are deemed authorised by the client.')
+    P('Elevate Software AG haftet unbeschränkt für Vorsatz und grobe Fahrlässigkeit, für Schäden aus der Verletzung des Lebens, des Körpers oder der Gesundheit sowie in den Fällen zwingender gesetzlicher Haftung.',
+      'Elevate Software AG is liable without limitation for intent and gross negligence, for damage arising from injury to life, body or health, and in cases of mandatory statutory liability.'),
+    P('Im Übrigen haftet Elevate Software AG nur für die Verletzung einer wesentlichen Vertragspflicht, deren Erfüllung die ordnungsgemässe Durchführung dieses Vertrags überhaupt erst ermöglicht und auf deren Einhaltung der Kunde regelmässig vertrauen darf. Die Haftung ist in diesem Fall der Höhe nach begrenzt auf den bei Vertragsschluss vorhersehbaren, vertragstypischen Schaden, höchstens jedoch auf die Nettovergütung, die der Kunde in den zwölf Monaten vor dem schädigenden Ereignis gezahlt hat.',
+      'Otherwise Elevate Software AG is liable only for breach of a material contractual obligation whose fulfilment makes the proper performance of this agreement possible in the first place and on whose observance the client may regularly rely. In that case liability is limited to the damage foreseeable at the conclusion of the contract and typical for this type of contract, and in any event to the net fees paid by the client in the twelve months preceding the damaging event.'),
+    P('Nicht ersetzt werden, soweit gesetzlich zulässig: entgangener Gewinn, ausgebliebene Einsparungen, mittelbare Schäden und Folgeschäden, Ansprüche Dritter, Schäden aus Bewertungen oder Rufschädigung sowie Datenverluste über den Aufwand hinaus, der bei ordnungsgemässer Datensicherung zur Wiederherstellung erforderlich gewesen wäre.',
+      'To the extent permitted by law, the following are not compensated: lost profit, savings not realised, indirect and consequential damage, third-party claims, damage arising from reviews or reputational harm, and data loss beyond the effort that would have been required for restoration with proper data backup.'),
+    P('Elevate Software AG haftet nicht für Entscheidungen, die der GRO innerhalb der in Ziffer 3 gesetzten Grenzen trifft; diese gelten als vom Kunden autorisiert. Ebenso wenig haftet Elevate Software AG für Folgen unvollständiger, veralteter oder unrichtiger Angaben des Kunden, für Weisungen des Kunden sowie für Ausfälle oder Fehlfunktionen von Elev8 Suite, der Buchungskanäle, der Telefonie oder anderer Leistungen Dritter.',
+      'Elevate Software AG is not liable for decisions taken by the GRO within the limits set out in section 3; these are deemed authorised by the client. Nor is Elevate Software AG liable for the consequences of incomplete, outdated or incorrect information provided by the client, for the client’s instructions, or for outages or malfunctions of Elev8 Suite, the booking channels, telephony or other third-party services.'),
+    P('Der Kunde stellt Elevate Software AG von Ansprüchen Dritter frei, die auf Angaben, Inhalten oder Weisungen des Kunden beruhen, soweit den Kunden ein Verschulden trifft.',
+      'The client indemnifies Elevate Software AG against third-party claims based on information, content or instructions supplied by the client, to the extent the client is at fault.'),
+    P('Ansprüche gegen Elevate Software AG verjähren, soweit gesetzlich zulässig, zwölf Monate nach dem Zeitpunkt, in dem der Kunde von den anspruchsbegründenden Umständen Kenntnis erlangt hat oder ohne grobe Fahrlässigkeit erlangen musste. Die vorstehenden Beschränkungen gelten auch zugunsten der Mitarbeitenden, Organe und Erfüllungsgehilfen von Elevate Software AG.',
+      'Claims against Elevate Software AG become time-barred, to the extent permitted by law, twelve months after the client became aware of the circumstances giving rise to the claim or should have become aware without gross negligence. The above limitations also apply for the benefit of the employees, officers and vicarious agents of Elevate Software AG.')
   ]);
 
-  S('11', L('Datenschutz', 'Data protection'), [
+  S('11', L('Höhere Gewalt und Leistungsstörungen', 'Force majeure and disruptions'), [
+    P('Ereignisse ausserhalb des Einflussbereichs von Elevate Software AG befreien sie für ihre Dauer von der Leistungspflicht, ohne dass daraus Ansprüche des Kunden entstehen. Dazu zählen insbesondere Ausfälle von Elev8 Suite oder anderer Plattformen, Störungen von Telefon- und Internetverbindungen, Stromausfälle, Streik, behördliche Massnahmen, Naturereignisse, Epidemien und kriegerische Ereignisse.',
+      'Events beyond the control of Elevate Software AG release it from its obligation to perform for their duration, without giving rise to claims by the client. These include in particular outages of Elev8 Suite or other platforms, disruptions to telephone and internet connections, power failures, strikes, official measures, natural events, epidemics and acts of war.'),
+    P('Dauert das Ereignis länger als 60 Tage, kann jede Partei den Vertrag mit einer Frist von 30 Tagen kündigen. Elevate Software AG darf einzelne Leistungen durch gleichwertige ersetzen und Dritte zur Leistungserbringung heranziehen.',
+      'If the event lasts longer than 60 days, either party may terminate the agreement on 30 days’ notice. Elevate Software AG may replace individual services with equivalent ones and engage third parties to perform.')
+  ]);
+
+  S('12', L('Vertraulichkeit, Abwerbeverbot und Rechte', 'Confidentiality, non-solicitation and rights'), [
+    P('Beide Parteien behandeln alle im Rahmen dieses Vertrags erlangten Informationen vertraulich und nutzen sie nur zur Vertragserfüllung. Die Pflicht gilt für die Dauer des Vertrags und drei Jahre darüber hinaus.',
+      'Both parties treat all information obtained under this agreement as confidential and use it solely to perform the agreement. The obligation applies for the term of the agreement and for three years thereafter.'),
+    P('Der Kunde wird während der Vertragsdauer und zwölf Monate danach keine Mitarbeitenden von Elevate Software AG abwerben oder beschäftigen, die für ihn tätig waren. Bei Zuwiderhandlung schuldet er eine Vertragsstrafe in Höhe von sechs Monatsvergütungen der betroffenen Person; die Geltendmachung eines weitergehenden Schadens bleibt vorbehalten.',
+      'For the term of the agreement and twelve months thereafter, the client will not solicit or employ any Elevate Software AG staff who worked for it. In case of breach the client owes a contractual penalty equal to six monthly salaries of the person concerned; the right to claim further damages is reserved.'),
+    P('Alle Rechte an den von Elevate Software AG eingesetzten Verfahren, Vorlagen, Textbausteinen, Auswertungen und Werkzeugen verbleiben bei Elevate Software AG. Der Kunde erhält daran für die Vertragsdauer ein einfaches, nicht übertragbares Nutzungsrecht zum vertragsgemässen Gebrauch.',
+      'All rights to the procedures, templates, text modules, analyses and tools used by Elevate Software AG remain with Elevate Software AG. For the term of the agreement the client receives a simple, non-transferable right to use them as intended under this agreement.'),
+    P('Elevate Software AG darf den Kunden mit Namen und Logo als Referenz nennen. Der Kunde kann dem jederzeit in Textform widersprechen.',
+      'Elevate Software AG may name the client, with name and logo, as a reference. The client may object to this at any time in text form.')
+  ]);
+
+  S('13', L('Datenschutz', 'Data protection'), [
     P('Die Verarbeitung personenbezogener Daten richtet sich nach dem gesondert abgeschlossenen Vertrag zur Auftragsverarbeitung nach Art. 28 DSGVO, der Bestandteil dieses Vertrags ist. Teile des Teams arbeiten in Indonesien; die dafür erforderlichen Garantien sind dort geregelt.',
       'The processing of personal data is governed by the separately concluded data processing agreement under Art. 28 GDPR, which forms part of this agreement. Parts of the team work in Indonesia; the safeguards required for this are set out there.')
   ]);
 
-  S('12', L('Schlussbestimmungen', 'Final provisions'), [
+  S('14', L('Schlussbestimmungen', 'Final provisions'), [
     P('Änderungen und Ergänzungen bedürfen der Textform. Angaben, die als vertragsrelevant gekennzeichnet sind, können nach der Unterzeichnung nur durch einen von beiden Seiten bestätigten Nachtrag geändert werden. Alle übrigen Angaben im Aufnahmeformular sind Betriebswissen und jederzeit durch den Kunden anpassbar.',
       'Amendments and additions require text form. Entries marked as contractually relevant can be changed after signature only by an addendum confirmed by both sides. All other entries in the onboarding form are operational knowledge and can be adjusted by the client at any time.'),
+    P('Der Kunde kann Rechte und Pflichten aus diesem Vertrag nur mit vorheriger Zustimmung von Elevate Software AG übertragen. Elevate Software AG darf den Vertrag auf ein verbundenes Unternehmen übertragen.',
+      'The client may transfer rights and obligations under this agreement only with the prior consent of Elevate Software AG. Elevate Software AG may transfer the agreement to an affiliated company.'),
+    P('Sollte eine Bestimmung dieses Vertrags unwirksam sein oder werden, bleibt der Vertrag im Übrigen wirksam. Die Parteien ersetzen die unwirksame Bestimmung durch eine wirksame, die dem wirtschaftlichen Zweck am nächsten kommt; Haftungsbeschränkungen gelten im gesetzlich zulässigen Umfang fort.',
+      'Should any provision of this agreement be or become invalid, the remainder of the agreement stays effective. The parties will replace the invalid provision with a valid one that comes closest to its economic purpose; limitations of liability continue to apply to the extent permitted by law.'),
     P('Dieser Vertrag liegt in deutscher und englischer Sprache vor. Verbindlich ist ausschliesslich die deutsche Fassung; die englische Fassung dient dem Verständnis.',
       'This agreement exists in German and English. Only the German version is binding; the English version serves comprehension only.'),
-    P('Es gilt ' + lawText(ctx) + '. Gerichtsstand ist ' + tm.venue + '.',
-      lawTextEn(ctx) + ' applies. The place of jurisdiction is ' + tm.venue + '.')
+    P('Es gilt ' + lawText(ctx) + '. Gerichtsstand ist ' + tm.venue + '. Das UN-Kaufrecht ist ausgeschlossen.',
+      lawTextEn(ctx) + ' applies. The place of jurisdiction is ' + tm.venue + '. The UN Convention on Contracts for the International Sale of Goods is excluded.')
   ]);
 
   return {
