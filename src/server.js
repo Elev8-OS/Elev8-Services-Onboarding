@@ -6,7 +6,8 @@ const path = require('path');
 
 const db = require('./db');
 const elev8 = require('./elev8');
-const { FIELD_MAP, SECTIONS, mergePrefill } = require('./questions');
+const { FIELD_MAP, SECTIONS, mergePrefill, valueLabel } = require('./questions');
+const i18n = require('./i18n');
 const view = require('./render');
 const rawview = require('./rawview');
 const resync = require('./resync');
@@ -159,6 +160,27 @@ let runSweep = async function () { return { skipped: true }; };
 function snapshotAgeMs(snap) {
   const t = snap && snap.syncedAt ? Date.parse(snap.syncedAt) : NaN;
   return isNaN(t) ? Infinity : Date.now() - t;
+}
+
+/**
+ * Sprache: einmal aus dem Browser, danach entscheidet die Wahl des Tenants.
+ * ?lang=xx setzt sie um und wird an der Aufnahme festgehalten.
+ */
+async function langFor(req, intake) {
+  const wanted = i18n.normLang(req.query && req.query.lang);
+  if (wanted) {
+    if (intake.lang !== wanted) {
+      try { await db.setIntakeLang(intake.id, wanted); } catch (e) { /* egal */ }
+      intake.lang = wanted;
+    }
+    return wanted;
+  }
+  const stored = i18n.normLang(intake.lang);
+  if (stored) return stored;
+  const guess = i18n.pickLang(req.headers['accept-language']);
+  try { await db.setIntakeLang(intake.id, guess); } catch (e) { /* egal */ }
+  intake.lang = guess;
+  return guess;
 }
 
 /* ---------- health ---------- */
@@ -405,16 +427,24 @@ app.get('/admin/tenants/:id/diagnose', requireAdmin, async function (req, res, n
 app.get('/f/:token', async function (req, res, next) {
   try {
     const intake = await db.getIntakeByToken(req.params.token);
-    if (!intake) return res.status(404).type('html').send(view.layout({
-      title: 'Link nicht gültig',
-      body: '<div class="page"><header class="hero"><h1>Dieser Link ist nicht gültig</h1><p class="lede">Bitte fragen Sie bei Ihrem Ansprechpartner bei Elev8 nach einem neuen Link.</p></header></div>'
-    }));
+    if (!intake) {
+      const l = i18n.pickLang(req.headers['accept-language']);
+      return res.status(404).type('html').send(view.layout({
+        lang: l,
+        title: i18n.t(i18n.UI.notValid, l),
+        body: '<div class="page"><header class="hero"><h1>' + i18n.t(i18n.UI.notValid, l) +
+          '</h1><p class="lede">' + i18n.t(i18n.UI.notValidP, l) + '</p></header></div>'
+      }));
+    }
+    const lang = await langFor(req, intake);
     const snapshot = await ensureSnapshot(intake);
     const a = await db.getAnswers(intake.id);
     const tenant = await tenantForIntake(intake);
     const opts = {
+      lang: lang,
       canResync: !!(tenant && tenant.elev8_token),
-      conflicts: resync.conflictsFor(a.values, snapshot && snapshot.prefill)
+      conflicts: resync.conflictsFor(a.values, snapshot && snapshot.prefill),
+      locked: {}
     };
     res.setHeader('Cache-Control', 'no-store');
     res.type('html').send(view.tenantForm(intake, a.values, a.sources, snapshot, opts));
@@ -463,7 +493,11 @@ app.post('/api/f/:token/confirm', async function (req, res, next) {
       if (!pre[id] || !pre[id].value) continue;
       if (!override && (existing.values[id] || '').trim() !== '') continue;
       await db.saveAnswer(intake.id, id, pre[id].value, 'confirmed');
-      applied.push({ field: id, value: pre[id].value });
+      applied.push({
+        field: id,
+        value: pre[id].value,
+        display: valueLabel(FIELD_MAP.get(id), pre[id].value, i18n.normLang(intake.lang) || 'de')
+      });
     }
     res.json({ ok: true, applied: applied });
   } catch (e) { next(e); }

@@ -1,5 +1,7 @@
 'use strict';
 
+const { L } = require('./i18n');
+
 /**
  * Anbindung an den Elev8-MCP-Server.
  *
@@ -334,23 +336,23 @@ function prefillAnswers(facts, tenantName) {
   const out = {};
   const put = function (id, value, evidence) {
     const v = String(value == null ? '' : value).trim();
-    if (v) out[id] = { value: v, evidence: evidence || 'aus Elev8' };
+    if (v) out[id] = { value: v, evidence: evidence || L('aus Elev8', 'from Elev8') };
   };
 
-  put('company', tenantName, 'Ihr Tenant-Name in Elev8');
+  put('company', tenantName, L('Ihr Tenant-Name in Elev8', 'Your tenant name in Elev8'));
 
   if (facts.primaryAddress) {
     const more = facts.addresses.length - 1;
     put('address', facts.primaryAddress + (more > 0 ? '\n(und ' + plural(more, 'weitere Adresse', 'weitere Adressen') + ' in Elev8)' : ''),
-      'Adresse der Einheiten in Elev8');
+      L('Adresse der Einheiten in Elev8', 'Address of your units in Elev8'));
   }
 
-  put('units', facts.total, 'aktive Einheiten in Elev8');
+  put('units', facts.total, L('aktive Einheiten in Elev8', 'active units in Elev8'));
 
   if (facts.channels.length) {
     put('channels', facts.channels.map(function (c) {
       return c.name + (c.share ? ' ' + c.share + ' %' : '');
-    }).join(', '), 'Kanalverteilung des letzten Monats aus Elev8');
+    }).join(', '), L('Kanalverteilung des letzten Monats aus Elev8', 'Channel mix of the last month from Elev8'));
   }
 
   const lock = lockSummary(facts);
@@ -359,45 +361,52 @@ function prefillAnswers(facts, tenantName) {
       ? '\nCheck-in-Anleitung in Elev8 hinterlegt für ' + facts.checkin.n + ' von ' + facts.total +
         ' Einheiten (' + plural(facts.checkin.avg, 'Schritt', 'Schritte') + ' im Schnitt, max. ' + facts.checkin.max + ').'
       : '';
-    put('access_note', 'Schlosssystem: ' + lock + '.' + extra, 'Lock-Typ und Check-in-Steps aus Elev8');
+    put('access_note', 'Schlosssystem: ' + lock + '.' + extra,
+      L('Lock-Typ und Check-in-Steps aus Elev8', 'Lock type and check-in steps from Elev8'));
   }
 
   // Nur vorschlagen, wenn der Wert zu einer der Auswahlmoeglichkeiten passt.
   if (facts.smartLocks > 0) {
     if (facts.smartLocks === facts.total) {
-      put('access', 'Smart Lock mit Code', 'Alle Einheiten haben in Elev8 ein Smart Lock');
+      put('access', 'smart_lock', L('Alle Einheiten haben in Elev8 ein Smart Lock',
+        'All units have a smart lock in Elev8'));
     } else {
-      put('access', 'Unterschiedlich je Einheit',
-        facts.smartLocks + ' von ' + facts.total + ' Einheiten haben in Elev8 ein Smart Lock');
+      put('access', 'mixed', L(
+        facts.smartLocks + ' von ' + facts.total + ' Einheiten haben in Elev8 ein Smart Lock',
+        facts.smartLocks + ' of ' + facts.total + ' units have a smart lock in Elev8'));
     }
-    put('smartlock', 'Automatisch über Elev8',
-      plural(facts.smartLocks, 'Einheit ist', 'Einheiten sind') + ' mit einem Smart Lock verbunden');
+    put('smartlock', 'elev8_auto', L(
+      plural(facts.smartLocks, 'Einheit ist', 'Einheiten sind') + ' mit einem Smart Lock verbunden',
+      facts.smartLocks + (facts.smartLocks === 1 ? ' unit is' : ' units are') + ' connected to a smart lock'));
   }
 
   if (facts.ssids.length === 1 && facts.wifiCount === facts.total) {
-    put('wifi', facts.ssids[0].value, 'WLAN-Name aus Elev8');
+    put('wifi', facts.ssids[0].value, L('WLAN-Name aus Elev8', 'Wi-Fi name from Elev8'));
   } else if (facts.ssids.length) {
-    put('wifi', facts.ssids.map(function (x) { return x.value; }).join(', '),
-      'WLAN-Namen aus Elev8 (' + facts.wifiCount + ' von ' + facts.total + ' Einheiten)');
+    put('wifi', facts.ssids.map(function (x) { return x.value; }).join(', '), L(
+      'WLAN-Namen aus Elev8 (' + facts.wifiCount + ' von ' + facts.total + ' Einheiten)',
+      'Wi-Fi names from Elev8 (' + facts.wifiCount + ' of ' + facts.total + ' units)'));
   }
 
   const p = facts.profile;
   if (p) {
-    put('contact_main', p.contact, 'aus Ihrem Elev8-Profil');
-    put('contact_phone', p.phone, 'aus Ihrem Elev8-Profil');
-    put('contact_email', p.email, 'aus Ihrem Elev8-Profil');
+    const fromProfile = L('aus Ihrem Elev8-Profil', 'from your Elev8 profile');
+    put('contact_main', p.contact, fromProfile);
+    put('contact_phone', p.phone, fromProfile);
+    put('contact_email', p.email, fromProfile);
   }
 
   const ci = (facts.checkinTime && facts.checkinTime.value) || (p && p.checkin);
   const co = (facts.checkoutTime && facts.checkoutTime.value) || (p && p.checkout);
-  put('checkin_time', ci, 'Check-in-Zeit aus Elev8');
-  put('checkout_time', co, 'Check-out-Zeit aus Elev8');
+  put('checkin_time', ci, L('Check-in-Zeit aus Elev8', 'Check-in time from Elev8'));
+  put('checkout_time', co, L('Check-out-Zeit aus Elev8', 'Check-out time from Elev8'));
 
   if (facts.deposits.length === 1) {
-    put('deposit_amount', facts.deposits[0].value.trim(),
-      'Kaution aus Elev8 (' + plural(facts.deposits[0].n, 'Einheit', 'Einheiten') + ')');
+    put('deposit_amount', facts.deposits[0].value.trim(), L(
+      'Kaution aus Elev8 (' + plural(facts.deposits[0].n, 'Einheit', 'Einheiten') + ')',
+      'Deposit from Elev8 (' + facts.deposits[0].n + (facts.deposits[0].n === 1 ? ' unit' : ' units') + ')'));
   } else if (!facts.deposits.length && facts.total) {
-    put('deposit', 'Keine Kaution', 'In Elev8 ist keine Kaution hinterlegt');
+    put('deposit', 'none', L('In Elev8 ist keine Kaution hinterlegt', 'No deposit is stored in Elev8'));
   }
 
   return out;
@@ -413,13 +422,19 @@ function readiness(facts) {
     return { label: label, n: n, total: t, ok: t > 0 && n >= t, partial: n > 0 && n < t, hint: hint || '' };
   };
   return [
-    row('Check-in-Schritte hinterlegt', facts.checkin.n, 'Ohne diese Schritte kann der GRO keine Anreise erklären.'),
-    row('Check-out-Schritte hinterlegt', facts.checkout.n, ''),
-    row('WLAN hinterlegt', facts.wifiCount, 'Die häufigste Gastfrage überhaupt.'),
-    row('Good to Know gepflegt', facts.goodToKnow, 'Parken, Frühstück, Anreise — spart dem GRO Nachfragen bei Ihnen.'),
-    row('Reinigungs-Setup aktiv', facts.cleaning, ''),
-    row('Upsells zugewiesen', facts.upsells, ''),
-    row('Schloss hinterlegt', t - (facts.locks.filter(function (l) { return /unknown|unbekannt/i.test(l.value); })[0] || { n: 0 }).n, '')
+    row(L('Check-in-Schritte hinterlegt', 'Check-in steps set up'), facts.checkin.n,
+      L('Ohne diese Schritte kann der GRO keine Anreise erklären.',
+        'Without these the GRO cannot explain the arrival.')),
+    row(L('Check-out-Schritte hinterlegt', 'Check-out steps set up'), facts.checkout.n, ''),
+    row(L('WLAN hinterlegt', 'Wi-Fi stored'), facts.wifiCount,
+      L('Die häufigste Gastfrage überhaupt.', 'The single most common guest question.')),
+    row(L('Good to Know gepflegt', 'Good to know maintained'), facts.goodToKnow,
+      L('Parken, Frühstück, Anreise — spart dem GRO Nachfragen bei Ihnen.',
+        'Parking, breakfast, arrival — saves the GRO from asking you.')),
+    row(L('Reinigungs-Setup aktiv', 'Cleaning setup active'), facts.cleaning, ''),
+    row(L('Upsells zugewiesen', 'Upsells assigned'), facts.upsells, ''),
+    row(L('Schloss hinterlegt', 'Lock configured'),
+      t - (facts.locks.filter(function (l) { return /unknown|unbekannt/i.test(l.value); })[0] || { n: 0 }).n, '')
   ];
 }
 
