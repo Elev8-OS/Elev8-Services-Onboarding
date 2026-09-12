@@ -257,3 +257,11 @@ select:focus{outline:2px solid var(--gold);outline-offset:-1px}
 .field.dep-off input,.field.dep-off textarea,.field.dep-off .choice{
   background:var(--surface);pointer-events:none}
 .field.dep-off .dep-note{font-style:italic}
+
+/* ---------- Hinweisfelder ---------- */
+.field.note{padding:0}
+.field.note.dep-off{display:none}
+.notebox{margin:0;padding:14px 16px;border-radius:9px;
+  background:var(--surface-2);border:1px solid var(--line);
+  border-left:3px solid var(--gold);
+  font-size:14.5px;line-height:1.55;color:var(--ink-2);max-width:66ch}
