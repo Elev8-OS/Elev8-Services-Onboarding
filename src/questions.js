@@ -1,308 +1,640 @@
 'use strict';
 
 /**
- * Fragenkatalog für das Tenant-Intake.
- * Grundsatz: so wenig Freitext wie möglich. Was in Chips oder Auswahllisten
- * passt, wird auch so gefragt — schneller für den Tenant, auswertbar für uns.
+ * Fragenkatalog für das Tenant-Intake, zweisprachig.
+ *
+ * Zwei Grundsätze:
+ *  1. So wenig Freitext wie möglich — was in Chips passt, wird als Chip gefragt.
+ *  2. Gespeichert wird immer der Code einer Option, nie der angezeigte Text.
+ *     Sonst bricht jede Antwort, sobald jemand die Sprache wechselt.
  *
  * Feld-Eigenschaften über die Standardfelder hinaus:
- *   dependsOn  { field, equals }  – Feld wird ausgegraut, solange die
- *                                   Bedingung nicht erfüllt ist. `equals`
- *                                   darf ein Wert oder eine Liste sein.
- *   preset / presetNote           – Vorschlag von uns (nicht aus Elev8),
- *                                   den der Tenant nur bestätigen muss
- *   type 'multi'                  – Mehrfachauswahl, gespeichert als Liste
- *                                   (Optionen dürfen kein Komma enthalten)
- *   type 'note'                   – reiner Hinweis, keine Frage
+ *   dependsOn { field, equals }  – Feld entfällt, solange die Bedingung nicht
+ *                                  erfüllt ist. `equals` ist ein Code oder eine
+ *                                  Liste von Codes.
+ *   preset / presetNote          – Vorschlag von uns (nicht aus Elev8)
+ *   type 'multi'                 – Mehrfachauswahl, gespeichert als Codeliste
+ *   type 'note'                  – reiner Hinweis, keine Frage
+ *   contract: true               – Bestandteil des Vertrags; nach der
+ *                                  Unterschrift nur noch per Nachtrag änderbar
  */
 
-const YESNO = ['Ja', 'Nein', 'Nach Rücksprache'];
+const { t, L } = require('./i18n');
+
+function o(code, de, en) { return { code: code, de: de, en: en }; }
+
+const YESNO = [
+  o('yes', 'Ja', 'Yes'),
+  o('no', 'Nein', 'No'),
+  o('ask', 'Nach Rücksprache', 'After checking with you')
+];
 
 const SCOPE_OPTIONS = [
-  'Gästenachrichten auf allen verbundenen Kanälen',
-  'Anfragen vor der Buchung',
-  'Beschwerden aufnehmen und lösen',
-  'Eskalation an Sie nach Ihren Regeln',
-  'Verlängerung / Late Check-out / Zusatzleistungen',
-  'Aufträge an Ihr Team vor Ort über Elev8',
-  'Telefonische Erreichbarkeit für Gäste'
+  o('messages', 'Gästenachrichten auf allen verbundenen Kanälen', 'Guest messages on all connected channels'),
+  o('pre_booking', 'Anfragen vor der Buchung', 'Pre-booking enquiries'),
+  o('complaints', 'Beschwerden aufnehmen und lösen', 'Taking and resolving complaints'),
+  o('escalation', 'Eskalation an Sie nach Ihren Regeln', 'Escalation to you under your rules'),
+  o('extensions', 'Verlängerung, Late Check-out, Zusatzleistungen', 'Extensions, late check-out, extras'),
+  o('tasks', 'Aufträge an Ihr Team vor Ort über Elev8', 'Dispatching your on-site team via Elev8'),
+  o('phone', 'Telefonische Erreichbarkeit für Gäste', 'Phone availability for guests')
 ];
 
 const ESC_OPTIONS = [
-  'Feuer oder Rauch',
-  'Wasserschaden',
-  'Verletzung oder medizinischer Notfall',
-  'Polizei oder Einbruch',
-  'Ausgesperrter Gast',
-  'Heizung oder Strom ausgefallen',
-  'Kein warmes Wasser',
-  'Presse- oder Behördenanfrage'
+  o('fire', 'Feuer oder Rauch', 'Fire or smoke'),
+  o('water', 'Wasserschaden', 'Water damage'),
+  o('injury', 'Verletzung oder medizinischer Notfall', 'Injury or medical emergency'),
+  o('police', 'Polizei oder Einbruch', 'Police or break-in'),
+  o('lockout', 'Ausgesperrter Gast', 'Locked-out guest'),
+  o('heating', 'Heizung oder Strom ausgefallen', 'Heating or power failure'),
+  o('hotwater', 'Kein warmes Wasser', 'No hot water'),
+  o('press', 'Presse- oder Behördenanfrage', 'Press or authority enquiry')
 ];
 
-const BREAKFAST_ON = ['Ja, im Preis inbegriffen', 'Optional gegen Aufpreis'];
-const BREAKFAST_PAID = 'Optional gegen Aufpreis';
-const PARK_OWN = ['Ja, eigene Plätze am Haus', 'Ja, Partnergarage oder Parkplatz in der Nähe'];
-const PARK_ANY = PARK_OWN.concat(['Nur öffentliche Parkplätze']);
+const BREAKFAST_ON = ['included', 'paid'];
+const PARK_OWN = ['onsite', 'nearby'];
+const PARK_ANY = PARK_OWN.concat(['public']);
 
 const SECTIONS = [
   {
     id: 'kontakt',
-    title: 'Ihr Betrieb',
-    intro: 'Damit wir wissen, mit wem wir arbeiten und worüber Ihre Gäste buchen.',
+    title: L('Ihr Betrieb', 'Your operation'),
+    intro: L('Damit wir wissen, mit wem wir arbeiten und worüber Ihre Gäste buchen.',
+      'So we know who we work with and where your guests book.'),
     fields: [
-      { id: 'company', label: 'Firmenname des Betreibers', type: 'text', required: true },
-      { id: 'brand', label: 'Name, unter dem Ihre Gäste Sie kennen', type: 'text', help: 'Unter diesem Namen treten wir gegenüber Gästen auf.' },
-      { id: 'address', label: 'Adresse des Objekts', type: 'textarea', required: true },
-      { id: 'units', label: 'Anzahl Zimmer bzw. Einheiten', type: 'number' },
-      { id: 'channels', label: 'Über welche Kanäle buchen Ihre Gäste?', type: 'textarea', placeholder: 'z. B. Booking.com 70 %, Direktbuchungen 20 %, Telefon 10 %' },
-      { id: 'contact_main', label: 'Hauptansprechpartner (Name und Rolle)', type: 'text', required: true },
-      { id: 'contact_phone', label: 'Telefonnummer', type: 'tel', required: true },
-      { id: 'contact_email', label: 'E-Mail-Adresse', type: 'email', required: true },
-      { id: 'start_date', label: 'Ab wann sollen wir übernehmen?', type: 'radio', required: true,
-        options: ['So bald wie möglich', 'Innerhalb von zwei Wochen', 'Ab nächstem Monatsersten', 'Zu einem festen Datum'] },
-      { id: 'start_date_when', label: 'Welches Datum?', type: 'text', placeholder: '01.11.2026',
-        dependsOn: { field: 'start_date', equals: 'Zu einem festen Datum' } }
+      { id: 'company', type: 'text', required: true, contract: true,
+        label: L('Firmenname des Betreibers', 'Legal name of the operator') },
+      { id: 'brand', type: 'text',
+        label: L('Name, unter dem Ihre Gäste Sie kennen', 'Name your guests know you by'),
+        help: L('Unter diesem Namen treten wir gegenüber Gästen auf.', 'We will use this name when speaking to guests.') },
+      { id: 'address', type: 'textarea', required: true, contract: true,
+        label: L('Adresse des Objekts', 'Property address') },
+      { id: 'units', type: 'number', contract: true,
+        label: L('Anzahl Zimmer bzw. Einheiten', 'Number of rooms or units') },
+      { id: 'channels', type: 'textarea',
+        label: L('Über welche Kanäle buchen Ihre Gäste?', 'Which channels do your guests book through?'),
+        placeholder: L('z. B. Booking.com 70 %, Direktbuchungen 20 %, Telefon 10 %',
+          'e.g. Booking.com 70%, direct 20%, phone 10%') },
+      { id: 'contact_main', type: 'text', required: true, contract: true,
+        label: L('Hauptansprechpartner (Name und Rolle)', 'Main contact (name and role)') },
+      { id: 'contact_phone', type: 'tel', required: true,
+        label: L('Telefonnummer', 'Phone number') },
+      { id: 'contact_email', type: 'email', required: true, contract: true,
+        label: L('E-Mail-Adresse', 'Email address') },
+      { id: 'start_date', type: 'radio', required: true, contract: true,
+        label: L('Ab wann sollen wir übernehmen?', 'When should we take over?'),
+        options: [
+          o('asap', 'So bald wie möglich', 'As soon as possible'),
+          o('two_weeks', 'Innerhalb von zwei Wochen', 'Within two weeks'),
+          o('next_month', 'Ab nächstem Monatsersten', 'From the first of next month'),
+          o('fixed', 'Zu einem festen Datum', 'On a fixed date')
+        ] },
+      { id: 'start_date_when', type: 'text', contract: true,
+        label: L('Welches Datum?', 'Which date?'), placeholder: L('01.11.2026', '01/11/2026'),
+        dependsOn: { field: 'start_date', equals: 'fixed' } }
     ]
   },
 
   {
     id: 'betrieb',
-    title: 'Betrieb und Anreise',
-    intro: 'Was ein Gast erlebt, wenn er ankommt — und was wir ihm sagen können, wenn etwas nicht wie geplant läuft.',
+    title: L('Betrieb und Anreise', 'Operations and arrival'),
+    intro: L('Was ein Gast erlebt, wenn er ankommt — und was wir ihm sagen können, wenn etwas nicht wie geplant läuft.',
+      'What a guest experiences on arrival — and what we can tell them when something goes wrong.'),
     fields: [
-      { id: 'reception', label: 'Gibt es bei Ihnen eine Rezeption?', type: 'radio', options: ['Ja', 'Nein'], required: true, help: 'Bei „Nein" überspringen wir alles, was eine Rezeption voraussetzt.' },
-      { id: 'reception_hours', label: 'Rezeptionszeiten', type: 'radio',
-        options: ['24/7', '07:00–22:00', '08:00–20:00', 'Andere Zeiten'],
-        dependsOn: { field: 'reception', equals: 'Ja' } },
-      { id: 'reception_hours_custom', label: 'Welche Zeiten genau?', type: 'text', placeholder: 'Mo–Fr 07:00–21:00, Sa/So 08:00–20:00',
-        dependsOn: { field: 'reception_hours', equals: 'Andere Zeiten' } },
-      { id: 'after_hours', label: 'Was passiert bei Anreise nach Rezeptionsschluss?', type: 'radio',
-        options: ['Self-Check-in mit Code oder Schlüsselbox', 'Nachtportier vor Ort', 'Gast ruft eine Notfallnummer an', 'Anreise nach Schluss nicht möglich', 'Anders'],
-        dependsOn: { field: 'reception_hours', equals: ['07:00–22:00', '08:00–20:00', 'Andere Zeiten'] } },
-      { id: 'after_hours_custom', label: 'Wie genau?', type: 'text',
-        dependsOn: { field: 'after_hours', equals: 'Anders' } },
-      { id: 'selfcheckin', label: 'Gibt es Self-Check-in?', type: 'radio', options: ['Ja', 'Nein', 'Teilweise'] },
-      { id: 'access', label: 'Wie kommt der Gast in Haus und Zimmer?', type: 'radio', required: true,
-        options: ['Smart Lock mit Code', 'Schlüsselbox', 'Persönliche Übergabe', 'Schlüssel bei Partner oder Nachbar', 'Unterschiedlich je Einheit'] },
-      { id: 'access_note', label: 'Ablauf in Stichworten, falls nötig', type: 'textarea' },
-      { id: 'checkin_time', label: 'Check-in ab', type: 'text', placeholder: '15:00' },
-      { id: 'checkout_time', label: 'Check-out bis', type: 'text', placeholder: '11:00' },
+      { id: 'reception', type: 'radio', required: true,
+        label: L('Gibt es bei Ihnen eine Rezeption?', 'Do you have a reception desk?'),
+        help: L('Bei „Nein" überspringen wir alles, was eine Rezeption voraussetzt.',
+          'If "No", we skip everything that assumes a reception desk.'),
+        options: [o('yes', 'Ja', 'Yes'), o('no', 'Nein', 'No')] },
+      { id: 'reception_hours', type: 'radio',
+        label: L('Rezeptionszeiten', 'Reception hours'),
+        options: [
+          o('h24', '24/7', '24/7'),
+          o('h07_22', '07:00–22:00', '07:00–22:00'),
+          o('h08_20', '08:00–20:00', '08:00–20:00'),
+          o('other', 'Andere Zeiten', 'Other hours')
+        ],
+        dependsOn: { field: 'reception', equals: 'yes' } },
+      { id: 'reception_hours_custom', type: 'text',
+        label: L('Welche Zeiten genau?', 'Which hours exactly?'),
+        placeholder: L('Mo–Fr 07:00–21:00, Sa/So 08:00–20:00', 'Mon–Fri 07:00–21:00, Sat/Sun 08:00–20:00'),
+        dependsOn: { field: 'reception_hours', equals: 'other' } },
+      { id: 'after_hours', type: 'radio',
+        label: L('Was passiert bei Anreise nach Rezeptionsschluss?', 'What happens when a guest arrives after reception closes?'),
+        options: [
+          o('selfcheckin', 'Self-Check-in mit Code oder Schlüsselbox', 'Self check-in with a code or key box'),
+          o('night_porter', 'Nachtportier vor Ort', 'Night porter on site'),
+          o('emergency_line', 'Gast ruft eine Notfallnummer an', 'Guest calls an emergency number'),
+          o('not_possible', 'Anreise nach Schluss nicht möglich', 'Arrival after closing is not possible'),
+          o('other', 'Anders', 'Other')
+        ],
+        dependsOn: { field: 'reception_hours', equals: ['h07_22', 'h08_20', 'other'] } },
+      { id: 'after_hours_custom', type: 'text', label: L('Wie genau?', 'How exactly?'),
+        dependsOn: { field: 'after_hours', equals: 'other' } },
+      { id: 'selfcheckin', type: 'radio', label: L('Gibt es Self-Check-in?', 'Is there self check-in?'),
+        options: [o('yes', 'Ja', 'Yes'), o('no', 'Nein', 'No'), o('partly', 'Teilweise', 'Partly')] },
+      { id: 'access', type: 'radio', required: true,
+        label: L('Wie kommt der Gast in Haus und Zimmer?', 'How does a guest get into the building and the room?'),
+        options: [
+          o('smart_lock', 'Smart Lock mit Code', 'Smart lock with a code'),
+          o('keybox', 'Schlüsselbox', 'Key box'),
+          o('in_person', 'Persönliche Übergabe', 'Handover in person'),
+          o('partner', 'Schlüssel bei Partner oder Nachbar', 'Key with a partner or neighbour'),
+          o('mixed', 'Unterschiedlich je Einheit', 'Varies by unit')
+        ] },
+      { id: 'access_note', type: 'textarea',
+        label: L('Ablauf in Stichworten, falls nötig', 'The procedure in short, if needed') },
+      { id: 'checkin_time', type: 'text', label: L('Check-in ab', 'Check-in from'), placeholder: L('15:00', '15:00') },
+      { id: 'checkout_time', type: 'text', label: L('Check-out bis', 'Check-out until'), placeholder: L('11:00', '11:00') },
 
-      { id: 'breakfast', label: 'Bieten Sie Frühstück an?', type: 'radio', required: true,
-        options: ['Ja, im Preis inbegriffen', BREAKFAST_PAID, 'Nein'] },
-      { id: 'breakfast_hours', label: 'Frühstückszeiten', type: 'text', placeholder: '07:00–10:00, Sa/So bis 11:00',
+      { id: 'breakfast', type: 'radio', required: true,
+        label: L('Bieten Sie Frühstück an?', 'Do you serve breakfast?'),
+        options: [
+          o('included', 'Ja, im Preis inbegriffen', 'Yes, included in the rate'),
+          o('paid', 'Optional gegen Aufpreis', 'Optional, for an extra charge'),
+          o('none', 'Nein', 'No')
+        ] },
+      { id: 'breakfast_hours', type: 'text', label: L('Frühstückszeiten', 'Breakfast hours'),
+        placeholder: L('07:00–10:00, Sa/So bis 11:00', '07:00–10:00, Sat/Sun until 11:00'),
         dependsOn: { field: 'breakfast', equals: BREAKFAST_ON } },
-      { id: 'breakfast_where', label: 'Wo wird serviert?', type: 'text', placeholder: 'Frühstücksraum im Erdgeschoss',
+      { id: 'breakfast_where', type: 'text', label: L('Wo wird serviert?', 'Where is it served?'),
+        placeholder: L('Frühstücksraum im Erdgeschoss', 'Breakfast room on the ground floor'),
         dependsOn: { field: 'breakfast', equals: BREAKFAST_ON } },
-      { id: 'breakfast_price', label: 'Preis pro Person und Tag', type: 'money',
-        dependsOn: { field: 'breakfast', equals: BREAKFAST_PAID } },
-      { id: 'breakfast_seen', label: 'Woran sehen wir, ob ein Gast Frühstück gebucht hat?', type: 'radio', required: true,
-        options: ['Als Upsell in Elev8', 'In der Buchung vom Kanal', 'Liste beim Team vor Ort', 'Gast meldet sich direkt vor Ort', 'Noch nicht geregelt'],
-        help: 'Ohne diese Information können wir Gästen keine verbindliche Auskunft geben.',
-        dependsOn: { field: 'breakfast', equals: BREAKFAST_PAID } },
-      { id: 'breakfast_deadline', label: 'Bis wann kann nachgebucht werden?', type: 'radio',
-        options: ['Bis zum Vorabend', 'Bis 22:00 am Vortag', 'Auch noch am Morgen', 'Nur bei der Buchung'],
-        dependsOn: { field: 'breakfast', equals: BREAKFAST_PAID } },
+      { id: 'breakfast_price', type: 'money', label: L('Preis pro Person und Tag', 'Price per person per day'),
+        dependsOn: { field: 'breakfast', equals: 'paid' } },
+      { id: 'breakfast_seen', type: 'radio', required: true,
+        label: L('Woran sehen wir, ob ein Gast Frühstück gebucht hat?',
+          'How do we see whether a guest has booked breakfast?'),
+        help: L('Ohne diese Information können wir Gästen keine verbindliche Auskunft geben.',
+          'Without this we cannot give guests a reliable answer.'),
+        options: [
+          o('elev8_upsell', 'Als Upsell in Elev8', 'As an upsell in Elev8'),
+          o('channel_booking', 'In der Buchung vom Kanal', 'In the booking from the channel'),
+          o('team_list', 'Liste beim Team vor Ort', 'A list held by the on-site team'),
+          o('guest_onsite', 'Gast meldet sich direkt vor Ort', 'The guest asks on site'),
+          o('unclear', 'Noch nicht geregelt', 'Not yet decided')
+        ],
+        dependsOn: { field: 'breakfast', equals: 'paid' } },
+      { id: 'breakfast_deadline', type: 'radio',
+        label: L('Bis wann kann nachgebucht werden?', 'Until when can it be added?'),
+        options: [
+          o('prev_evening', 'Bis zum Vorabend', 'Until the evening before'),
+          o('prev_2200', 'Bis 22:00 am Vortag', 'Until 22:00 the day before'),
+          o('morning', 'Auch noch am Morgen', 'Even on the morning itself'),
+          o('at_booking', 'Nur bei der Buchung', 'Only when booking')
+        ],
+        dependsOn: { field: 'breakfast', equals: 'paid' } },
 
-      { id: 'parking', label: 'Gibt es Parkmöglichkeiten?', type: 'radio', required: true,
-        options: PARK_OWN.concat(['Nur öffentliche Parkplätze', 'Nein']) },
-      { id: 'parking_cost', label: 'Kostenpflichtig?', type: 'radio', options: ['Kostenlos', 'Kostenpflichtig'],
+      { id: 'parking', type: 'radio', required: true,
+        label: L('Gibt es Parkmöglichkeiten?', 'Is there parking?'),
+        options: [
+          o('onsite', 'Ja, eigene Plätze am Haus', 'Yes, our own spaces at the property'),
+          o('nearby', 'Ja, Partnergarage oder Parkplatz in der Nähe', 'Yes, a partner garage or car park nearby'),
+          o('public', 'Nur öffentliche Parkplätze', 'Public parking only'),
+          o('none', 'Nein', 'No')
+        ] },
+      { id: 'parking_cost', type: 'radio', label: L('Kostenpflichtig?', 'Chargeable?'),
+        options: [o('free', 'Kostenlos', 'Free'), o('paid', 'Kostenpflichtig', 'Chargeable')],
         dependsOn: { field: 'parking', equals: PARK_OWN } },
-      { id: 'parking_price', label: 'Preis pro Nacht', type: 'money',
-        dependsOn: { field: 'parking_cost', equals: 'Kostenpflichtig' } },
-      { id: 'parking_reserve', label: 'Reservierbar?', type: 'radio',
-        options: ['Ja, im Voraus reservierbar', 'Nein, nach Verfügbarkeit', 'Jeder Einheit fest zugeteilt'],
+      { id: 'parking_price', type: 'money', label: L('Preis pro Nacht', 'Price per night'),
+        dependsOn: { field: 'parking_cost', equals: 'paid' } },
+      { id: 'parking_reserve', type: 'radio', label: L('Reservierbar?', 'Can it be reserved?'),
+        options: [
+          o('reservable', 'Ja, im Voraus reservierbar', 'Yes, can be reserved in advance'),
+          o('availability', 'Nein, nach Verfügbarkeit', 'No, subject to availability'),
+          o('assigned', 'Jeder Einheit fest zugeteilt', 'Permanently assigned to each unit')
+        ],
         dependsOn: { field: 'parking', equals: PARK_OWN } },
-      { id: 'parking_spots', label: 'Anzahl Plätze', type: 'number',
+      { id: 'parking_spots', type: 'number', label: L('Anzahl Plätze', 'Number of spaces'),
         dependsOn: { field: 'parking', equals: PARK_OWN } },
-      { id: 'parking_note', label: 'Was muss der Gast wissen?', type: 'text', placeholder: 'Zufahrt, Einfahrtshöhe, Adresse der Garage',
+      { id: 'parking_note', type: 'text', label: L('Was muss der Gast wissen?', 'What does the guest need to know?'),
+        placeholder: L('Zufahrt, Einfahrtshöhe, Adresse der Garage', 'Access, height limit, garage address'),
         dependsOn: { field: 'parking', equals: PARK_ANY } },
 
-      { id: 'wifi', label: 'WLAN-Name (SSID)', type: 'text' },
-      { id: 'wifi_pass', label: 'WLAN-Passwort', type: 'text', required: true, help: 'Bitte prüfen Sie, ob es noch stimmt — das ist die häufigste Gastfrage.' },
-      { id: 'quirks', label: 'Was fragen Ihre Gäste am häufigsten?', type: 'textarea', help: 'Die drei bis fünf häufigsten Fragen sparen uns Wochen Einarbeitung.' }
+      { id: 'wifi', type: 'text', label: L('WLAN-Name (SSID)', 'Wi-Fi name (SSID)') },
+      { id: 'wifi_pass', type: 'text', required: true, label: L('WLAN-Passwort', 'Wi-Fi password'),
+        help: L('Bitte prüfen Sie, ob es noch stimmt — das ist die häufigste Gastfrage.',
+          'Please check it is still correct — this is the most common guest question.') },
+      { id: 'quirks', type: 'textarea',
+        label: L('Was fragen Ihre Gäste am häufigsten?', 'What do your guests ask most often?'),
+        help: L('Die drei bis fünf häufigsten Fragen sparen uns Wochen Einarbeitung.',
+          'The three to five most common questions save us weeks of ramp-up.') }
     ]
   },
 
   {
     id: 'auftrag',
-    title: 'Was wir übernehmen sollen',
-    intro: 'Umfang und Zeiten. Danach richten wir unsere Schichtplanung aus.',
+    title: L('Was wir übernehmen sollen', 'What we should take on'),
+    intro: L('Umfang und Zeiten. Danach richten wir unsere Schichtplanung aus.',
+      'Scope and hours. We plan our shifts around this.'),
     fields: [
-      {
-        id: 'scope', label: 'Welche Aufgaben soll unser Guest Relations Officer übernehmen?',
-        type: 'multi', options: SCOPE_OPTIONS, required: true,
-        preset: SCOPE_OPTIONS.join(', '),
-        presetNote: 'Unser Standardumfang — hier abwählen, was für Sie nicht gilt'
-      },
-      { id: 'scope_extra', label: 'Fehlt etwas?', type: 'text' },
-      { id: 'coverage', label: 'Welche Zeiten sollen wir abdecken?', type: 'radio', required: true,
-        options: ['24/7', '12/7 (Tagesschicht)', 'Andere Zeiten'] },
-      { id: 'coverage_custom', label: 'Welche Zeiten genau?', type: 'text', placeholder: '08:00–20:00 Ortszeit, täglich',
-        dependsOn: { field: 'coverage', equals: 'Andere Zeiten' } },
-      { id: 'languages', label: 'In welchen Sprachen sollen wir antworten?', type: 'multi', options: ['Deutsch', 'Englisch'], required: true, help: 'Mehrfachauswahl. Andere Sprachen können wir derzeit nicht zusagen.' },
-      { id: 'volume', label: 'Ungefähres Nachrichtenaufkommen pro Tag', type: 'radio',
-        options: ['unter 20', '20 bis 50', '50 bis 100', 'über 100', 'Weiss ich nicht'] },
-      { id: 'peaks', label: 'Wann ist bei Ihnen Hochbetrieb?', type: 'multi',
-        options: ['Sommerferien', 'Weihnachten und Neujahr', 'Messen', 'Wochenenden', 'Firmenreisen Mo–Do', 'Ganzjährig gleichmässig'] },
-      { id: 'peaks_note', label: 'Konkrete Termine, die wir kennen sollten', type: 'text', placeholder: 'Messe Stuttgart, 12.–15. März' }
+      { id: 'scope', type: 'multi', required: true, contract: true,
+        label: L('Welche Aufgaben soll unser Guest Relations Officer übernehmen?',
+          'Which tasks should our Guest Relations Officer take on?'),
+        options: SCOPE_OPTIONS,
+        preset: SCOPE_OPTIONS.map(function (x) { return x.code; }).join(', '),
+        presetNote: L('Unser Standardumfang — hier abwählen, was für Sie nicht gilt',
+          'Our standard scope — deselect anything that does not apply to you') },
+      { id: 'scope_extra', type: 'text', contract: true, label: L('Fehlt etwas?', 'Anything missing?') },
+      { id: 'coverage', type: 'radio', required: true, contract: true,
+        label: L('Welche Zeiten sollen wir abdecken?', 'Which hours should we cover?'),
+        options: [
+          o('h24_7', '24/7', '24/7'),
+          o('h12_7', '12/7 (Tagesschicht)', '12/7 (day shift)'),
+          o('other', 'Andere Zeiten', 'Other hours')
+        ] },
+      { id: 'coverage_custom', type: 'text', contract: true,
+        label: L('Welche Zeiten genau?', 'Which hours exactly?'),
+        placeholder: L('08:00–20:00 Ortszeit, täglich', '08:00–20:00 local time, daily'),
+        dependsOn: { field: 'coverage', equals: 'other' } },
+      { id: 'languages', type: 'multi', required: true, contract: true,
+        label: L('In welchen Sprachen sollen wir antworten?', 'In which languages should we reply?'),
+        help: L('Mehrfachauswahl. Andere Sprachen können wir derzeit nicht zusagen.',
+          'Multiple choice. We cannot commit to other languages at this time.'),
+        options: [o('de', 'Deutsch', 'German'), o('en', 'Englisch', 'English')] },
+      { id: 'volume', type: 'radio',
+        label: L('Ungefähres Nachrichtenaufkommen pro Tag', 'Approximate messages per day'),
+        options: [
+          o('lt20', 'unter 20', 'under 20'),
+          o('20_50', '20 bis 50', '20 to 50'),
+          o('50_100', '50 bis 100', '50 to 100'),
+          o('gt100', 'über 100', 'over 100'),
+          o('unknown', 'Weiss ich nicht', 'I do not know')
+        ] },
+      { id: 'peaks', type: 'multi', label: L('Wann ist bei Ihnen Hochbetrieb?', 'When are your peak times?'),
+        options: [
+          o('summer', 'Sommerferien', 'Summer holidays'),
+          o('christmas', 'Weihnachten und Neujahr', 'Christmas and New Year'),
+          o('fairs', 'Messen', 'Trade fairs'),
+          o('weekends', 'Wochenenden', 'Weekends'),
+          o('business', 'Firmenreisen Mo–Do', 'Business travel Mon–Thu'),
+          o('even', 'Ganzjährig gleichmässig', 'Evenly all year')
+        ] },
+      { id: 'peaks_note', type: 'text',
+        label: L('Konkrete Termine, die wir kennen sollten', 'Specific dates we should know about'),
+        placeholder: L('Messe Stuttgart, 12.–15. März', 'Stuttgart trade fair, 12–15 March') }
     ]
   },
 
   {
     id: 'mandat',
-    title: 'Was unser GRO entscheiden darf',
-    intro: 'Der wichtigste Teil. Ohne klare Grenzen muss unser Team bei jeder Kleinigkeit nachfragen — und Ihre Gäste warten.',
+    title: L('Was unser GRO entscheiden darf', 'What our GRO may decide'),
+    intro: L('Der wichtigste Teil. Ohne klare Grenzen muss unser Team bei jeder Kleinigkeit nachfragen — und Ihre Gäste warten.',
+      'The most important part. Without clear limits our team has to ask about every detail — and your guests wait.'),
     fields: [
-      { id: 'goodwill_limit', label: 'Kulanz und Erstattung bis zu welchem Betrag ohne Rückfrage?', type: 'money', required: true },
-      { id: 'goodwill_month', label: 'Obergrenze pro Monat', type: 'money' },
-      { id: 'late_checkout', label: 'Late Check-out gratis gewähren?', type: 'radio', options: YESNO },
-      { id: 'late_checkout_until', label: 'Bis zu welcher Uhrzeit?', type: 'radio',
-        options: ['12:00', '13:00', '14:00', 'Nach Verfügbarkeit'],
-        dependsOn: { field: 'late_checkout', equals: ['Ja', 'Nach Rücksprache'] } },
-      { id: 'early_checkin', label: 'Early Check-in gratis gewähren?', type: 'radio', options: YESNO },
-      { id: 'early_checkin_from', label: 'Ab welcher Uhrzeit?', type: 'radio',
-        options: ['ab 12:00', 'ab 13:00', 'ab 14:00', 'Nach Verfügbarkeit'],
-        dependsOn: { field: 'early_checkin', equals: ['Ja', 'Nach Rücksprache'] } },
-      { id: 'cancel_rebook', label: 'Darf der GRO stornieren, umbuchen oder upgraden?', type: 'radio', options: YESNO },
-      { id: 'cancel_rules', label: 'In welchen Fällen?', type: 'multi',
-        options: ['Bei Überbuchung', 'Bei defektem Zimmer', 'Auf Gastwunsch innerhalb der Stornofrist', 'Bei Doppelbuchung über den Kanal'],
-        dependsOn: { field: 'cancel_rebook', equals: ['Ja', 'Nach Rücksprache'] } },
-      { id: 'overbooking', label: 'Bei Überbuchung: wie gehen wir vor?', type: 'radio',
-        options: ['Gleichwertiges Haus in der Nähe, Differenz zu Ihren Lasten', 'Gleichwertiges Haus, Differenz trägt der Gast', 'Immer zuerst Rücksprache mit Ihnen', 'Kommt bei uns nicht vor'] },
-      { id: 'noshow', label: 'No-Show: wann wird die Karte belastet?', type: 'radio',
-        options: ['Nach 24:00 des Anreisetags', 'Nach zwei Stunden ohne Kontakt', 'Nur nach Rücksprache', 'Der Kanal regelt das'] },
-      { id: 'damage_limit', label: 'Schäden: ab welchem Betrag eskalieren wir an Sie?', type: 'money' },
-      { id: 'damage_rules', label: 'Wie gehen wir mit Schäden um?', type: 'multi',
-        options: ['Kaution einbehalten', 'Foto dokumentieren und an Sie melden', 'Gast direkt belasten', 'Über den Kanal melden'] },
-      { id: 'discount', label: 'Rabatt bei Verlängerung oder Direktanfrage', type: 'radio',
-        options: ['Kein Rabatt', 'Bis 5 %', 'Bis 10 %', 'Bis 15 %', 'Nur nach Rücksprache'] },
-      { id: 'mandate_signer', label: 'Wer unterzeichnet die Vollmacht dafür?', type: 'text', required: true }
+      { id: 'goodwill_limit', type: 'money', required: true, contract: true,
+        label: L('Kulanz und Erstattung bis zu welchem Betrag ohne Rückfrage?',
+          'Goodwill and refunds up to what amount without asking?') },
+      { id: 'goodwill_month', type: 'money', contract: true,
+        label: L('Obergrenze pro Monat', 'Cap per month') },
+      { id: 'late_checkout', type: 'radio', contract: true, options: YESNO,
+        label: L('Late Check-out gratis gewähren?', 'Grant late check-out free of charge?') },
+      { id: 'late_checkout_until', type: 'radio', contract: true,
+        label: L('Bis zu welcher Uhrzeit?', 'Until what time?'),
+        options: [o('t1200', '12:00', '12:00'), o('t1300', '13:00', '13:00'),
+          o('t1400', '14:00', '14:00'), o('availability', 'Nach Verfügbarkeit', 'Subject to availability')],
+        dependsOn: { field: 'late_checkout', equals: ['yes', 'ask'] } },
+      { id: 'early_checkin', type: 'radio', contract: true, options: YESNO,
+        label: L('Early Check-in gratis gewähren?', 'Grant early check-in free of charge?') },
+      { id: 'early_checkin_from', type: 'radio', contract: true,
+        label: L('Ab welcher Uhrzeit?', 'From what time?'),
+        options: [o('f1200', 'ab 12:00', 'from 12:00'), o('f1300', 'ab 13:00', 'from 13:00'),
+          o('f1400', 'ab 14:00', 'from 14:00'), o('availability', 'Nach Verfügbarkeit', 'Subject to availability')],
+        dependsOn: { field: 'early_checkin', equals: ['yes', 'ask'] } },
+      { id: 'cancel_rebook', type: 'radio', contract: true, options: YESNO,
+        label: L('Darf der GRO stornieren, umbuchen oder upgraden?',
+          'May the GRO cancel, rebook or upgrade?') },
+      { id: 'cancel_rules', type: 'multi', contract: true, label: L('In welchen Fällen?', 'In which cases?'),
+        options: [
+          o('overbooking', 'Bei Überbuchung', 'In case of overbooking'),
+          o('defect', 'Bei defektem Zimmer', 'If a room is defective'),
+          o('guest_request', 'Auf Gastwunsch innerhalb der Stornofrist', 'At guest request within the cancellation window'),
+          o('double_booking', 'Bei Doppelbuchung über den Kanal', 'On a double booking via the channel')
+        ],
+        dependsOn: { field: 'cancel_rebook', equals: ['yes', 'ask'] } },
+      { id: 'overbooking', type: 'radio', contract: true,
+        label: L('Bei Überbuchung: wie gehen wir vor?', 'On overbooking: how do we proceed?'),
+        options: [
+          o('equal_we_pay', 'Gleichwertiges Haus in der Nähe, Differenz zu Ihren Lasten',
+            'Equivalent property nearby, you cover the difference'),
+          o('equal_guest_pays', 'Gleichwertiges Haus, Differenz trägt der Gast',
+            'Equivalent property, the guest covers the difference'),
+          o('always_ask', 'Immer zuerst Rücksprache mit Ihnen', 'Always check with you first'),
+          o('na', 'Kommt bei uns nicht vor', 'Does not happen with us')
+        ] },
+      { id: 'noshow', type: 'radio', contract: true,
+        label: L('No-Show: wann wird die Karte belastet?', 'No-show: when is the card charged?'),
+        options: [
+          o('after_midnight', 'Nach 24:00 des Anreisetags', 'After midnight on the arrival day'),
+          o('after_2h', 'Nach zwei Stunden ohne Kontakt', 'After two hours without contact'),
+          o('ask', 'Nur nach Rücksprache', 'Only after checking with you'),
+          o('channel', 'Der Kanal regelt das', 'The channel handles it')
+        ] },
+      { id: 'damage_limit', type: 'money', contract: true,
+        label: L('Schäden: ab welchem Betrag eskalieren wir an Sie?',
+          'Damage: from what amount do we escalate to you?') },
+      { id: 'damage_rules', type: 'multi', contract: true,
+        label: L('Wie gehen wir mit Schäden um?', 'How do we handle damage?'),
+        options: [
+          o('hold_deposit', 'Kaution einbehalten', 'Retain the deposit'),
+          o('photo_report', 'Foto dokumentieren und an Sie melden', 'Document with photos and report to you'),
+          o('charge_guest', 'Gast direkt belasten', 'Charge the guest directly'),
+          o('report_channel', 'Über den Kanal melden', 'Report via the channel')
+        ] },
+      { id: 'discount', type: 'radio', contract: true,
+        label: L('Rabatt bei Verlängerung oder Direktanfrage', 'Discount on extensions or direct enquiries'),
+        options: [
+          o('none', 'Kein Rabatt', 'No discount'),
+          o('p5', 'Bis 5 %', 'Up to 5%'),
+          o('p10', 'Bis 10 %', 'Up to 10%'),
+          o('p15', 'Bis 15 %', 'Up to 15%'),
+          o('ask', 'Nur nach Rücksprache', 'Only after checking with you')
+        ] },
+      { id: 'mandate_signer', type: 'text', required: true, contract: true,
+        label: L('Wer unterzeichnet die Vollmacht dafür?', 'Who signs the authorisation for this?') }
     ]
   },
 
   {
     id: 'eskalation',
-    title: 'Eskalation und Erreichbarkeit',
-    intro: 'Wen rufen wir an, wenn es brennt — wörtlich und im übertragenen Sinn.',
+    title: L('Eskalation und Erreichbarkeit', 'Escalation and availability'),
+    intro: L('Wen rufen wir an, wenn es brennt — wörtlich und im übertragenen Sinn.',
+      'Who do we call when there is a fire — literally and figuratively.'),
     fields: [
       { id: 'note_elev8_users', type: 'note',
-        label: 'Alle Personen, die informiert oder eskaliert werden sollen, müssen in Elev8 als Benutzer angelegt sein. Nur dann erreicht unser GRO sie über das System und der Vorgang bleibt nachvollziehbar. Bitte legen Sie fehlende Personen vor dem Start an.' },
-      { id: 'esc1', label: 'Stufe 1: Name, Telefon, erreichbar wann', type: 'textarea', required: true },
-      { id: 'esc2', label: 'Stufe 2: Name, Telefon, erreichbar wann', type: 'textarea' },
-      { id: 'esc3', label: 'Stufe 3: Name, Telefon, erreichbar wann', type: 'textarea' },
-      { id: 'esc_in_elev8', label: 'Sind diese Personen bereits als Benutzer in Elev8 angelegt?', type: 'radio', required: true,
-        options: ['Ja, alle', 'Teilweise', 'Nein, noch nicht'],
-        help: 'Zwingende Voraussetzung — ohne Elev8-Benutzer keine Eskalation.' },
-      { id: 'esc_immediate', label: 'Welche Fälle sollen wir sofort telefonisch melden?', type: 'multi',
-        options: ESC_OPTIONS, required: true,
-        preset: ESC_OPTIONS.slice(0, 6).join(', '),
-        presetNote: 'Unser Standard — bitte anpassen' },
-      { id: 'esc_immediate_other', label: 'Weitere Fälle', type: 'text' },
-      { id: 'esc_nobody', label: 'Was, wenn niemand von Ihnen erreichbar ist?', type: 'radio',
-        options: ['Notdienst bis zum Kulanzlimit beauftragen', 'Notdienst bis zu einem eigenen Limit beauftragen', 'Warten und dokumentieren', 'Zweite Notfallnummer anrufen'] },
-      { id: 'esc_nobody_limit', label: 'Bis zu welchem Betrag?', type: 'money',
-        dependsOn: { field: 'esc_nobody', equals: 'Notdienst bis zu einem eigenen Limit beauftragen' } },
-      { id: 'esc_contact_us', label: 'Wer ist Ihr fester Ansprechpartner für uns — nicht für Gäste?', type: 'text' }
+        label: L('Alle Personen, die informiert oder eskaliert werden sollen, müssen in Elev8 als Benutzer angelegt sein. Nur dann erreicht unser GRO sie über das System und der Vorgang bleibt nachvollziehbar. Bitte legen Sie fehlende Personen vor dem Start an.',
+          'Everyone who should be informed or escalated to must exist as a user in Elev8. Only then can our GRO reach them through the system and the case stays traceable. Please create any missing people before we start.') },
+      { id: 'esc1', type: 'textarea', required: true, contract: true,
+        label: L('Stufe 1: Name, Telefon, erreichbar wann', 'Level 1: name, phone, when reachable') },
+      { id: 'esc2', type: 'textarea', contract: true,
+        label: L('Stufe 2: Name, Telefon, erreichbar wann', 'Level 2: name, phone, when reachable') },
+      { id: 'esc3', type: 'textarea', contract: true,
+        label: L('Stufe 3: Name, Telefon, erreichbar wann', 'Level 3: name, phone, when reachable') },
+      { id: 'esc_in_elev8', type: 'radio', required: true,
+        label: L('Sind diese Personen bereits als Benutzer in Elev8 angelegt?',
+          'Do these people already exist as users in Elev8?'),
+        help: L('Zwingende Voraussetzung — ohne Elev8-Benutzer keine Eskalation.',
+          'A hard requirement — no Elev8 user, no escalation.'),
+        options: [o('all', 'Ja, alle', 'Yes, all of them'), o('partly', 'Teilweise', 'Some of them'),
+          o('none', 'Nein, noch nicht', 'No, not yet')] },
+      { id: 'esc_immediate', type: 'multi', required: true, contract: true,
+        label: L('Welche Fälle sollen wir sofort telefonisch melden?',
+          'Which cases should we report to you by phone immediately?'),
+        options: ESC_OPTIONS,
+        preset: ESC_OPTIONS.slice(0, 6).map(function (x) { return x.code; }).join(', '),
+        presetNote: L('Unser Standard — bitte anpassen', 'Our default — please adjust') },
+      { id: 'esc_immediate_other', type: 'text', contract: true,
+        label: L('Weitere Fälle', 'Further cases') },
+      { id: 'esc_nobody', type: 'radio', contract: true,
+        label: L('Was, wenn niemand von Ihnen erreichbar ist?', 'What if nobody on your side can be reached?'),
+        options: [
+          o('up_to_goodwill', 'Notdienst bis zum Kulanzlimit beauftragen', 'Call out a contractor up to the goodwill limit'),
+          o('own_limit', 'Notdienst bis zu einem eigenen Limit beauftragen', 'Call out a contractor up to a separate limit'),
+          o('wait', 'Warten und dokumentieren', 'Wait and document'),
+          o('second_number', 'Zweite Notfallnummer anrufen', 'Call a second emergency number')
+        ] },
+      { id: 'esc_nobody_limit', type: 'money', contract: true,
+        label: L('Bis zu welchem Betrag?', 'Up to what amount?'),
+        dependsOn: { field: 'esc_nobody', equals: 'own_limit' } },
+      { id: 'esc_contact_us', type: 'text',
+        label: L('Wer ist Ihr fester Ansprechpartner für uns — nicht für Gäste?',
+          'Who is your permanent contact for us — not for guests?') }
     ]
   },
 
   {
     id: 'vorort',
-    title: 'Team und Partner vor Ort',
-    intro: 'Unser GRO sitzt nicht im Haus. Alles, was Hände braucht, läuft über Ihre Leute.',
+    title: L('Team und Partner vor Ort', 'On-site team and partners'),
+    intro: L('Unser GRO sitzt nicht im Haus. Alles, was Hände braucht, läuft über Ihre Leute.',
+      'Our GRO is not in the building. Anything that needs hands goes through your people.'),
     fields: [
-      { id: 'staff_onsite', label: 'Wer ist vor Ort? Rolle, Name, Telefon, Arbeitszeiten', type: 'textarea', required: true },
-      { id: 'staff_in_elev8', label: 'Sind diese Personen bereits als Benutzer in Elev8 angelegt?', type: 'radio', options: ['Ja', 'Nein', 'Teilweise', 'Weiss ich nicht'],
-        help: 'Auch hier zwingend: Aufträge und Informationen laufen ausschliesslich über Elev8.' },
-      { id: 'lockout', label: 'Ausgesperrter Gast — was steht zur Verfügung?', type: 'multi',
-        options: ['Ersatzschlüssel an der Rezeption', 'Schlüsselbox mit Notfallcode', 'Smart-Lock-Code aus der Ferne', 'Team vor Ort innerhalb von 30 Minuten', 'Team vor Ort innerhalb von 60 Minuten', 'Schlüsseldienst wird gerufen'] },
-      { id: 'trades', label: 'Notdienste: Sanitär, Elektro, Schlüsseldienst — mit Kontakt', type: 'textarea' },
-      { id: 'emergency', label: 'Arzt und Klinik in der Nähe, Polizei, Ihre Versicherung', type: 'textarea' }
+      { id: 'staff_onsite', type: 'textarea', required: true,
+        label: L('Wer ist vor Ort? Rolle, Name, Telefon, Arbeitszeiten',
+          'Who is on site? Role, name, phone, working hours') },
+      { id: 'staff_in_elev8', type: 'radio',
+        label: L('Sind diese Personen bereits als Benutzer in Elev8 angelegt?',
+          'Do these people already exist as users in Elev8?'),
+        help: L('Auch hier zwingend: Aufträge und Informationen laufen ausschliesslich über Elev8.',
+          'Also mandatory here: tasks and information run exclusively through Elev8.'),
+        options: [o('yes', 'Ja', 'Yes'), o('no', 'Nein', 'No'), o('partly', 'Teilweise', 'Partly'),
+          o('unknown', 'Weiss ich nicht', 'I do not know')] },
+      { id: 'lockout', type: 'multi',
+        label: L('Ausgesperrter Gast — was steht zur Verfügung?',
+          'Locked-out guest — what is available?'),
+        options: [
+          o('spare_reception', 'Ersatzschlüssel an der Rezeption', 'Spare key at reception'),
+          o('keybox_emergency', 'Schlüsselbox mit Notfallcode', 'Key box with an emergency code'),
+          o('remote_code', 'Smart-Lock-Code aus der Ferne', 'Smart lock code issued remotely'),
+          o('team_30', 'Team vor Ort innerhalb von 30 Minuten', 'On-site team within 30 minutes'),
+          o('team_60', 'Team vor Ort innerhalb von 60 Minuten', 'On-site team within 60 minutes'),
+          o('locksmith', 'Schlüsseldienst wird gerufen', 'A locksmith is called')
+        ] },
+      { id: 'trades', type: 'textarea',
+        label: L('Notdienste: Sanitär, Elektro, Schlüsseldienst — mit Kontakt',
+          'Emergency trades: plumbing, electrical, locksmith — with contacts') },
+      { id: 'emergency', type: 'textarea',
+        label: L('Arzt und Klinik in der Nähe, Polizei, Ihre Versicherung',
+          'Nearby doctor and hospital, police, your insurer') }
     ]
   },
 
   {
     id: 'auftritt',
-    title: 'Auftreten gegenüber Gästen',
-    intro: 'Der Gast soll Ihr Haus sehen, nicht uns.',
+    title: L('Auftreten gegenüber Gästen', 'How we appear to guests'),
+    intro: L('Der Gast soll Ihr Haus sehen, nicht uns.', 'The guest should see your property, not us.'),
     fields: [
-      { id: 'signature', label: 'Unter welchem Namen und welcher Signatur sollen wir schreiben?', type: 'text', required: true },
-      { id: 'tone_form', label: 'Anrede', type: 'radio', options: ['Sie', 'Du', 'Je nach Kanal'], required: true },
-      { id: 'tone_style', label: 'Tonalität', type: 'radio', options: ['Kurz und sachlich', 'Freundlich und ausführlich', 'Herzlich und persönlich'] },
-      { id: 'nogos', label: 'Worüber soll unser GRO nie entscheiden oder sprechen?', type: 'multi',
-        options: ['Preise und Rabatte', 'Rechtliche Fragen', 'Beschwerden über Personal', 'Bewertungen', 'Presseanfragen', 'Nachbarschaftskonflikte', 'Nichts davon'] },
-      { id: 'templates', label: 'Haben Sie bestehende Textvorlagen, die wir übernehmen sollen?', type: 'radio',
-        options: ['Ja, wir schicken sie', 'Teilweise', 'Nein, bitte erstellen Sie welche'] },
+      { id: 'signature', type: 'text', required: true, contract: true,
+        label: L('Unter welchem Namen und welcher Signatur sollen wir schreiben?',
+          'Under which name and signature should we write?') },
+      { id: 'tone_form', type: 'radio', required: true, contract: true,
+        label: L('Anrede', 'Form of address'),
+        options: [o('formal', 'Sie', 'Formal'), o('informal', 'Du', 'Informal'),
+          o('by_channel', 'Je nach Kanal', 'Depends on the channel')] },
+      { id: 'tone_style', type: 'radio', label: L('Tonalität', 'Tone'),
+        options: [
+          o('short', 'Kurz und sachlich', 'Short and factual'),
+          o('friendly', 'Freundlich und ausführlich', 'Friendly and detailed'),
+          o('warm', 'Herzlich und persönlich', 'Warm and personal')
+        ] },
+      { id: 'nogos', type: 'multi', contract: true,
+        label: L('Worüber soll unser GRO nie entscheiden oder sprechen?',
+          'What should our GRO never decide or discuss?'),
+        options: [
+          o('prices', 'Preise und Rabatte', 'Prices and discounts'),
+          o('legal', 'Rechtliche Fragen', 'Legal matters'),
+          o('staff', 'Beschwerden über Personal', 'Complaints about staff'),
+          o('reviews', 'Bewertungen', 'Reviews'),
+          o('press', 'Presseanfragen', 'Press enquiries'),
+          o('neighbours', 'Nachbarschaftskonflikte', 'Neighbour disputes'),
+          o('none', 'Nichts davon', 'None of these')
+        ] },
+      { id: 'templates', type: 'radio',
+        label: L('Haben Sie bestehende Textvorlagen, die wir übernehmen sollen?',
+          'Do you have existing message templates we should use?'),
+        options: [
+          o('yes', 'Ja, wir schicken sie', 'Yes, we will send them'),
+          o('partly', 'Teilweise', 'Some'),
+          o('no', 'Nein, bitte erstellen Sie welche', 'No, please write some')
+        ] },
       { id: 'note_recording', type: 'note',
-        label: 'Hinweis zu Telefonaten: Wir zeichnen alle Anrufe auf. Der Anrufer wird zu Beginn des Gesprächs darauf hingewiesen. Wer damit nicht einverstanden ist, kann uns über WhatsApp, E-Mail oder den Chat des Buchungsportals erreichen.' }
+        label: L('Hinweis zu Telefonaten: Wir zeichnen alle Anrufe auf. Der Anrufer wird zu Beginn des Gesprächs darauf hingewiesen. Wer damit nicht einverstanden ist, kann uns über WhatsApp, E-Mail oder den Chat des Buchungsportals erreichen.',
+          'Note on phone calls: we record all calls. Callers are informed at the start of the call. Anyone who does not agree can reach us via WhatsApp, email or the booking portal chat.') }
     ]
   },
 
   {
     id: 'geld',
-    title: 'Zusatzleistungen und Zahlungen',
+    title: L('Zusatzleistungen und Zahlungen', 'Extras and payments'),
     fields: [
-      { id: 'upsells', label: 'Welche Zusatzleistungen können Sie liefern?', type: 'multi',
-        options: ['Frühstück', 'Late Check-out', 'Early Check-in', 'Parkplatz', 'Flughafentransfer', 'Haustier', 'Zusatzbett', 'Wäscheservice', 'Willkommenspaket'] },
-      { id: 'upsells_note', label: 'Preise und Vorlaufzeit', type: 'text', placeholder: 'Transfer 65 EUR, 24 h vorher' },
-      { id: 'payment', label: 'Wie wird kassiert?', type: 'multi',
-        options: ['Vor Ort per Karte', 'Vor Ort bar', 'Über den Buchungskanal', 'Zahlungslink', 'Rechnung an die Firma', 'Vorkasse per Überweisung'] },
-      { id: 'deposit', label: 'Kaution', type: 'radio',
-        options: ['Keine Kaution', 'Kreditkarten-Vorautorisierung', 'Bar vor Ort', 'Zahlungslink', 'Über den Kanal'] },
-      { id: 'deposit_amount', label: 'Höhe der Kaution', type: 'money',
-        dependsOn: { field: 'deposit', equals: ['Kreditkarten-Vorautorisierung', 'Bar vor Ort', 'Zahlungslink', 'Über den Kanal'] } }
+      { id: 'upsells', type: 'multi',
+        label: L('Welche Zusatzleistungen können Sie liefern?', 'Which extras can you provide?'),
+        options: [
+          o('breakfast', 'Frühstück', 'Breakfast'),
+          o('late_checkout', 'Late Check-out', 'Late check-out'),
+          o('early_checkin', 'Early Check-in', 'Early check-in'),
+          o('parking', 'Parkplatz', 'Parking'),
+          o('transfer', 'Flughafentransfer', 'Airport transfer'),
+          o('pet', 'Haustier', 'Pets'),
+          o('extra_bed', 'Zusatzbett', 'Extra bed'),
+          o('laundry', 'Wäscheservice', 'Laundry service'),
+          o('welcome', 'Willkommenspaket', 'Welcome package')
+        ] },
+      { id: 'upsells_note', type: 'text', label: L('Preise und Vorlaufzeit', 'Prices and lead time'),
+        placeholder: L('Transfer 65 EUR, 24 h vorher', 'Transfer EUR 65, 24 h in advance') },
+      { id: 'payment', type: 'multi', label: L('Wie wird kassiert?', 'How is payment taken?'),
+        options: [
+          o('card_onsite', 'Vor Ort per Karte', 'By card on site'),
+          o('cash_onsite', 'Vor Ort bar', 'In cash on site'),
+          o('channel', 'Über den Buchungskanal', 'Through the booking channel'),
+          o('payment_link', 'Zahlungslink', 'Payment link'),
+          o('invoice', 'Rechnung an die Firma', 'Invoice to the company'),
+          o('prepay', 'Vorkasse per Überweisung', 'Advance bank transfer')
+        ] },
+      { id: 'deposit', type: 'radio', label: L('Kaution', 'Deposit'),
+        options: [
+          o('none', 'Keine Kaution', 'No deposit'),
+          o('cc_preauth', 'Kreditkarten-Vorautorisierung', 'Credit card pre-authorisation'),
+          o('cash', 'Bar vor Ort', 'Cash on site'),
+          o('link', 'Zahlungslink', 'Payment link'),
+          o('channel', 'Über den Kanal', 'Through the channel')
+        ] },
+      { id: 'deposit_amount', type: 'money', label: L('Höhe der Kaution', 'Deposit amount'),
+        dependsOn: { field: 'deposit', equals: ['cc_preauth', 'cash', 'link', 'channel'] } }
     ]
   },
 
   {
     id: 'recht',
-    title: 'Recht, Meldewesen, Datenschutz',
-    intro: 'Für Objekte in der EU brauchen wir das schriftlich, bevor wir den ersten Gast betreuen.',
+    title: L('Recht, Meldewesen, Datenschutz', 'Law, guest registration, data protection'),
+    intro: L('Für Objekte in der EU brauchen wir das schriftlich, bevor wir den ersten Gast betreuen.',
+      'For properties in the EU we need this in writing before we serve the first guest.'),
     fields: [
       { id: 'note_meldeschein', type: 'note',
-        label: 'Meldescheine gehören nicht zum Leistungsumfang des Guest Relations Officer. Sie werden entweder über die direkt angebundenen Schnittstellen in Elev8 erfasst oder von Ihnen selbst.' },
-      { id: 'meldeschein', label: 'Wie werden Meldescheine für ausländische Gäste heute erfasst?', type: 'radio',
-        options: ['Über die Schnittstelle in Elev8', 'Wir selbst vor Ort', 'Noch nicht geregelt'],
-        help: 'Für deutsche Staatsangehörige ist die besondere Meldepflicht seit 1.1.2025 entfallen, für ausländische Gäste besteht sie weiter.' },
-      { id: 'citytax', label: 'Beherbergungs- oder Kurtaxe', type: 'radio',
-        options: ['Ja, im Zimmerpreis enthalten', 'Ja, wird vor Ort erhoben', 'Ja, über den Buchungskanal', 'Nein, fällt nicht an'] },
-      { id: 'dpo', label: 'Ansprechpartner für Datenschutz auf Ihrer Seite', type: 'text' },
-      { id: 'avv', label: 'Haben Sie eine eigene Vorlage für den Auftragsverarbeitungsvertrag?', type: 'radio', options: ['Ja, wir stellen sie', 'Nein, bitte Ihre Vorlage', 'Noch offen'] },
-      { id: 'data_notes', label: 'Besondere Auflagen zum Umgang mit Gastdaten', type: 'textarea' }
+        label: L('Meldescheine gehören nicht zum Leistungsumfang des Guest Relations Officer. Sie werden entweder über die direkt angebundenen Schnittstellen in Elev8 erfasst oder von Ihnen selbst.',
+          'Guest registration forms are not part of the Guest Relations Officer scope. They are captured either through the directly connected interfaces in Elev8 or by you.') },
+      { id: 'meldeschein', type: 'radio',
+        label: L('Wie werden Meldescheine für ausländische Gäste heute erfasst?',
+          'How are registration forms for foreign guests captured today?'),
+        help: L('Für deutsche Staatsangehörige ist die besondere Meldepflicht seit 1.1.2025 entfallen, für ausländische Gäste besteht sie weiter.',
+          'For German nationals the special registration duty ended on 1 January 2025; for foreign guests it still applies.'),
+        options: [
+          o('elev8_interface', 'Über die Schnittstelle in Elev8', 'Through the interface in Elev8'),
+          o('ourselves', 'Wir selbst vor Ort', 'By us on site'),
+          o('unclear', 'Noch nicht geregelt', 'Not yet decided')
+        ] },
+      { id: 'citytax', type: 'radio', label: L('Beherbergungs- oder Kurtaxe', 'City or tourist tax'),
+        options: [
+          o('in_rate', 'Ja, im Zimmerpreis enthalten', 'Yes, included in the room rate'),
+          o('onsite', 'Ja, wird vor Ort erhoben', 'Yes, collected on site'),
+          o('channel', 'Ja, über den Buchungskanal', 'Yes, via the booking channel'),
+          o('none', 'Nein, fällt nicht an', 'No, does not apply')
+        ] },
+      { id: 'dpo', type: 'text', contract: true,
+        label: L('Ansprechpartner für Datenschutz auf Ihrer Seite', 'Data protection contact on your side') },
+      { id: 'avv', type: 'radio', contract: true,
+        label: L('Haben Sie eine eigene Vorlage für den Auftragsverarbeitungsvertrag?',
+          'Do you have your own data processing agreement template?'),
+        options: [
+          o('own_template', 'Ja, wir stellen sie', 'Yes, we will provide it'),
+          o('your_template', 'Nein, bitte Ihre Vorlage', 'No, please use yours'),
+          o('open', 'Noch offen', 'Still open')
+        ] },
+      { id: 'data_notes', type: 'textarea',
+        label: L('Besondere Auflagen zum Umgang mit Gastdaten',
+          'Special requirements for handling guest data') }
     ]
   },
 
   {
     id: 'zugaenge',
-    title: 'Zugänge und Werkzeuge',
-    intro: 'Ohne die richtigen Zugänge kann unser Team nur zuschauen.',
+    title: L('Zugänge und Werkzeuge', 'Access and tools'),
+    intro: L('Ohne die richtigen Zugänge kann unser Team nur zuschauen.',
+      'Without the right access our team can only watch.'),
     fields: [
-      { id: 'elev8_access', label: 'Wer legt die Elev8-Benutzer für unsere GROs an?', type: 'radio',
-        options: ['Wir legen sie an', 'Bitte legt Elev8 sie an', 'Noch offen'] },
-      { id: 'smartlock', label: 'Wie werden Türcodes erzeugt und an Gäste geschickt?', type: 'radio',
-        options: ['Automatisch über Elev8', 'Manuell durch unser Team', 'Fester Code je Einheit', 'Schlüsselbox mit festem Code', 'Kein Code nötig'] },
-      { id: 'whatsapp', label: 'Nutzen Sie WhatsApp Business?', type: 'radio',
-        options: ['Ja, die Nummer gehört uns', 'Ja, soll über Elev8 laufen', 'Nein, nutzen wir nicht'] },
-      { id: 'other_tools', label: 'Weitere Werkzeuge, die wir brauchen', type: 'text' }
+      { id: 'elev8_access', type: 'radio',
+        label: L('Wer legt die Elev8-Benutzer für unsere GROs an?',
+          'Who creates the Elev8 users for our GROs?'),
+        options: [
+          o('we_create', 'Wir legen sie an', 'We will create them'),
+          o('elev8_creates', 'Bitte legt Elev8 sie an', 'Please have Elev8 create them'),
+          o('open', 'Noch offen', 'Still open')
+        ] },
+      { id: 'smartlock', type: 'radio',
+        label: L('Wie werden Türcodes erzeugt und an Gäste geschickt?',
+          'How are door codes generated and sent to guests?'),
+        options: [
+          o('elev8_auto', 'Automatisch über Elev8', 'Automatically through Elev8'),
+          o('manual_team', 'Manuell durch unser Team', 'Manually by our team'),
+          o('fixed_per_unit', 'Fester Code je Einheit', 'A fixed code per unit'),
+          o('keybox_fixed', 'Schlüsselbox mit festem Code', 'Key box with a fixed code'),
+          o('none', 'Kein Code nötig', 'No code needed')
+        ] },
+      { id: 'whatsapp', type: 'radio', label: L('Nutzen Sie WhatsApp Business?', 'Do you use WhatsApp Business?'),
+        options: [
+          o('ours', 'Ja, die Nummer gehört uns', 'Yes, the number is ours'),
+          o('via_elev8', 'Ja, soll über Elev8 laufen', 'Yes, it should run through Elev8'),
+          o('no', 'Nein, nutzen wir nicht', 'No, we do not use it')
+        ] },
+      { id: 'other_tools', type: 'text',
+        label: L('Weitere Werkzeuge, die wir brauchen', 'Other tools we will need') }
     ]
   },
 
   {
     id: 'sonstiges',
-    title: 'Zum Schluss',
+    title: L('Zum Schluss', 'Finally'),
     fields: [
-      { id: 'priority', label: 'Was ist Ihnen am wichtigsten?', type: 'multi',
-        options: ['Schnelle Antwortzeiten', 'Gleichbleibende Qualität', 'Bessere Bewertungen', 'Entlastung des eigenen Teams', 'Mehr Zusatzumsatz', 'Abdeckung in der Nacht'] },
-      { id: 'concerns', label: 'Was bereitet Ihnen bei einer externen Gästebetreuung Sorgen?', type: 'multi',
-        options: ['Verlust der persönlichen Note', 'Datenschutz', 'Sprachqualität', 'Kontrolle über Kulanz', 'Reaktionszeit', 'Keine Sorgen'] },
-      { id: 'anything', label: 'Sonstiges, das wir wissen sollten', type: 'textarea' },
-      { id: 'revenue_package', label: 'Haben Sie zusätzlich das Revenue-Management-Paket gebucht?', type: 'radio',
-        options: ['Ja', 'Nein', 'Noch offen'], required: true,
-        help: 'Zugänge zu den OTA-Extranets fragen wir hier bewusst nicht ab — die gehören zum Revenue Management.' },
+      { id: 'priority', type: 'multi', label: L('Was ist Ihnen am wichtigsten?', 'What matters most to you?'),
+        options: [
+          o('speed', 'Schnelle Antwortzeiten', 'Fast response times'),
+          o('consistency', 'Gleichbleibende Qualität', 'Consistent quality'),
+          o('reviews', 'Bessere Bewertungen', 'Better reviews'),
+          o('relief', 'Entlastung des eigenen Teams', 'Relief for your own team'),
+          o('upsell', 'Mehr Zusatzumsatz', 'More ancillary revenue'),
+          o('night', 'Abdeckung in der Nacht', 'Overnight coverage')
+        ] },
+      { id: 'concerns', type: 'multi',
+        label: L('Was bereitet Ihnen bei einer externen Gästebetreuung Sorgen?',
+          'What worries you about outsourcing guest care?'),
+        options: [
+          o('personal_touch', 'Verlust der persönlichen Note', 'Losing the personal touch'),
+          o('privacy', 'Datenschutz', 'Data protection'),
+          o('language', 'Sprachqualität', 'Language quality'),
+          o('goodwill_control', 'Kontrolle über Kulanz', 'Control over goodwill'),
+          o('response_time', 'Reaktionszeit', 'Response time'),
+          o('none', 'Keine Sorgen', 'No concerns')
+        ] },
+      { id: 'anything', type: 'textarea',
+        label: L('Sonstiges, das wir wissen sollten', 'Anything else we should know') },
+      { id: 'revenue_package', type: 'radio', required: true,
+        label: L('Haben Sie zusätzlich das Revenue-Management-Paket gebucht?',
+          'Have you also booked the revenue management package?'),
+        help: L('Zugänge zu den OTA-Extranets fragen wir hier bewusst nicht ab — die gehören zum Revenue Management.',
+          'We deliberately do not ask for OTA extranet access here — that belongs to revenue management.'),
+        options: [o('yes', 'Ja', 'Yes'), o('no', 'Nein', 'No'), o('open', 'Noch offen', 'Still open')] },
       { id: 'note_revenue', type: 'note',
-        label: 'Gut. Sobald diese Aufnahme abgeschlossen ist, schalten wir Ihnen die zweite, kurze Checkliste zum Revenue Management frei — Kanäle, Extranet-Zugänge und Preisstrategie.',
-        dependsOn: { field: 'revenue_package', equals: 'Ja' } }
+        label: L('Gut. Sobald diese Aufnahme abgeschlossen ist, schalten wir Ihnen die zweite, kurze Checkliste zum Revenue Management frei — Kanäle, Extranet-Zugänge und Preisstrategie.',
+          'Good. Once this onboarding is complete we will open the second, short revenue management checklist for you — channels, extranet access and pricing strategy.'),
+        dependsOn: { field: 'revenue_package', equals: 'yes' } }
     ]
   }
 ];
@@ -320,12 +652,37 @@ SECTIONS.forEach(function (sec) {
   });
 });
 const INPUT_FIELDS = ALL_FIELDS.filter(isInput);
+/** Felder, die in den Vertrag wandern und nach der Unterschrift feststehen. */
+const CONTRACT_FIELDS = INPUT_FIELDS.filter(function (f) { return !!f.contract; });
+
+/** Angezeigter Text zu einem gespeicherten Code. */
+function optionLabel(field, code, lang) {
+  if (!field || !field.options) return String(code == null ? '' : code);
+  const hit = field.options.filter(function (x) { return x.code === code; })[0];
+  return hit ? t(hit, lang) : String(code == null ? '' : code);
+}
+
+/**
+ * Gespeicherten Wert lesbar machen. Codes bei Auswahlfeldern, sonst
+ * unveraendert. Mehrfachauswahl kommt als Codeliste.
+ */
+function valueLabel(field, value, lang) {
+  const v = value == null ? '' : String(value);
+  if (!field || !field.options || v === '') return v;
+  return v.split(',').map(function (x) { return optionLabel(field, x.trim(), lang); })
+    .filter(function (x) { return x !== ''; }).join(', ');
+}
 
 /** Vorschläge, die von uns kommen und nicht aus Elev8. */
 function presets() {
   const out = {};
   ALL_FIELDS.forEach(function (f) {
-    if (f.preset) out[f.id] = { value: f.preset, evidence: f.presetNote || 'Vorschlag von Elev8 — bitte prüfen' };
+    if (f.preset) {
+      out[f.id] = {
+        value: f.preset,
+        evidence: f.presetNote || L('Vorschlag von Elev8 — bitte prüfen', 'Suggested by Elev8 — please check')
+      };
+    }
   });
   return out;
 }
@@ -335,4 +692,23 @@ function mergePrefill(fromElev8) {
   return Object.assign({}, presets(), fromElev8 || {});
 }
 
-module.exports = { SECTIONS, ALL_FIELDS, INPUT_FIELDS, FIELD_MAP, isInput, presets, mergePrefill };
+/**
+ * Karte "Optionstext klein geschrieben -> Code", damit Antworten aus der Zeit
+ * vor der Umstellung auf Codes nicht verloren gehen.
+ */
+function legacyCodeMap() {
+  const map = new Map();
+  ALL_FIELDS.forEach(function (f) {
+    if (!f.options) return;
+    f.options.forEach(function (x) {
+      map.set(f.id + '::' + String(x.de).toLowerCase().trim(), x.code);
+      map.set(f.id + '::' + String(x.en).toLowerCase().trim(), x.code);
+    });
+  });
+  return map;
+}
+
+module.exports = {
+  SECTIONS, ALL_FIELDS, INPUT_FIELDS, CONTRACT_FIELDS, FIELD_MAP,
+  isInput, optionLabel, valueLabel, presets, mergePrefill, legacyCodeMap
+};
