@@ -17,7 +17,7 @@
  */
 
 const { t, L } = require('./i18n');
-const { FIELD_MAP, valueLabel } = require('./questions');
+const { FIELD_MAP, valueLabel, optionLabel } = require('./questions');
 
 /* ---------------- Partei Elev8 ---------------- */
 
@@ -71,13 +71,25 @@ function ans(ctx, id) {
   return String(v || '').trim();
 }
 
-function ansOr(ctx, id) { return orOpen(ans(ctx, id), ctx.lang); }
+function ansOr(ctx, id) {
+  const f = FIELD_MAP.get(id);
+  const v = ans(ctx, id);
+  if (!v) return orOpen('', ctx.lang);
+  if (f && f.type === 'money') return (ctx.terms.currency || 'EUR') + ' ' + v;
+  return v;
+}
 
-/** Mehrfachauswahl als Aufzählung. */
+/**
+ * Mehrfachauswahl als Aufzählung. Wichtig: über die Codes gehen, nicht über
+ * den zusammengesetzten Text — mehrere Optionstexte enthalten selbst Kommas.
+ */
 function ansList(ctx, id) {
-  const s = ans(ctx, id);
-  if (!s) return [];
-  return s.split(',').map(function (x) { return x.trim(); }).filter(Boolean);
+  const f = FIELD_MAP.get(id);
+  const raw = String((ctx.answers && ctx.answers[id]) || '').trim();
+  if (!raw) return [];
+  if (!f || !f.options) return [raw];
+  return raw.split(',').map(function (x) { return x.trim(); }).filter(Boolean)
+    .map(function (code) { return optionLabel(f, code, ctx.lang); });
 }
 
 function today(lang) {
@@ -404,14 +416,16 @@ function gro(ctx) {
     P('Der Kunde benennt die folgenden Eskalationsstufen. Alle genannten Personen müssen in Elev8 Suite als Benutzer angelegt sein; nur dann kann der GRO sie über das System erreichen und der Vorgang bleibt nachvollziehbar.',
       'The client names the following escalation levels. Everyone named must exist as a user in Elev8 Suite; only then can the GRO reach them through the system and the case stays traceable.'),
     { kv: [
-      [txt(L('Stufe 1', 'Level 1'), l), ansOr(ctx, 'esc1')],
-      [txt(L('Stufe 2', 'Level 2'), l), ansOr(ctx, 'esc2')],
-      [txt(L('Stufe 3', 'Level 3'), l), ansOr(ctx, 'esc3')],
+      [txt(L('Stufe 1', 'Level 1'), l), ansOr(ctx, 'esc1')]
+    ].concat(ans(ctx, 'esc2') ? [[txt(L('Stufe 2', 'Level 2'), l), ans(ctx, 'esc2')]] : [])
+      .concat(ans(ctx, 'esc3') ? [[txt(L('Stufe 3', 'Level 3'), l), ans(ctx, 'esc3')]] : [])
+      .concat([
       [txt(L('Sofort telefonisch zu melden', 'To be reported by phone immediately'), l),
         ansOr(ctx, 'esc_immediate') + (ans(ctx, 'esc_immediate_other') ? ', ' + ans(ctx, 'esc_immediate_other') : '')],
       [txt(L('Wenn niemand erreichbar ist', 'If nobody can be reached'), l),
-        ansOr(ctx, 'esc_nobody') + (ans(ctx, 'esc_nobody_limit') ? ' (' + ans(ctx, 'esc_nobody_limit') + ')' : '')]
-    ] }
+        ansOr(ctx, 'esc_nobody') + (ans(ctx, 'esc_nobody_limit')
+          ? ' (' + (ctx.terms.currency || 'EUR') + ' ' + ans(ctx, 'esc_nobody_limit') + ')' : '')]
+    ]) }
   ]);
 
   S('5', L('Mitwirkungspflichten des Kunden', 'Client’s duties to cooperate'), [
@@ -505,7 +519,8 @@ function gro(ctx) {
   return {
     key: 'gro',
     title: txt(L('Vertrag über Guest-Relations-Leistungen', 'Guest Relations Services Agreement'), l),
-    subtitle: txt(L('Elev8 Ready', 'Elev8 Ready'), l),
+    subtitle: txt(L('Dienstleistungsvertrag zwischen Kunde und Elevate Software AG',
+      'Service agreement between the client and Elevate Software AG'), l),
     parties: partyBlock(ctx, L('Kunde', 'Client'), L('Dienstleister', 'Service provider')),
     sections: sections,
     annexes: []
