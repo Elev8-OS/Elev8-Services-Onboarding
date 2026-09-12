@@ -8,6 +8,7 @@ const db = require('./db');
 const elev8 = require('./elev8');
 const { FIELD_MAP, SECTIONS, mergePrefill } = require('./questions');
 const view = require('./render');
+const rawview = require('./rawview');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -321,6 +322,23 @@ app.post('/admin/tenants/:id/token', requireAdmin, async function (req, res, nex
       await syncTenant(Object.assign({}, t, { elev8_token: token }));
     }
     res.redirect('/admin/tenants/' + t.id + '?msg=' + encodeURIComponent('Token gespeichert.'));
+  } catch (e) { next(e); }
+});
+
+app.get('/admin/tenants/:id/raw', requireAdmin, async function (req, res, next) {
+  try {
+    const t = await db.getTenant(Number(req.params.id));
+    if (!t) return res.status(404).type('text/plain').send('Nicht gefunden');
+    let rows = [];
+    let err = null;
+    try {
+      rows = await elev8.withClient(t.elev8_token, function (client) {
+        return elev8.callTool(client, 'get_listings_overview');
+      });
+    } catch (e) {
+      err = errText(e);
+    }
+    res.type('html').send(rawview.rawListingsPage(t, rows, err));
   } catch (e) { next(e); }
 });
 
