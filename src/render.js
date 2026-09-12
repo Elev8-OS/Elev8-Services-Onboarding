@@ -407,6 +407,7 @@ function tenantDetail(t, flash) {
     ${flash ? '<p class="banner done">' + esc(flash) + '</p>' : ''}
     <div class="actions">
       <form method="post" action="/admin/tenants/${t.id}/sync"><button class="btn ghost" type="submit">Daten neu holen</button></form>
+      <a class="btn ghost" href="/admin/tenants/${t.id}/raw">Rohdaten der Einheiten</a>
       <a class="btn ghost" href="/admin/tenants/${t.id}/diagnose">Verbindung prüfen</a>
     </div>
   </header>
