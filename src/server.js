@@ -193,6 +193,13 @@ async function langFor(req, intake) {
 const KINDS = ['platform', 'avv', 'gro'];
 // Der Rahmenvertrag fixiert nur die Stammdaten, der Leistungsschein alles Weitere.
 const PLATFORM_FIELDS = ['company', 'address', 'contact_main', 'contact_email', 'units'];
+
+/** Kennzeichnung für Entwürfe, die an Interessenten gehen. */
+const DRAFT_MARK = {
+  label: 'Muster',
+  stamp: 'MUSTER',
+  note: 'Unverbindlicher Entwurf zur Prüfung. Dieses Dokument ist nicht unterzeichnet und begründet keine Rechte oder Pflichten. Kaufmännische Angaben und die in eckigen Klammern stehenden Felder werden vor der Unterzeichnung gemeinsam festgelegt. Der verbindliche Vertrag entsteht erst durch die elektronische Unterzeichnung über Elev8 Ready.'
+};
 // Verbindlich ist die deutsche Fassung. Englisch gibt es nur zum Lesen.
 const CONTRACT_LANG = 'de';
 
@@ -393,9 +400,30 @@ app.post('/admin/i/:id/terms', requireAdmin, async function (req, res, next) {
   } catch (e) { next(e); }
 });
 
+/**
+ * Vertrag als PDF. Ohne Parameter das unterzeichnete Dokument, mit
+ * ?muster=1 ein deutlich gekennzeichneter Entwurf aus dem aktuellen Stand -
+ * zum Verschicken an Interessenten, bevor irgendetwas unterschrieben ist.
+ */
 app.get('/admin/i/:id/vertrag/:kind.pdf', requireAdmin, async function (req, res, next) {
   try {
-    const signed = await db.getContract(Number(req.params.id), String(req.params.kind));
+    const id = Number(req.params.id);
+    const kind = String(req.params.kind);
+    if (KINDS.indexOf(kind) < 0) return res.status(404).type('text/plain').send('Nicht gefunden');
+
+    if (String(req.query.muster || '') === '1') {
+      const intake = await db.getIntakeById(id);
+      if (!intake) return res.status(404).type('text/plain').send('Nicht gefunden');
+      const a = await db.getAnswers(intake.id);
+      const doc = contracts.build(kind, intake, a.values, intake.terms || {}, CONTRACT_LANG);
+      const buf = await pdfout.render(doc, null, { draft: DRAFT_MARK });
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'inline; filename="Muster-' + kind + '-' +
+        String(intake.tenant_name).replace(/[^A-Za-z0-9_-]+/g, '-') + '.pdf"');
+      return res.send(buf);
+    }
+
+    const signed = await db.getContract(id, kind);
     if (!signed || !signed.pdf) return res.status(404).type('text/plain').send('Noch nicht unterzeichnet');
     res.setHeader('Content-Type', 'application/pdf');
     res.send(signed.pdf);
