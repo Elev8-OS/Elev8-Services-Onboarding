@@ -118,7 +118,9 @@ function field(f, value, source, pre, conflict, lang) {
       ? '<span class="lockflag" title="' + esc(t(UI.lockedHint, lang)) + '">' + esc(t(UI.locked, lang)) + '</span>'
       : '<button class="mini" type="button" data-act="edit">' + esc(t(UI.change, lang)) + '</button>'}</div>
   </div>${clash}
-  ${locked ? '' : '<div class="editwrap" hidden>' + control(f, v, lang) + '</div>'}
+  ${locked
+    ? '<input type="hidden" name="' + f.id + '" value="' + esc(v) + '" data-frozen="1">'
+    : '<div class="editwrap" hidden>' + control(f, v, lang) + '</div>'}
 </div>`;
   }
 
@@ -283,6 +285,8 @@ function tenantForm(intake, answers, sources, snapshot, opts) {
     <button type="button" class="btn big" id="submitBtn"${submitted ? ' disabled' : ''}>${esc(t(submitted ? UI.finishDone : UI.finishBtn, lang))}</button>
     <p class="finish-note" id="finishNote"></p>
   </div>
+
+  ${o.contractsBlock || ''}
 
   <footer class="foot">
     <p>${esc(t(UI.footer, lang))}</p>
@@ -552,7 +556,67 @@ function diagnosePage(t, result) {
   });
 }
 
-function adminDetail(intake, answers, sources, baseUrl, flash) {
+/**
+ * Kaufmaennische Angaben und Vertragsstand. Was hier steht, wandert wortwoertlich
+ * in den GRO-Vertrag; ohne Preis und Laufzeit erscheint beim Tenant kein Vertrag.
+ */
+function termsPanel(intake, extra) {
+  const tm = extra.terms || {};
+  const signed = extra.contracts || [];
+  const missing = extra.missing || [];
+  const byKind = {};
+  signed.forEach(function (c) { byKind[c.kind] = c; });
+  const inp = function (name, label, value, ph, wide) {
+    return `<div class="field${wide ? ' wide' : ''}">
+      <label class="flabel" for="t_${name}">${esc(label)}</label>
+      <input type="text" id="t_${name}" name="${name}" value="${esc(value == null ? '' : value)}" placeholder="${esc(ph || '')}">
+    </div>`;
+  };
+  const row = function (kind, title) {
+    const c = byKind[kind];
+    return `<div class="crow${c ? ' cdone' : ''}">
+      <div><div class="cttl">${esc(title)}</div>
+      <div class="cmeta">${c
+        ? 'Unterzeichnet von ' + esc(c.signer_name) + (c.signer_role ? ', ' + esc(c.signer_role) : '') +
+          ' · ' + esc(new Date(c.signed_at).toISOString().replace('T', ' ').slice(0, 16)) + ' UTC · IP ' +
+          esc(c.signer_ip || '—') + '<br><span class="mono">' + esc(c.doc_hash) + '</span>'
+        : 'Noch nicht unterzeichnet'}</div></div>
+      <div class="cacts">${c
+        ? '<a class="btn ghost" href="/admin/i/' + intake.id + '/vertrag/' + kind + '.pdf">PDF</a>'
+        : ''}</div>
+    </div>`;
+  };
+  const ready = String(tm.price_per_unit || '').trim() && String(tm.term_months || '').trim() &&
+    String(tm.notice_months || '').trim();
+
+  return `<section class="panel">
+  <div class="panel-head"><h2>Vertragsdaten</h2></div>
+  <p class="lede small">Diese Angaben stehen wörtlich im GRO-Vertrag. Ohne Preis, Mindestlaufzeit und Kündigungsfrist sieht der Tenant keine Verträge.</p>
+  <form method="post" action="/admin/i/${intake.id}/terms" class="newbox">
+    <div class="newrow four">
+      ${inp('price_per_unit', 'Preis je Einheit und Monat', tm.price_per_unit, '9.50')}
+      ${inp('currency', 'Währung', tm.currency || 'EUR', 'EUR')}
+      ${inp('setup_fee', 'Einrichtung einmalig', tm.setup_fee, 'leer = entfällt')}
+      ${inp('term_months', 'Mindestlaufzeit (Monate)', tm.term_months || '12', '12')}
+      ${inp('notice_months', 'Kündigungsfrist (Monate)', tm.notice_months || '3', '3')}
+      ${inp('law', 'Recht (CH oder DE)', tm.law || 'CH', 'CH')}
+      ${inp('venue', 'Gerichtsstand', tm.venue || 'Solothurn, Schweiz', 'Solothurn, Schweiz')}
+    </div>
+    <div class="actions"><button class="btn" type="submit">Vertragsdaten speichern</button></div>
+  </form>
+  <div class="clist">
+    ${row('gro', 'Vertrag über Guest-Relations-Leistungen')}
+    ${row('avv', 'Vertrag zur Auftragsverarbeitung')}
+  </div>
+  <p class="lede small">${ready
+    ? (missing.length
+      ? 'Der Tenant sieht die Verträge noch nicht: ' + missing.length + ' Pflichtfeld' + (missing.length === 1 ? '' : 'er') + ' fehlt noch (' + esc(missing.slice(0, 6).join(', ')) + (missing.length > 6 ? ' …' : '') + ').'
+      : 'Der Tenant kann beide Verträge lesen und unterzeichnen.')
+    : 'Sobald Preis, Mindestlaufzeit und Kündigungsfrist stehen, erscheinen die Verträge beim Tenant.'}</p>
+</section>`;
+}
+
+function adminDetail(intake, answers, sources, baseUrl, flash, extra) {
   const pre = (intake.snapshot && intake.snapshot.prefill) || {};
   const blocks = SECTIONS.map(function (s) {
     const inputs = s.fields.filter(isInput);
@@ -595,6 +659,7 @@ function adminDetail(intake, answers, sources, baseUrl, flash) {
       <a class="btn ghost" href="/admin/i/${intake.id}/export.json">Als JSON</a>
     </div>
   </header>
+  ${termsPanel(intake, extra || {})}
   <main>${blocks}</main>
   <footer class="foot"><p><a href="/admin">Zurück</a> · <a href="/admin/logout">Abmelden</a></p></footer>
 </div>`
@@ -624,5 +689,5 @@ function exportMarkdown(intake, answers, sources) {
 
 module.exports = {
   layout, tenantForm, loginPage, adminList, adminDetail, tenantsPage, tenantDetail,
-  diagnosePage, exportMarkdown, esc
+  diagnosePage, exportMarkdown, esc, ago
 };

@@ -6,7 +6,10 @@ const path = require('path');
 
 const db = require('./db');
 const elev8 = require('./elev8');
-const { FIELD_MAP, SECTIONS, mergePrefill, valueLabel } = require('./questions');
+const { FIELD_MAP, SECTIONS, CONTRACT_FIELDS, INPUT_FIELDS, mergePrefill, valueLabel } = require('./questions');
+const contracts = require('./contracts');
+const contractview = require('./contractview');
+const pdfout = require('./pdf');
 const i18n = require('./i18n');
 const view = require('./render');
 const rawview = require('./rawview');
@@ -183,6 +186,69 @@ async function langFor(req, intake) {
   return guess;
 }
 
+/* ---------- Vertraege ---------- */
+
+const KINDS = ['gro', 'avv'];
+
+function sha256(s) { return crypto.createHash('sha256').update(s, 'utf8').digest('hex'); }
+
+function clientIp(req) {
+  const fwd = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+  return fwd || req.socket.remoteAddress || '';
+}
+
+/** Sind die kaufmaennischen Angaben vollstaendig genug fuer einen Vertrag? */
+function termsReady(terms) {
+  return !!(terms && String(terms.price_per_unit || '').trim() &&
+    String(terms.term_months || '').trim() && String(terms.notice_months || '').trim());
+}
+
+/** Welche Pflichtfelder fehlen noch? Abhaengige Felder zaehlen nur, wenn aktiv. */
+function missingRequired(values) {
+  return INPUT_FIELDS.filter(function (f) {
+    if (!f.required) return false;
+    if (f.dependsOn) {
+      const have = String(values[f.dependsOn.field] || '').trim();
+      const want = [].concat(f.dependsOn.equals);
+      if (!have || want.indexOf(have) < 0) return false;
+    }
+    return String(values[f.id] || '').trim() === '';
+  }).map(function (f) { return f.id; });
+}
+
+/** Nach der Unterschrift des GRO-Vertrags stehen die Vertragsfelder fest. */
+async function lockedFields(intake) {
+  const signed = await db.getContract(intake.id, 'gro');
+  if (!signed) return {};
+  const out = {};
+  CONTRACT_FIELDS.forEach(function (f) { out[f.id] = true; });
+  return out;
+}
+
+function signatureBlock(lang, signed, docTitle) {
+  const de = lang !== 'en';
+  return {
+    heading: de ? 'Unterschrift' : 'Signature',
+    note: de
+      ? 'Dieses Dokument wurde elektronisch in Textform unterzeichnet. Art. 28 Abs. 9 DSGVO lässt das elektronische Format ausdrücklich zu; eine qualifizierte elektronische Signatur ist nicht erforderlich. Die folgenden Angaben wurden beim Absenden festgehalten.'
+      : 'This document was signed electronically in text form. Art. 28(9) GDPR expressly permits the electronic format; a qualified electronic signature is not required. The following details were recorded on submission.',
+    labels: de
+      ? { name: 'Name', role: 'Funktion', email: 'E-Mail', when: 'Zeitpunkt (UTC)', ip: 'IP-Adresse', agent: 'Browser', hash: 'Dokument-Prüfsumme (SHA-256)' }
+      : { name: 'Name', role: 'Role', email: 'Email', when: 'Time (UTC)', ip: 'IP address', agent: 'Browser', hash: 'Document checksum (SHA-256)' },
+    name: signed.signer_name,
+    role: signed.signer_role || '—',
+    email: signed.signer_email,
+    signedAt: new Date(signed.signed_at).toISOString().replace('T', ' ').slice(0, 19),
+    ip: signed.signer_ip,
+    ua: signed.signer_ua,
+    hash: signed.doc_hash,
+    counterHeading: de ? 'Gegenzeichnung' : 'Countersignature',
+    counterLines: [contracts.ELEV8.name, contracts.ELEV8.signer + ', ' + contracts.ELEV8.signerRole,
+      contracts.ELEV8.street + ', ' + contracts.ELEV8.city],
+    footer: docTitle
+  };
+}
+
 /* ---------- health ---------- */
 
 app.get('/healthz', function (req, res) { res.type('text/plain').send('ok'); });
@@ -249,7 +315,10 @@ app.get('/admin/i/:id', requireAdmin, async function (req, res, next) {
     if (!intake) return res.status(404).type('text/plain').send('Nicht gefunden');
     await ensureSnapshot(intake);
     const a = await db.getAnswers(intake.id);
-    res.type('html').send(view.adminDetail(intake, a.values, a.sources, baseUrl(req), req.query.msg || null));
+    const signedList = await db.listContracts(intake.id);
+    res.type('html').send(view.adminDetail(intake, a.values, a.sources, baseUrl(req),
+      req.query.msg || null, { terms: intake.terms || contracts.DEFAULT_TERMS, contracts: signedList,
+        missing: missingRequired(a.values) }));
   } catch (e) { next(e); }
 });
 
@@ -276,6 +345,34 @@ app.post('/admin/i/:id/refresh', requireAdmin, async function (req, res, next) {
       }
     }
     res.redirect('/admin/i/' + intake.id + '?msg=' + encodeURIComponent(msg));
+  } catch (e) { next(e); }
+});
+
+app.post('/admin/i/:id/terms', requireAdmin, async function (req, res, next) {
+  try {
+    const intake = await db.getIntakeById(Number(req.params.id));
+    if (!intake) return res.status(404).type('text/plain').send('Nicht gefunden');
+    const pick = function (k, max) { return String(req.body[k] == null ? '' : req.body[k]).trim().slice(0, max || 60); };
+    await db.setTerms(intake.id, {
+      currency: pick('currency', 8) || 'EUR',
+      price_per_unit: pick('price_per_unit', 20),
+      setup_fee: pick('setup_fee', 20),
+      term_months: pick('term_months', 4),
+      notice_months: pick('notice_months', 4),
+      start_date: pick('start_date', 40),
+      law: pick('law', 4) || 'CH',
+      venue: pick('venue', 120) || 'Solothurn, Schweiz'
+    });
+    res.redirect('/admin/i/' + intake.id + '?msg=' + encodeURIComponent('Vertragsdaten gespeichert.'));
+  } catch (e) { next(e); }
+});
+
+app.get('/admin/i/:id/vertrag/:kind.pdf', requireAdmin, async function (req, res, next) {
+  try {
+    const signed = await db.getContract(Number(req.params.id), String(req.params.kind));
+    if (!signed || !signed.pdf) return res.status(404).type('text/plain').send('Noch nicht unterzeichnet');
+    res.setHeader('Content-Type', 'application/pdf');
+    res.send(signed.pdf);
   } catch (e) { next(e); }
 });
 
@@ -440,11 +537,30 @@ app.get('/f/:token', async function (req, res, next) {
     const snapshot = await ensureSnapshot(intake);
     const a = await db.getAnswers(intake.id);
     const tenant = await tenantForIntake(intake);
+    const [locked, signedList] = await Promise.all([lockedFields(intake), db.listContracts(intake.id)]);
+    const terms = intake.terms || {};
+    const missing = missingRequired(a.values);
+    const signedByKind = {};
+    signedList.forEach(function (c) { signedByKind[c.kind] = c; });
+
+    let block;
+    if (missing.length) {
+      block = contractview.contractsBlock(intake, [], {}, lang,
+        i18n.t(i18n.UI.contractsMissingFields, lang));
+    } else if (!termsReady(terms)) {
+      block = contractview.contractsBlock(intake, [], {}, lang,
+        i18n.t(i18n.UI.contractsMissingTerms, lang));
+    } else {
+      const docs = KINDS.map(function (k) { return contracts.build(k, intake, a.values, terms, lang); });
+      block = contractview.contractsBlock(intake, docs, signedByKind, lang, null);
+    }
+
     const opts = {
       lang: lang,
       canResync: !!(tenant && tenant.elev8_token),
       conflicts: resync.conflictsFor(a.values, snapshot && snapshot.prefill),
-      locked: {}
+      locked: locked,
+      contractsBlock: block
     };
     res.setHeader('Cache-Control', 'no-store');
     res.type('html').send(view.tenantForm(intake, a.values, a.sources, snapshot, opts));
@@ -457,6 +573,13 @@ app.post('/api/f/:token/answer', async function (req, res, next) {
     if (!intake) return res.status(404).json({ error: 'unknown token' });
     const fieldId = String(req.body.field || '');
     if (!FIELD_MAP.has(fieldId)) return res.status(400).json({ error: 'unknown field' });
+    const locked = await lockedFields(intake);
+    if (locked[fieldId]) {
+      return res.status(409).json({
+        error: 'locked',
+        message: i18n.t(i18n.UI.lockedHint, i18n.normLang(intake.lang) || 'de')
+      });
+    }
     const value = String(req.body.value == null ? '' : req.body.value).slice(0, 8000);
     await db.saveAnswer(intake.id, fieldId, value, 'tenant');
     res.json({ ok: true });
@@ -487,9 +610,11 @@ app.post('/api/f/:token/confirm', async function (req, res, next) {
     // uebernehmen - nur dann ueberschreiben wir eine vorhandene Antwort.
     const override = req.body.override === true && !!req.body.field;
 
+    const lockedNow = await lockedFields(intake);
     const applied = [];
     for (const id of ids) {
       if (!FIELD_MAP.has(id)) continue;
+      if (lockedNow[id]) continue;
       if (!pre[id] || !pre[id].value) continue;
       if (!override && (existing.values[id] || '').trim() !== '') continue;
       await db.saveAnswer(intake.id, id, pre[id].value, 'confirmed');
@@ -551,6 +676,102 @@ app.post('/api/f/:token/resync', async function (req, res, next) {
       summary: resync.summarize(merged),
       changed: merged.added.length > 0 || merged.closed.length > 0
     });
+  } catch (e) { next(e); }
+});
+
+/* ---------- Vertragsseiten fuer den Tenant ---------- */
+
+async function contractContext(req, res) {
+  const intake = await db.getIntakeByToken(req.params.token);
+  if (!intake) { res.status(404).type('text/plain').send('Nicht gefunden'); return null; }
+  const kind = String(req.params.kind || '');
+  if (KINDS.indexOf(kind) < 0) { res.status(404).type('text/plain').send('Nicht gefunden'); return null; }
+  const lang = await langFor(req, intake);
+  const a = await db.getAnswers(intake.id);
+  return { intake: intake, kind: kind, lang: lang, answers: a.values, terms: intake.terms || {} };
+}
+
+app.get('/f/:token/vertrag/:kind.pdf', async function (req, res, next) {
+  try {
+    const intake = await db.getIntakeByToken(req.params.token);
+    if (!intake) return res.status(404).type('text/plain').send('Nicht gefunden');
+    const kind = String(req.params.kind || '');
+    if (KINDS.indexOf(kind) < 0) return res.status(404).type('text/plain').send('Nicht gefunden');
+    const signed = await db.getContract(intake.id, kind);
+    if (!signed || !signed.pdf) return res.status(404).type('text/plain').send('Noch nicht unterzeichnet');
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename="' + kind + '-' +
+      String(intake.tenant_name).replace(/[^A-Za-z0-9_-]+/g, '-') + '.pdf"');
+    res.send(signed.pdf);
+  } catch (e) { next(e); }
+});
+
+app.get('/f/:token/vertrag/:kind', async function (req, res, next) {
+  try {
+    const c = await contractContext(req, res);
+    if (!c) return;
+    const signed = await db.getContract(c.intake.id, c.kind);
+    // Ein unterzeichneter Vertrag wird immer so gezeigt, wie er unterzeichnet
+    // wurde - nicht neu aus inzwischen geaenderten Antworten gebaut.
+    const doc = signed
+      ? contracts.build(c.kind, c.intake, signed.answers, signed.terms, signed.lang)
+      : contracts.build(c.kind, c.intake, c.answers, c.terms, c.lang);
+    res.setHeader('Cache-Control', 'no-store');
+    res.type('html').send(contractview.contractPage(
+      c.intake, doc, signed, signed ? signed.lang : c.lang, '/f/' + c.intake.token + '/vertrag'));
+  } catch (e) { next(e); }
+});
+
+app.post('/api/f/:token/sign', async function (req, res, next) {
+  try {
+    const intake = await db.getIntakeByToken(req.params.token);
+    if (!intake) return res.status(404).json({ error: 'unknown token' });
+    const kind = String(req.body.kind || '');
+    if (KINDS.indexOf(kind) < 0) return res.status(400).json({ error: 'unknown kind' });
+
+    const lang = i18n.normLang(intake.lang) || 'de';
+    const name = String(req.body.name || '').trim().slice(0, 200);
+    const role = String(req.body.role || '').trim().slice(0, 200);
+    const email = String(req.body.email || '').trim().slice(0, 200);
+    if (!name || email.indexOf('@') < 1 || req.body.confirm !== true) {
+      return res.status(400).json({ error: 'incomplete', message: i18n.t(i18n.UI.signFail, lang) });
+    }
+
+    const already = await db.getContract(intake.id, kind);
+    if (already) return res.json({ ok: true, already: true });
+
+    const a = await db.getAnswers(intake.id);
+    const terms = intake.terms || {};
+    if (!termsReady(terms)) {
+      return res.status(409).json({ error: 'no_terms', message: i18n.t(i18n.UI.contractsMissingTerms, lang) });
+    }
+    const missing = missingRequired(a.values);
+    if (missing.length) {
+      return res.status(409).json({ error: 'missing', message: i18n.t(i18n.UI.contractsMissingFields, lang) });
+    }
+
+    const doc = contracts.build(kind, intake, a.values, terms, lang);
+    const text = contracts.documentText(doc);
+    const hash = sha256(text);
+
+    const saved = await db.saveContract({
+      intakeId: intake.id, kind: kind, lang: lang,
+      docText: text, docHash: hash, answers: a.values, terms: terms,
+      signerName: name, signerRole: role, signerEmail: email,
+      signerIp: clientIp(req), signerUa: String(req.headers['user-agent'] || '').slice(0, 400)
+    });
+    if (!saved) return res.json({ ok: true, already: true });
+
+    // PDF im Hintergrund nachreichen - die Unterschrift ist bereits gueltig.
+    try {
+      const fresh = await db.getContract(intake.id, kind);
+      const buf = await pdfout.render(doc, signatureBlock(lang, fresh, doc.title));
+      await db.pool.query('UPDATE contracts SET pdf = $2 WHERE id = $1', [saved.id, buf]);
+    } catch (e) {
+      console.warn('PDF konnte nicht erzeugt werden: ' + errText(e));
+    }
+
+    res.json({ ok: true, hash: hash });
   } catch (e) { next(e); }
 });
 
