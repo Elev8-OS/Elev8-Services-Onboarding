@@ -581,9 +581,10 @@ function termsPanel(intake, extra) {
           ' · ' + esc(new Date(c.signed_at).toISOString().replace('T', ' ').slice(0, 16)) + ' UTC · IP ' +
           esc(c.signer_ip || '—') + '<br><span class="mono">' + esc(c.doc_hash) + '</span>'
         : 'Noch nicht unterzeichnet'}</div></div>
-      <div class="cacts">${c
-        ? '<a class="btn ghost" href="/admin/i/' + intake.id + '/vertrag/' + kind + '.pdf">PDF</a>'
-        : ''}</div>
+      <div class="cacts">
+        <a class="btn ghost" href="/admin/i/${intake.id}/vertrag/${kind}.pdf?muster=1">Muster-PDF</a>
+        ${c ? '<a class="btn ghost" href="/admin/i/' + intake.id + '/vertrag/' + kind + '.pdf">Unterzeichnetes PDF</a>' : ''}
+      </div>
     </div>`;
   };
   const filled = function (k) { return String(tm[k] || '').trim() !== ''; };
@@ -594,7 +595,7 @@ function termsPanel(intake, extra) {
 
   return `<section class="panel">
   <div class="panel-head"><h2>Vertragsdaten</h2></div>
-  <p class="lede small">Diese Angaben stehen wörtlich in den Verträgen. Der Tenant sieht die Verträge erst, wenn Preise, Laufzeit und Kündigungsfrist für Rahmenvertrag und Leistungsschein hinterlegt sind.</p>
+  <p class="lede small">Mit „Muster-PDF" erzeugen Sie jederzeit einen gekennzeichneten Entwurf zum Verschicken — auch bevor etwas ausgefüllt oder unterschrieben ist. Diese Angaben stehen wörtlich in den Verträgen. Der Tenant sieht die Verträge erst, wenn Preise, Laufzeit und Kündigungsfrist für Rahmenvertrag und Leistungsschein hinterlegt sind.</p>
   <form method="post" action="/admin/i/${intake.id}/terms" class="newbox">
     <p class="fhelp" style="margin:0 0 10px">Rahmenvertrag Elev8 Suite</p>
     <div class="newrow four">

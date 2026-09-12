@@ -188,8 +188,24 @@ function pageHeader(d, doc) {
   reset(d);
 }
 
-function titleBlock(d, doc) {
-  d.y = 92;
+/** Hinweisbalken über dem Titel, wenn das Dokument als Muster läuft. */
+function draftBanner(d, draft) {
+  const top = 62;
+  const pad = 12;
+  d.font(F.r).fontSize(8.8);
+  const h = d.heightOfString(draft.note, { width: W - 2 * pad - 76, lineGap: 1.6 }) + 2 * pad;
+  d.roundedRect(M, top, W, h, 5).fillColor('#fdf6e0').fill();
+  d.rect(M, top, 3, h).fillColor(GOLD).fill();
+  d.font(F.b).fontSize(8.6).fillColor(GOLD)
+    .text(draft.label.toUpperCase(), M + pad + 4, top + pad + 1, { width: 68, characterSpacing: 0.8, lineBreak: false });
+  d.font(F.r).fontSize(8.8).fillColor('#5c5847')
+    .text(draft.note, M + pad + 76, top + pad, { width: W - 2 * pad - 76, lineGap: 1.6 });
+  d.y = top + h + 26;
+  reset(d);
+}
+
+function titleBlock(d, doc, draft) {
+  if (draft) { draftBanner(d, draft); } else { d.y = 92; }
   reset(d);
   d.font(F.b).fontSize(7.8).fillColor(GOLD)
     .text('ELEV8 READY', M, d.y, { width: W, characterSpacing: 1.4 });
@@ -285,19 +301,31 @@ function signatureBox(d, sig) {
  * @param doc  Dokumentmodell aus contracts.js
  * @param sig  Unterschriftsangaben oder null für den Entwurf
  */
-function render(doc, sig) {
+/**
+ * @param doc   Dokumentmodell aus contracts.js
+ * @param sig   Unterschriftsangaben oder null
+ * @param opts  { draft: { label, note, stamp } } für ein gekennzeichnetes Muster
+ */
+function render(doc, sig, opts) {
+  const o = opts || {};
+  const draft = o.draft || null;
   return new Promise(function (resolve, reject) {
     const d = new PDFDocument({
       size: 'A4', bufferPages: true,
       margins: { top: TOP, bottom: BOTTOM, left: M, right: M },
-      info: { Title: doc.title, Author: 'Elevate Software AG', Subject: doc.subtitle || '' }
+      info: {
+        Title: (draft ? draft.label + ' — ' : '') + doc.title,
+        Author: 'Elevate Software AG',
+        Subject: doc.subtitle || '',
+        Keywords: draft ? draft.label : ''
+      }
     });
     const chunks = [];
     d.on('data', function (c) { chunks.push(c); });
     d.on('end', function () { resolve(Buffer.concat(chunks)); });
     d.on('error', reject);
 
-    titleBlock(d, doc);
+    titleBlock(d, doc, draft);
     partiesBlock(d, doc);
 
     doc.sections.forEach(function (s) {
@@ -326,10 +354,20 @@ function render(doc, sig) {
           .text(doc.title, M + 92, 44, { width: W - 92, align: 'right', lineBreak: false });
         d.moveTo(M, 57).lineTo(M + W, 57).lineWidth(0.5).strokeColor(RULE).stroke();
       }
+      if (draft) {
+        // Schräger Wasserzeichenzug quer über die Seite, bewusst blass.
+        d.save();
+        d.rotate(-34, { origin: [PAGE_W / 2, PAGE_H / 2] });
+        d.fillOpacity(0.09).font(F.b).fontSize(78).fillColor(GOLD)
+          .text(draft.stamp || draft.label, 0, PAGE_H / 2 - 46,
+            { width: PAGE_W, align: 'center', lineBreak: false });
+        d.restore();
+        d.fillOpacity(1);
+      }
       d.moveTo(M, PAGE_H - 52).lineTo(M + W, PAGE_H - 52).lineWidth(0.5).strokeColor(RULE).stroke();
       d.font(F.r).fontSize(7.4).fillColor(MUTED)
-        .text((sig && sig.footer ? sig.footer : 'Elevate Software AG'), M, PAGE_H - 44,
-          { width: W * 0.7, lineBreak: false });
+        .text((draft ? draft.label + ' · ' : '') + (sig && sig.footer ? sig.footer : 'Elevate Software AG'),
+          M, PAGE_H - 44, { width: W * 0.7, lineBreak: false });
       d.font(F.r).fontSize(7.4).fillColor(MUTED)
         .text((i + 1) + ' / ' + range.count, M + W * 0.7, PAGE_H - 44,
           { width: W * 0.3, align: 'right', lineBreak: false });
