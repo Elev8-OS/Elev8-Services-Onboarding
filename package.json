@@ -1,17 +1,20 @@
 {
-  "name": "elev8-services-onboarding",
-  "version": "1.2.0",
+  "name": "elev8-tenant-intake",
+  "version": "1.0.0",
   "private": true,
-  "description": "Aufnahme-Formular fuer Elev8-Tenants mit GRO-Service",
+  "description": "Intake-Formular fuer Elev8-Tenants, die den GRO-Service nutzen",
   "type": "commonjs",
   "main": "src/server.js",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "start": "node src/server.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
     "express": "^4.19.2",
+    "pdfkit": "^0.20.2",
     "pg": "^8.12.0"
   }
 }
