@@ -189,6 +189,8 @@ async function langFor(req, intake) {
 /* ---------- Vertraege ---------- */
 
 const KINDS = ['gro', 'avv'];
+// Verbindlich ist die deutsche Fassung. Englisch gibt es nur zum Lesen.
+const CONTRACT_LANG = 'de';
 
 function sha256(s) { return crypto.createHash('sha256').update(s, 'utf8').digest('hex'); }
 
@@ -549,9 +551,9 @@ app.get('/f/:token', async function (req, res, next) {
         i18n.t(i18n.UI.contractsMissingFields, lang));
     } else if (!termsReady(terms)) {
       block = contractview.contractsBlock(intake, [], {}, lang,
-        i18n.t(i18n.UI.contractsMissingTerms, lang));
+        i18n.t(i18n.UI.contractsMissingTerms, uiLang));
     } else {
-      const docs = KINDS.map(function (k) { return contracts.build(k, intake, a.values, terms, lang); });
+      const docs = KINDS.map(function (k) { return contracts.build(k, intake, a.values, terms, CONTRACT_LANG); });
       block = contractview.contractsBlock(intake, docs, signedByKind, lang, null);
     }
 
@@ -710,15 +712,15 @@ app.get('/f/:token/vertrag/:kind', async function (req, res, next) {
   try {
     const c = await contractContext(req, res);
     if (!c) return;
+    const reading = String(req.query.read || '') === 'en';
     const signed = await db.getContract(c.intake.id, c.kind);
     // Ein unterzeichneter Vertrag wird immer so gezeigt, wie er unterzeichnet
     // wurde - nicht neu aus inzwischen geaenderten Antworten gebaut.
-    const doc = signed
-      ? contracts.build(c.kind, c.intake, signed.answers, signed.terms, signed.lang)
-      : contracts.build(c.kind, c.intake, c.answers, c.terms, c.lang);
+    const src = signed ? { a: signed.answers, t: signed.terms } : { a: c.answers, t: c.terms };
+    const doc = contracts.build(c.kind, c.intake, src.a, src.t, reading ? 'en' : CONTRACT_LANG);
     res.setHeader('Cache-Control', 'no-store');
     res.type('html').send(contractview.contractPage(
-      c.intake, doc, signed, signed ? signed.lang : c.lang, '/f/' + c.intake.token + '/vertrag'));
+      c.intake, doc, signed, c.lang, '/f/' + c.intake.token + '/vertrag', { reading: reading }));
   } catch (e) { next(e); }
 });
 
@@ -729,12 +731,13 @@ app.post('/api/f/:token/sign', async function (req, res, next) {
     const kind = String(req.body.kind || '');
     if (KINDS.indexOf(kind) < 0) return res.status(400).json({ error: 'unknown kind' });
 
-    const lang = i18n.normLang(intake.lang) || 'de';
+    const lang = CONTRACT_LANG;
+    const uiLang = i18n.normLang(intake.lang) || 'de';
     const name = String(req.body.name || '').trim().slice(0, 200);
     const role = String(req.body.role || '').trim().slice(0, 200);
     const email = String(req.body.email || '').trim().slice(0, 200);
     if (!name || email.indexOf('@') < 1 || req.body.confirm !== true) {
-      return res.status(400).json({ error: 'incomplete', message: i18n.t(i18n.UI.signFail, lang) });
+      return res.status(400).json({ error: 'incomplete', message: i18n.t(i18n.UI.signFail, uiLang) });
     }
 
     const already = await db.getContract(intake.id, kind);
@@ -747,7 +750,7 @@ app.post('/api/f/:token/sign', async function (req, res, next) {
     }
     const missing = missingRequired(a.values);
     if (missing.length) {
-      return res.status(409).json({ error: 'missing', message: i18n.t(i18n.UI.contractsMissingFields, lang) });
+      return res.status(409).json({ error: 'missing', message: i18n.t(i18n.UI.contractsMissingFields, uiLang) });
     }
 
     const doc = contracts.build(kind, intake, a.values, terms, lang);
