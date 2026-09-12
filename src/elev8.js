@@ -359,13 +359,19 @@ function prefillAnswers(facts, tenantName) {
       ? '\nCheck-in-Anleitung in Elev8 hinterlegt für ' + facts.checkin.n + ' von ' + facts.total +
         ' Einheiten (' + plural(facts.checkin.avg, 'Schritt', 'Schritte') + ' im Schnitt, max. ' + facts.checkin.max + ').'
       : '';
-    put('access', 'Schlosssystem: ' + lock + '.' + extra, 'Lock-Typ und Check-in-Steps aus Elev8');
+    put('access_note', 'Schlosssystem: ' + lock + '.' + extra, 'Lock-Typ und Check-in-Steps aus Elev8');
   }
 
+  // Nur vorschlagen, wenn der Wert zu einer der Auswahlmoeglichkeiten passt.
   if (facts.smartLocks > 0) {
-    put('smartlock', plural(facts.smartLocks, 'Einheit ist', 'Einheiten sind') +
-      ' mit einem Smart Lock in Elev8 verbunden; Codes werden dort erzeugt.',
-      'Smart-Lock-Verbindungen in Elev8');
+    if (facts.smartLocks === facts.total) {
+      put('access', 'Smart Lock mit Code', 'Alle Einheiten haben in Elev8 ein Smart Lock');
+    } else {
+      put('access', 'Unterschiedlich je Einheit',
+        facts.smartLocks + ' von ' + facts.total + ' Einheiten haben in Elev8 ein Smart Lock');
+    }
+    put('smartlock', 'Automatisch über Elev8',
+      plural(facts.smartLocks, 'Einheit ist', 'Einheiten sind') + ' mit einem Smart Lock verbunden');
   }
 
   if (facts.ssids.length === 1 && facts.wifiCount === facts.total) {
@@ -387,22 +393,11 @@ function prefillAnswers(facts, tenantName) {
   put('checkin_time', ci, 'Check-in-Zeit aus Elev8');
   put('checkout_time', co, 'Check-out-Zeit aus Elev8');
 
-  if (facts.deposits.length) {
-    put('deposit', 'In Elev8 hinterlegt: ' + facts.deposits.map(function (d) {
-      return d.value.trim() + ' bei ' + plural(d.n, 'Einheit', 'Einheiten');
-    }).join(', ') + '.', 'Kaution aus Elev8');
-  } else if (facts.total) {
-    put('deposit', 'In Elev8 ist keine Kaution hinterlegt.', 'Kaution aus Elev8');
-  }
-
-  if (facts.upsells) {
-    put('upsells', plural(facts.upsells, 'Einheit hat', 'Einheiten haben') +
-      ' bereits Upsells in Elev8 zugewiesen. Bitte ergänzen Sie Preis und Vorlaufzeit.',
-      'Upsell-Zuweisungen aus Elev8');
-  }
-
-  if (facts.aiActive) {
-    put('ai', 'Ja', 'In Elev8 ist die AI-Antwort bei ' + facts.aiActive + ' Einheiten bereits aktiv');
+  if (facts.deposits.length === 1) {
+    put('deposit_amount', facts.deposits[0].value.trim(),
+      'Kaution aus Elev8 (' + plural(facts.deposits[0].n, 'Einheit', 'Einheiten') + ')');
+  } else if (!facts.deposits.length && facts.total) {
+    put('deposit', 'Keine Kaution', 'In Elev8 ist keine Kaution hinterlegt');
   }
 
   return out;

@@ -1,6 +1,6 @@
 'use strict';
 
-const { SECTIONS, ALL_FIELDS, mergePrefill } = require('./questions');
+const { SECTIONS, INPUT_FIELDS, isInput, mergePrefill } = require('./questions');
 
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -35,6 +35,7 @@ ${opts.script ? '<script src="' + opts.script + '" defer></script>' : ''}
 
 function control(f, v) {
   const id = 'f_' + f.id;
+  if (f.type === 'note') return '';
   if (f.type === 'textarea') {
     return `<textarea id="${id}" name="${f.id}" rows="3" placeholder="${esc(f.placeholder || '')}">${esc(v)}</textarea>`;
   }
@@ -66,8 +67,12 @@ function field(f, value, source, pre) {
   const v = value == null ? '' : value;
   const has = String(v).trim() !== '';
   const dep = f.dependsOn
-    ? ` data-depends="${esc(f.dependsOn.field)}" data-depends-value="${esc(f.dependsOn.equals)}"`
+    ? ` data-depends="${esc(f.dependsOn.field)}" data-depends-value="${esc([].concat(f.dependsOn.equals).join('|'))}"`
     : '';
+  if (f.type === 'note') {
+    return `<div class="field note" data-field="${f.id}"${dep}><p class="notebox">${nl2br(f.label)}</p></div>`;
+  }
+
   const head = `<label class="flabel" for="f_${f.id}">${esc(f.label)}${f.required ? '<span class="star" title="Pflichtangabe">*</span>' : ''}</label>` +
     (f.help ? '<p class="fhelp">' + esc(f.help) + '</p>' : '');
 
@@ -140,11 +145,11 @@ function readinessPanel(rows, facts) {
 function tenantForm(intake, answers, sources, snapshot) {
   // Elev8-Daten plus unsere eigenen Vorschlaege (z. B. der Leistungsumfang).
   const pre = mergePrefill(snapshot && snapshot.prefill);
-  const filled = ALL_FIELDS.filter(function (f) { return (answers[f.id] || '').trim() !== ''; }).length;
-  const open = ALL_FIELDS.filter(function (f) {
+  const filled = INPUT_FIELDS.filter(function (f) { return (answers[f.id] || '').trim() !== ''; }).length;
+  const open = INPUT_FIELDS.filter(function (f) {
     return (answers[f.id] || '').trim() === '' && !(pre[f.id] && pre[f.id].value);
   }).length;
-  const waiting = ALL_FIELDS.filter(function (f) {
+  const waiting = INPUT_FIELDS.filter(function (f) {
     return (answers[f.id] || '').trim() === '' && pre[f.id] && pre[f.id].value;
   }).length;
   const submitted = intake.status === 'submitted';
@@ -155,7 +160,7 @@ function tenantForm(intake, answers, sources, snapshot) {
 
   const body = SECTIONS.map(function (s, i) {
     const secPre = s.fields.filter(function (f) {
-      return (answers[f.id] || '').trim() === '' && pre[f.id] && pre[f.id].value;
+      return isInput(f) && (answers[f.id] || '').trim() === '' && pre[f.id] && pre[f.id].value;
     }).length;
     return `<section class="sec" id="s-${s.id}" data-sec="${s.id}">
   <div class="sec-head">
@@ -217,11 +222,13 @@ function tenantForm(intake, answers, sources, snapshot) {
 
 <script id="bootstrap" type="application/json">${JSON.stringify({
       token: intake.token,
-      total: ALL_FIELDS.length,
+      total: INPUT_FIELDS.length,
       filled: filled,
       open: open,
       submitted: submitted,
-      sections: SECTIONS.map(function (s) { return { id: s.id, fields: s.fields.map(function (f) { return f.id; }) }; })
+      sections: SECTIONS.map(function (s) {
+        return { id: s.id, fields: s.fields.filter(isInput).map(function (f) { return f.id; }) };
+      })
     })}</script>
 `
   });
@@ -258,7 +265,7 @@ function tenantOption(t) {
 
 function adminList(intakes, tenants, baseUrl, flash) {
   const rows = intakes.length ? intakes.map(function (i) {
-    const pct = Math.round((Number(i.filled) / ALL_FIELDS.length) * 100);
+    const pct = Math.round((Number(i.filled) / INPUT_FIELDS.length) * 100);
     return `<tr>
   <td><a class="tname" href="/admin/i/${i.id}">${esc(i.tenant_name)}</a>${i.note ? '<span class="tnote">' + esc(i.note) + '</span>' : ''}</td>
   <td><span class="pill ${i.status === 'submitted' ? 'ok' : 'open'}">${i.status === 'submitted' ? 'Abgeschlossen' : 'Offen'}</span></td>
@@ -461,7 +468,8 @@ function diagnosePage(t, result) {
 function adminDetail(intake, answers, sources, baseUrl, flash) {
   const pre = (intake.snapshot && intake.snapshot.prefill) || {};
   const blocks = SECTIONS.map(function (s) {
-    const rows = s.fields.map(function (f) {
+    const inputs = s.fields.filter(isInput);
+    const rows = inputs.map(function (f) {
       const v = (answers[f.id] || '').trim();
       const src = sources[f.id];
       const tag = v
@@ -472,14 +480,14 @@ function adminDetail(intake, answers, sources, baseUrl, flash) {
   <div class="a">${v ? nl2br(v) : (pre[f.id] ? '<span class="muted">' + nl2br(pre[f.id].value) + '</span>' : '<span class="muted">— offen —</span>')}${tag}</div>
 </div>`;
     }).join('');
-    const filled = s.fields.filter(function (f) { return (answers[f.id] || '').trim() !== ''; }).length;
+    const filled = inputs.filter(function (f) { return (answers[f.id] || '').trim() !== ''; }).length;
     return `<section class="sec">
-  <div class="sec-head"><h2>${esc(s.title)}</h2><span class="sec-prog">${filled}/${s.fields.length}</span></div>
+  <div class="sec-head"><h2>${esc(s.title)}</h2><span class="sec-prog">${filled}/${inputs.length}</span></div>
   <div class="qalist">${rows}</div>
 </section>`;
   }).join('');
 
-  const filled = ALL_FIELDS.filter(function (f) { return (answers[f.id] || '').trim() !== ''; }).length;
+  const filled = INPUT_FIELDS.filter(function (f) { return (answers[f.id] || '').trim() !== ''; }).length;
   const preCount = Object.keys(pre).length;
 
   return layout({
@@ -490,7 +498,7 @@ function adminDetail(intake, answers, sources, baseUrl, flash) {
   <header class="hero tight">
     <p class="eyebrow"><a href="/admin">← Alle Aufnahmen</a></p>
     <h1>${esc(intake.tenant_name)}</h1>
-    <p class="lede">${filled} von ${ALL_FIELDS.length} Feldern beantwortet, ${preCount} aus Elev8 vorausgefüllt · ${intake.status === 'submitted' ? 'vom Tenant abgeschlossen' : 'noch offen'}</p>
+    <p class="lede">${filled} von ${INPUT_FIELDS.length} Feldern beantwortet, ${preCount} aus Elev8 vorausgefüllt · ${intake.status === 'submitted' ? 'vom Tenant abgeschlossen' : 'noch offen'}</p>
     ${flash ? '<p class="banner done">' + esc(flash) + '</p>' : ''}
     ${preCount ? '' : '<p class="banner">Für diese Aufnahme ist noch nichts aus Elev8 vorausgefüllt. Wenn der Tenant inzwischen Daten liefert, hier neu holen — der Link an den Tenant bleibt derselbe.</p>'}
     <div class="actions">
@@ -516,7 +524,7 @@ function exportMarkdown(intake, answers, sources) {
   SECTIONS.forEach(function (s) {
     out.push('## ' + s.title);
     out.push('');
-    s.fields.forEach(function (f) {
+    s.fields.filter(isInput).forEach(function (f) {
       const v = (answers[f.id] || '').trim();
       out.push('**' + f.label + '**' + (sources[f.id] === 'confirmed' ? ' _(aus Elev8, bestätigt)_' : ''));
       out.push('');

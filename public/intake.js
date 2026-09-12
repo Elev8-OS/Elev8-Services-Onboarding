@@ -49,26 +49,86 @@
 
   /**
    * Felder, die an einer anderen Antwort haengen (z. B. alles rund um die
-   * Rezeption), werden ausgegraut und gesperrt, solange die Bedingung nicht
-   * erfuellt ist. Sie zaehlen dann weder im Fortschritt noch als Pflichtfeld.
+   * Rezeption oder das Fruehstueck), werden ausgegraut und gesperrt, solange
+   * die Bedingung nicht erfuellt ist. Sie zaehlen dann weder im Fortschritt
+   * noch als Pflichtfeld. Haengt ein Feld an einem Feld, das selbst
+   * ausgegraut ist, faellt es mit weg - so bleibt eine Kette sauber.
+   * Ein Feld, das wegfaellt, wird geleert, damit keine Karteileiche im
+   * Ergebnis landet.
    */
-  function applyDeps() {
-    document.querySelectorAll('[data-depends]').forEach(function (b) {
-      var want = b.dataset.dependsValue;
-      var have = valueOf(b.dataset.depends);
-      var off = have !== '' && have !== want;
-      b.classList.toggle('dep-off', off);
-      b.querySelectorAll('input, textarea, button').forEach(function (el) { el.disabled = off; });
-      var note = b.querySelector('.dep-note');
-      if (off && !note) {
-        note = document.createElement('p');
-        note.className = 'fhelp dep-note';
-        note.textContent = 'Entfällt, weil Sie „' + have + '" angegeben haben.';
-        b.appendChild(note);
-      } else if (!off && note) {
-        note.remove();
+  function clearField(fieldId) {
+    var els = document.getElementsByName(fieldId);
+    var touched = false;
+    for (var i = 0; i < els.length; i++) {
+      var el = els[i];
+      if (el.type === 'radio' || el.type === 'checkbox') {
+        if (el.checked) { el.checked = false; touched = true; }
+      } else if (el.value !== '') { el.value = ''; touched = true; }
+    }
+    if (touched) {
+      var b = box(fieldId);
+      if (b) {
+        b.classList.remove('done');
+        var answered = b.querySelector('.answered');
+        if (answered) answered.remove();
+        var ew = b.querySelector('.editwrap');
+        if (ew) ew.hidden = false;
       }
+      save(fieldId);
+    }
+  }
+
+  function depReason(have, parentOff) {
+    if (parentOff) return 'Entfällt aufgrund einer vorherigen Angabe.';
+    if (have) return 'Entfällt, weil Sie „' + have + '" angegeben haben.';
+    return 'Erscheint, sobald Sie die Frage darüber beantwortet haben.';
+  }
+
+  var depsReady = false;
+
+  function applyDeps() {
+    var boxes = [].slice.call(document.querySelectorAll('[data-depends]'));
+    // Mehrere Durchlaeufe, damit auch Ketten (A -> B -> C) sauber aufloesen.
+    for (var pass = 0; pass < 4; pass++) {
+      boxes.forEach(function (b) {
+        var parentId = b.dataset.depends;
+        var wanted = String(b.dataset.dependsValue || '').split('|');
+        var parentBox = box(parentId);
+        var parentOff = !!(parentBox && parentBox.classList.contains('dep-off'));
+        var have = valueOf(parentId).trim();
+        var hit = wanted.some(function (w) {
+          if (have === w) return true;
+          return have.split(',').map(function (x) { return x.trim(); }).indexOf(w) > -1;
+        });
+        // Streng: sichtbar nur, wenn die Bedingung wirklich erfuellt ist.
+        var off = parentOff || !hit;
+        b.classList.toggle('dep-off', off);
+        b.querySelectorAll('input, textarea, button').forEach(function (el) { el.disabled = off; });
+
+        var note = b.querySelector('.dep-note');
+        if (off && !note && b.classList.contains('field') && !b.classList.contains('note')) {
+          note = document.createElement('p');
+          note.className = 'fhelp dep-note';
+          note.textContent = depReason(have, parentOff);
+          b.appendChild(note);
+        } else if (!off && note) {
+          note.remove();
+        } else if (off && note) {
+          note.textContent = depReason(have, parentOff);
+        }
+      });
+    }
+    // Erst nach dem Aufloesen leeren, sonst raeumen wir Zwischenzustaende ab.
+    boxes.forEach(function (b) {
+      var wasOff = b.dataset.depOff === '1';
+      var isOff = b.classList.contains('dep-off');
+      // Beim ersten Durchlauf nur merken - sonst wuerden wir Vorschlaege aus
+      // Elev8 loeschen, bevor der Tenant die uebergeordnete Frage beantwortet hat.
+      var protectedPre = b.classList.contains('pre');
+      if (depsReady && isOff && !wasOff && !protectedPre && b.dataset.field) clearField(b.dataset.field);
+      b.dataset.depOff = isOff ? '1' : '0';
     });
+    depsReady = true;
   }
 
   function progress() {
