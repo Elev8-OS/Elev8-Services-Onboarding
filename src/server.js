@@ -408,7 +408,7 @@ app.post('/admin/i/:id/terms', requireAdmin, async function (req, res, next) {
       notice_months: pick('notice_months', 4),
       start_date: pick('start_date', 40),
       law: pick('law', 4) || 'CH',
-      venue: pick('venue', 120) || 'Solothurn, Schweiz'
+      venue: pick('venue', 120) || 'Olten, Schweiz'
     });
     res.redirect('/admin/i/' + intake.id + '?msg=' + encodeURIComponent('Vertragsdaten gespeichert.'));
   } catch (e) { next(e); }
