@@ -62,7 +62,7 @@ const DEFAULT_TERMS = {
   billing: 'monthly',
   start_date: '',
   law: 'CH',
-  venue: process.env.ELEV8_VENUE || 'Solothurn, Schweiz'
+  venue: process.env.ELEV8_VENUE || 'Olten, Schweiz'
 };
 
 /* ---------------- Hilfen ---------------- */
