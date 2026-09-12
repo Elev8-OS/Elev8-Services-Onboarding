@@ -30,6 +30,9 @@
   function valueOf(fieldId) {
     var els = document.getElementsByName(fieldId);
     if (!els.length) return '';
+    // Vertraglich fixierte Felder tragen nur noch ein verborgenes Feld,
+    // damit abhaengige Fragen weiterhin richtig rechnen.
+    if (els[0].type === 'hidden') return els[0].value;
     if (els[0].type === 'radio') {
       for (var i = 0; i < els.length; i++) if (els[i].checked) return els[i].value;
       return '';
@@ -296,7 +299,7 @@
 
   document.addEventListener('input', function (ev) {
     var el = ev.target;
-    if (!el.name || el.closest('.finish')) return;
+    if (!el.name || el.closest('.finish') || el.dataset.frozen) return;
     if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') queue(el.name);
   });
 

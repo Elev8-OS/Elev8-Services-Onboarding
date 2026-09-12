@@ -135,6 +135,41 @@ const UI = {
   newEntries: L('neue Angaben aus Elev8', 'new entries from Elev8'),
   newEntry: L('neue Angabe aus Elev8', 'new entry from Elev8'),
 
+  contractsH: L('Verträge', 'Contracts'),
+  contractsP: L('Aus Ihren Angaben entstehen zwei Dokumente. Bitte lesen und unterzeichnen Sie beide — danach können wir starten.',
+    'Two documents are generated from your entries. Please read and sign both — then we can start.'),
+  contractOpen: L('Lesen und unterzeichnen', 'Read and sign'),
+  contractSigned: L('Unterzeichnet', 'Signed'),
+  contractPdf: L('PDF herunterladen', 'Download PDF'),
+  contractsBlocked: L('Die Verträge erscheinen hier, sobald alle Pflichtfelder ausgefüllt sind und wir die kaufmännischen Angaben hinterlegt haben.',
+    'The contracts appear here once all required fields are filled in and we have entered the commercial terms.'),
+  contractsMissingFields: L('Es fehlen noch Pflichtangaben.', 'Some required entries are still missing.'),
+  contractsMissingTerms: L('Wir hinterlegen gerade Preis und Laufzeit. Sie hören von uns.',
+    'We are entering price and term. You will hear from us.'),
+  signH: L('Elektronisch unterzeichnen', 'Sign electronically'),
+  signP: L('Mit dem Absenden unterzeichnen Sie dieses Dokument rechtsverbindlich in Textform. Wir halten Name, Funktion, E-Mail, Zeitpunkt, IP-Adresse und eine Prüfsumme des Dokuments fest. Art. 28 Abs. 9 DSGVO lässt das elektronische Format ausdrücklich zu; eine qualifizierte elektronische Signatur ist nicht erforderlich.',
+    'By submitting you sign this document with legally binding effect in text form. We record name, role, email, time, IP address and a checksum of the document. Art. 28(9) GDPR expressly permits the electronic format; a qualified electronic signature is not required.'),
+  signName: L('Vor- und Nachname', 'First and last name'),
+  signRole: L('Funktion', 'Role'),
+  signEmail: L('E-Mail-Adresse', 'Email address'),
+  signConfirm: L('Ich bin zeichnungsberechtigt und unterzeichne dieses Dokument rechtsverbindlich.',
+    'I am authorised to sign and hereby sign this document with binding effect.'),
+  signBtn: L('Rechtsverbindlich unterzeichnen', 'Sign with binding effect'),
+  signBusy: L('Wird unterzeichnet …', 'Signing …'),
+  signDone: L('Unterzeichnet. Das PDF liegt bereit.', 'Signed. The PDF is ready.'),
+  signFail: L('Das hat nicht geklappt. Bitte nochmals versuchen.', 'That did not work. Please try again.'),
+  signedOn: L('Unterzeichnet am', 'Signed on'),
+  signedBy: L('Unterzeichnet von', 'Signed by'),
+  docHash: L('Dokument-Prüfsumme', 'Document checksum'),
+  signAudit: L('Protokoll der Unterschrift', 'Signature record'),
+  signIp: L('IP-Adresse', 'IP address'),
+  signAgent: L('Browser', 'Browser'),
+  signWhen: L('Zeitpunkt', 'Time'),
+  backToForm: L('Zurück zur Aufnahme', 'Back to the onboarding form'),
+  lockedNotice: L('Dieses Dokument ist unterzeichnet. Die darin festgehaltenen Angaben sind im Formular gesperrt und lassen sich nur per Nachtrag ändern.',
+    'This document is signed. The entries it records are locked in the form and can only be changed by an addendum.'),
+  counterSign: L('Gegenzeichnung', 'Countersignature'),
+
   notValid: L('Dieser Link ist nicht gültig', 'This link is not valid'),
   notValidP: L('Bitte fragen Sie bei Ihrem Ansprechpartner bei Elev8 nach einem neuen Link.',
     'Please ask your Elev8 contact for a new link.')
@@ -146,7 +181,8 @@ function clientStrings(lang) {
     'applied', 'applyFailed', 'taking', 'submitting', 'submitOk', 'submitOkNote', 'submitOkNote2',
     'submitFail', 'missingOne', 'missingMany', 'missingTail', 'depBecause', 'depPrev', 'depWait',
     'resyncBtn', 'resyncBusy', 'resyncWait', 'resyncReload', 'resyncNone', 'resyncNoConn',
-    'resyncFail', 'yourAnswer', 'fromElev8Confirmed', 'change', 'lastFetched'];
+    'resyncFail', 'yourAnswer', 'fromElev8Confirmed', 'change', 'lastFetched',
+    'signBusy', 'signDone', 'signFail'];
   const out = {};
   keys.forEach(function (k) { out[k] = t(UI[k], lang); });
   out.justNow = lang === 'en' ? 'just now' : 'gerade eben';

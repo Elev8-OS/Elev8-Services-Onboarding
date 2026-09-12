@@ -56,6 +56,28 @@ async function init() {
   await pool.query(`ALTER TABLE answers ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'tenant';`);
   await pool.query(`CREATE INDEX IF NOT EXISTS answers_intake_idx ON answers(intake_id);`);
   await pool.query(`ALTER TABLE intakes ADD COLUMN IF NOT EXISTS lang TEXT;`);
+  await pool.query(`ALTER TABLE intakes ADD COLUMN IF NOT EXISTS terms JSONB;`);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS contracts (
+      id           SERIAL PRIMARY KEY,
+      intake_id    INTEGER NOT NULL REFERENCES intakes(id) ON DELETE CASCADE,
+      kind         TEXT NOT NULL,
+      lang         TEXT NOT NULL,
+      doc_text     TEXT NOT NULL,
+      doc_hash     TEXT NOT NULL,
+      answers      JSONB NOT NULL,
+      terms        JSONB NOT NULL,
+      signer_name  TEXT NOT NULL,
+      signer_role  TEXT,
+      signer_email TEXT NOT NULL,
+      signer_ip    TEXT,
+      signer_ua    TEXT,
+      signed_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+      pdf          BYTEA,
+      created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+  await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS contracts_one_per_kind ON contracts(intake_id, kind);`);
   await migrateOptionCodes();
 }
 
@@ -227,6 +249,42 @@ async function saveAnswer(intakeId, fieldId, value, source) {
   );
 }
 
+/* ---------------- Vertraege ---------------- */
+
+async function setTerms(intakeId, terms) {
+  await pool.query('UPDATE intakes SET terms = $2 WHERE id = $1', [intakeId, JSON.stringify(terms)]);
+}
+
+/** Unterzeichnete Vertraege einer Aufnahme, ohne die PDF-Daten. */
+async function listContracts(intakeId) {
+  const { rows } = await pool.query(
+    `SELECT id, kind, lang, doc_hash, signer_name, signer_role, signer_email,
+            signer_ip, signed_at
+     FROM contracts WHERE intake_id = $1 ORDER BY signed_at`, [intakeId]);
+  return rows;
+}
+
+async function getContract(intakeId, kind) {
+  const { rows } = await pool.query(
+    'SELECT * FROM contracts WHERE intake_id = $1 AND kind = $2', [intakeId, kind]);
+  return rows[0] || null;
+}
+
+async function saveContract(rec) {
+  const { rows } = await pool.query(
+    `INSERT INTO contracts
+       (intake_id, kind, lang, doc_text, doc_hash, answers, terms,
+        signer_name, signer_role, signer_email, signer_ip, signer_ua, pdf)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+     ON CONFLICT (intake_id, kind) DO NOTHING
+     RETURNING id, signed_at`,
+    [rec.intakeId, rec.kind, rec.lang, rec.docText, rec.docHash,
+      JSON.stringify(rec.answers || {}), JSON.stringify(rec.terms || {}),
+      rec.signerName, rec.signerRole || null, rec.signerEmail,
+      rec.signerIp || null, rec.signerUa || null, rec.pdf || null]);
+  return rows[0] || null;
+}
+
 async function setIntakeLang(id, lang) {
   await pool.query('UPDATE intakes SET lang = $2 WHERE id = $1', [id, lang]);
 }
@@ -246,6 +304,6 @@ module.exports = {
   pool, init,
   listTenants, getTenant, upsertTenant, updateTenantToken, saveTenantSync, deleteTenant,
   listIntakes, createIntake, getIntakeByToken, getIntakeById, setIntakeSnapshot, linkIntakeTenant,
-  listIntakesForResync, setIntakeLang,
+  listIntakesForResync, setIntakeLang, setTerms, listContracts, getContract, saveContract,
   getAnswers, saveAnswer, setStatus, deleteIntake
 };
