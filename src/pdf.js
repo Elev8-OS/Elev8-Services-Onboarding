@@ -48,13 +48,31 @@ function need(d, points) {
   return false;
 }
 
+/**
+ * Absatz mit Schusterjungen- und Hurenkindkontrolle: Bleiben auf dieser
+ * Seite weniger als zwei Zeilen Platz, oder würden auf der nächsten Seite
+ * weniger als zwei Zeilen übrig bleiben, wandert der ganze Absatz weiter.
+ */
 function para(d, text, opts) {
   const o = opts || {};
+  const size = o.size || 9.8;
+  const gap = o.gap == null ? 2.6 : o.gap;
+  const str = String(text == null ? '' : text);
   reset(d);
-  d.font(o.font || F.r).fontSize(o.size || 9.8).fillColor(o.colour || BODY)
-    .text(String(text == null ? '' : text), M, d.y, {
-      width: W, align: o.align || 'justify', lineGap: o.gap == null ? 2.6 : o.gap
-    });
+  d.font(o.font || F.r).fontSize(size);
+
+  const h = d.heightOfString(str, { width: W, lineGap: gap });
+  const lineH = size * 1.15 + gap;
+  const avail = (PAGE_H - BOTTOM) - d.y;
+  if (h > avail) {
+    const fits = Math.floor(avail / lineH);
+    const total = Math.max(1, Math.round(h / lineH));
+    if (fits < 2 || (total - fits) < 2) d.addPage();
+  }
+
+  reset(d);
+  d.font(o.font || F.r).fontSize(size).fillColor(o.colour || BODY)
+    .text(str, M, d.y, { width: W, align: o.align || 'justify', lineGap: gap });
   reset(d);
   d.y += o.after == null ? 7 : o.after;
 }
@@ -83,7 +101,11 @@ function annexHeading(d, title) {
 
 function bullets(d, items) {
   items.forEach(function (x) {
-    need(d, 30);
+    // Auch ein Aufzählungspunkt soll nicht mit einer Zeile auf der
+    // nächsten Seite landen.
+    d.font(F.r).fontSize(9.8);
+    const h = d.heightOfString(String(x), { width: W - 18, lineGap: 2.4 });
+    if (d.y + h > PAGE_H - BOTTOM) d.addPage();
     const y = d.y;
     d.font(F.r).fontSize(9.8).fillColor(GOLD).text('—', M + 2, y, { width: 12, lineBreak: false });
     d.font(F.r).fontSize(9.8).fillColor(BODY)
