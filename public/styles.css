@@ -265,3 +265,29 @@ select:focus{outline:2px solid var(--gold);outline-offset:-1px}
   background:var(--surface-2);border:1px solid var(--line);
   border-left:3px solid var(--gold);
   font-size:14.5px;line-height:1.55;color:var(--ink-2);max-width:66ch}
+
+/* ---------- Elev8 nachholen ---------- */
+.rdfoot{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;
+  margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+.rdstampwrap{display:flex;flex-direction:column;gap:3px;min-width:0}
+.rdstamp{font-size:13px;color:var(--muted)}
+.rdmsg{font-size:13.5px;color:var(--ink-2);min-height:1.2em}
+.rdmsg.ok{color:var(--gold-ink)}
+.rdmsg.warn{color:var(--ink-2)}
+.rdmsg.err{color:#b3261e}
+#resyncBtn.loading{opacity:.6;cursor:progress}
+
+/* ---------- Widerspruch Elev8 gegen eigene Angabe ---------- */
+.conflict{margin-top:10px;padding:12px 14px;border-radius:9px;
+  background:var(--surface-2);border:1px solid var(--line-strong);border-left:3px solid var(--gold)}
+.conflict p{margin:0 0 6px;font-size:14px;line-height:1.5}
+.conflict .cft{color:var(--ink)}
+.conflict .cfl{color:var(--ink-2)}
+.conflict .cflab{display:inline-block;min-width:104px;font-family:var(--f-mono);font-size:11.5px;
+  text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.cfacts{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+@media (max-width:560px){
+  .conflict .cflab{display:block;min-width:0;margin-bottom:2px}
+  .rdfoot{align-items:stretch}
+  #resyncBtn{width:100%}
+}

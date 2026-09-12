@@ -248,6 +248,23 @@
 
     if (act === 'ok') { confirm({ field: id }); return; }
 
+    // Widerspruch: entweder den Elev8-Wert nehmen oder die eigene Angabe behalten.
+    if (act === 'takeelev8') {
+      btn.disabled = true;
+      confirm({ field: id, override: true }, 'Wird übernommen …').then(function () {
+        var c = b.querySelector('.conflict');
+        if (c) c.remove();
+        b.classList.remove('clash');
+      });
+      return;
+    }
+    if (act === 'keepmine') {
+      var box2 = b.querySelector('.conflict');
+      if (box2) box2.remove();
+      b.classList.remove('clash');
+      return;
+    }
+
     if (act === 'edit') {
       var edit = b.querySelector('.editwrap');
       if (!edit) return;
@@ -302,6 +319,95 @@
       confirm({}, 'Alle Elev8-Angaben werden übernommen …').then(function () {
         var bar = okAll.closest('.bulkbar');
         if (bar) bar.remove();
+      });
+    });
+  }
+
+  /* ---------- Elev8 nachholen ---------- */
+
+  function pct(n, total) { return total ? Math.round((n / total) * 100) : 0; }
+
+  function renderReadiness(rows) {
+    var ul = document.getElementById('rdlist');
+    if (!ul || !rows) return;
+    ul.innerHTML = rows.map(function (r) {
+      var cls = r.ok ? 'ok' : (r.partial ? 'partial' : 'gap');
+      return '<li class="rd ' + cls + '">' +
+        '<span class="rd-label"></span>' +
+        '<span class="rd-bar"><span style="width:' + pct(r.n, r.total) + '%"></span></span>' +
+        '<span class="rd-n">' + r.n + '/' + r.total + '</span></li>';
+    }).join('');
+    // Text ueber textContent setzen, damit nichts aus der Antwort als HTML landet.
+    var labels = ul.querySelectorAll('.rd-label');
+    for (var i = 0; i < labels.length; i++) labels[i].textContent = rows[i].label;
+
+    var hints = document.getElementById('rdhints');
+    if (hints) {
+      hints.innerHTML = '';
+      rows.filter(function (r) { return !r.ok && r.hint; }).slice(0, 2).forEach(function (g) {
+        var p = document.createElement('p');
+        var b = document.createElement('b');
+        b.textContent = g.label + ':';
+        p.appendChild(b);
+        p.appendChild(document.createTextNode(' ' + g.hint));
+        hints.appendChild(p);
+      });
+    }
+  }
+
+  function setResyncMsg(text, cls) {
+    var el = document.getElementById('resyncMsg');
+    if (!el) return;
+    el.textContent = text || '';
+    el.className = 'rdmsg' + (cls ? ' ' + cls : '');
+  }
+
+  var resyncBtn = document.getElementById('resyncBtn');
+  if (resyncBtn) {
+    resyncBtn.addEventListener('click', function () {
+      var label = resyncBtn.textContent;
+      resyncBtn.disabled = true;
+      resyncBtn.classList.add('loading');
+      resyncBtn.textContent = 'Wir sehen in Elev8 nach …';
+      setResyncMsg('Das dauert ein paar Sekunden.');
+
+      fetch('/api/f/' + encodeURIComponent(boot.token) + '/resync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}'
+      }).then(function (r) {
+        return r.json().then(function (data) { return { status: r.status, data: data }; });
+      }).then(function (res) {
+        var d = res.data || {};
+        if (res.status === 429) {
+          setResyncMsg(d.message || 'Bitte einen Moment.', 'warn');
+          return;
+        }
+        if (!d.ok) {
+          setResyncMsg(d.message || 'Das hat nicht geklappt.', 'err');
+          return;
+        }
+        renderReadiness(d.readiness);
+        var stamp = document.getElementById('rdstamp');
+        if (stamp) stamp.textContent = 'gerade eben';
+        var units = document.getElementById('rdunits');
+        if (units && d.units) units.textContent = d.units;
+
+        if (d.changed) {
+          setResyncMsg(d.summary + ' — die Seite wird aktualisiert.', 'ok');
+          setTimeout(function () { location.reload(); }, 1400);
+        } else {
+          setResyncMsg(d.summary || 'Nichts Neues.', 'ok');
+        }
+      }).catch(function () {
+        setResyncMsg('Keine Verbindung. Bitte nochmals versuchen.', 'err');
+      }).then(function () {
+        // Nach dem Neuladen ist das egal, sonst muss der Knopf wieder gehen.
+        setTimeout(function () {
+          resyncBtn.disabled = false;
+          resyncBtn.classList.remove('loading');
+          resyncBtn.textContent = label;
+        }, 1500);
       });
     });
   }

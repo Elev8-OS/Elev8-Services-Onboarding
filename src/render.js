@@ -10,6 +10,21 @@ function esc(s) {
 
 function nl2br(s) { return esc(s).replace(/\n/g, '<br>'); }
 
+/** "vor 3 Minuten" - der Tenant soll sehen, worauf er gerade schaut. */
+function ago(iso) {
+  const t = iso ? Date.parse(iso) : NaN;
+  if (isNaN(t)) return 'noch nie';
+  const m = Math.max(0, Math.round((Date.now() - t) / 60000));
+  if (m < 1) return 'gerade eben';
+  if (m === 1) return 'vor 1 Minute';
+  if (m < 60) return 'vor ' + m + ' Minuten';
+  const h = Math.round(m / 60);
+  if (h === 1) return 'vor 1 Stunde';
+  if (h < 24) return 'vor ' + h + ' Stunden';
+  const d = Math.round(h / 24);
+  return d === 1 ? 'gestern' : 'vor ' + d + ' Tagen';
+}
+
 function layout(opts) {
   return `<!doctype html>
 <html lang="de">
@@ -63,7 +78,7 @@ function control(f, v) {
  *  - aus Elev8, unbestätigt     → Wert steht da, ein Klick auf "Stimmt" genügt
  *  - beantwortet / bestätigt    → kompakte Zeile mit "Ändern"
  */
-function field(f, value, source, pre) {
+function field(f, value, source, pre, conflict) {
   const v = value == null ? '' : value;
   const has = String(v).trim() !== '';
   const dep = f.dependsOn
@@ -80,12 +95,22 @@ function field(f, value, source, pre) {
     const badge = source === 'confirmed'
       ? '<span class="tick" aria-hidden="true">✓</span> aus Elev8, von Ihnen bestätigt'
       : '<span class="tick" aria-hidden="true">✓</span> Ihre Angabe';
-    return `<div class="field done${f.required ? ' req' : ''}" data-field="${f.id}"${dep}>
+    const clash = conflict ? `
+  <div class="conflict">
+    <p class="cft"><b>In Elev8 steht inzwischen etwas anderes.</b></p>
+    <p class="cfl"><span class="cflab">Ihre Angabe</span> ${nl2br(conflict.mine)}</p>
+    <p class="cfl"><span class="cflab">Aus Elev8</span> ${nl2br(conflict.elev8)}</p>
+    <div class="cfacts">
+      <button class="mini primary" type="button" data-act="takeelev8">Elev8-Wert übernehmen</button>
+      <button class="mini" type="button" data-act="keepmine">Meine Angabe behalten</button>
+    </div>
+  </div>` : '';
+    return `<div class="field done${f.required ? ' req' : ''}${conflict ? ' clash' : ''}" data-field="${f.id}"${dep}>
   ${head}
   <div class="answered">
     <div class="aval">${nl2br(v)}</div>
     <div class="afoot"><span class="src">${badge}</span><button class="mini" type="button" data-act="edit">Ändern</button></div>
-  </div>
+  </div>${clash}
   <div class="editwrap" hidden>${control(f, v)}</div>
 </div>`;
   }
@@ -115,9 +140,8 @@ function field(f, value, source, pre) {
 
 /* ---------------- readiness panel ---------------- */
 
-function readinessPanel(rows, facts) {
-  if (!rows || !rows.length) return '';
-  const items = rows.map(function (r) {
+function readinessRows(rows) {
+  return (rows || []).map(function (r) {
     const cls = r.ok ? 'ok' : (r.partial ? 'partial' : 'gap');
     const pct = r.total ? Math.round((r.n / r.total) * 100) : 0;
     return `<li class="rd ${cls}">
@@ -126,23 +150,49 @@ function readinessPanel(rows, facts) {
   <span class="rd-n">${r.n}/${r.total}</span>
 </li>`;
   }).join('');
-  const gaps = rows.filter(function (r) { return !r.ok && r.hint; }).slice(0, 2);
+}
+
+function readinessHints(rows) {
+  const gaps = (rows || []).filter(function (r) { return !r.ok && r.hint; }).slice(0, 2);
+  if (!gaps.length) return '';
+  return gaps.map(function (g) {
+    return '<p><b>' + esc(g.label) + ':</b> ' + esc(g.hint) + '</p>';
+  }).join('');
+}
+
+/**
+ * Bereitschaftsanzeige. Neu: der Tenant kann selbst nachholen, wenn er in
+ * Elev8 etwas nachgepflegt hat - ohne uns anzurufen.
+ */
+function readinessPanel(rows, facts, opts) {
+  const o = opts || {};
+  const has = rows && rows.length;
+  if (!has && !o.canResync) return '';
+  const hints = readinessHints(rows);
   return `<section class="panel elev8panel">
   <div class="panel-head">
     <span class="src elev8"><span class="dot"></span>Direkt aus Ihrem Elev8-Konto</span>
     <h2>Was schon gepflegt ist</h2>
   </div>
-  <p class="lede small">${facts && facts.total ? facts.total + ' Einheiten gefunden. ' : ''}Diese Angaben mussten Sie nicht eintippen — wir haben sie aus Elev8 gelesen. Sie sehen sie hier nur zur Kontrolle.</p>
-  <ul class="rdlist">${items}</ul>
-  ${gaps.length ? '<div class="rdhints">' + gaps.map(function (g) {
-    return '<p><b>' + esc(g.label) + ':</b> ' + esc(g.hint) + '</p>';
-  }).join('') + '</div>' : ''}
+  <p class="lede small">${facts && facts.total ? '<span id="rdunits">' + facts.total + '</span> Einheiten gefunden. ' : ''}Diese Angaben mussten Sie nicht eintippen — wir haben sie aus Elev8 gelesen. Sie sehen sie hier nur zur Kontrolle.</p>
+  <ul class="rdlist" id="rdlist">${readinessRows(rows)}</ul>
+  <div class="rdhints" id="rdhints">${hints}</div>
+  ${o.canResync ? `<div class="rdfoot">
+    <div class="rdstampwrap">
+      <span class="rdstamp">Zuletzt aus Elev8 geholt: <b id="rdstamp">${esc(ago(o.syncedAt))}</b></span>
+      <span class="rdmsg" id="resyncMsg"></span>
+    </div>
+    <button class="btn ghost" type="button" id="resyncBtn">In Elev8 nachgepflegt? Jetzt neu prüfen</button>
+  </div>` : ''}
 </section>`;
 }
 
 /* ---------------- tenant form ---------------- */
 
-function tenantForm(intake, answers, sources, snapshot) {
+function tenantForm(intake, answers, sources, snapshot, opts) {
+  const o = opts || {};
+  const clashes = {};
+  (o.conflicts || []).forEach(function (c) { clashes[c.field] = c; });
   // Elev8-Daten plus unsere eigenen Vorschlaege (z. B. der Leistungsumfang).
   const pre = mergePrefill(snapshot && snapshot.prefill);
   const filled = INPUT_FIELDS.filter(function (f) { return (answers[f.id] || '').trim() !== ''; }).length;
@@ -171,7 +221,7 @@ function tenantForm(intake, answers, sources, snapshot) {
   ${s.intro ? '<p class="sec-intro">' + esc(s.intro) + '</p>' : ''}
   ${secPre ? '<div class="secbulk"><button class="mini primary" type="button" data-act="okall" data-sec="' + s.id + '">Die ' + secPre + ' Elev8-Angaben hier bestätigen</button></div>' : ''}
   <div class="fields">${s.fields.map(function (f) {
-      return field(f, answers[f.id], sources[f.id], pre[f.id]);
+      return field(f, answers[f.id], sources[f.id], pre[f.id], clashes[f.id]);
     }).join('')}</div>
 </section>`;
   }).join('');
@@ -202,7 +252,8 @@ function tenantForm(intake, answers, sources, snapshot) {
     ${submitted ? '<p class="banner done">Sie haben diese Aufnahme abgeschlossen. Änderungen sind weiterhin möglich und werden gespeichert.</p>' : ''}
   </header>
 
-  ${readinessPanel(snapshot && snapshot.readiness, snapshot && snapshot.facts)}
+  ${readinessPanel(snapshot && snapshot.readiness, snapshot && snapshot.facts,
+    { canResync: !!o.canResync, syncedAt: snapshot && snapshot.syncedAt })}
 
   <nav class="toc" aria-label="Abschnitte">${nav}</nav>
 
@@ -226,6 +277,7 @@ function tenantForm(intake, answers, sources, snapshot) {
       filled: filled,
       open: open,
       submitted: submitted,
+      canResync: !!o.canResync,
       sections: SECTIONS.map(function (s) {
         return { id: s.id, fields: s.fields.filter(isInput).map(function (f) { return f.id; }) };
       })
@@ -288,7 +340,10 @@ function adminList(intakes, tenants, baseUrl, flash) {
     <p class="eyebrow">Elev8 · Guest Relations · intern</p>
     <h1>Tenant-Aufnahmen</h1>
     <p class="lede">Tenant auswählen, Link verschicken, Antworten mitlesen. Was in Elev8 schon steht, füllt sich von selbst.</p>
-    <div class="actions"><a class="btn ghost" href="/admin/tenants">Tenants verwalten (${tenants.length})</a></div>
+    <div class="actions">
+      <a class="btn ghost" href="/admin/tenants">Tenants verwalten (${tenants.length})</a>
+      <form method="post" action="/admin/resync-sweep"><button class="btn ghost" type="submit">Alle Aufnahmen aus Elev8 auffrischen</button></form>
+    </div>
   </header>
 
   ${flash ? '<p class="banner done">' + esc(flash) + '</p>' : ''}
