@@ -858,18 +858,18 @@ function rm(ctx) {
   S('2', L('Leistungsumfang', 'Scope of services'), scope2);
 
   S('3', L('Der Preiskorridor', 'The price corridor'), [
-    P('Der Kunde legt für jede Einheit einen Mindestpreis, einen Basispreis und einen Höchstpreis fest. Elevate Software AG unterbreitet dazu einen Vorschlag aus der Historie des Kunden und aus Marktdaten; die Entscheidung trifft der Kunde. Der festgelegte Korridor ist Anlage 1 dieses Leistungsscheins.',
-      'For each unit the client sets a minimum price, a base price and a maximum price. Elevate Software AG submits a proposal based on the client’s history and on market data; the decision is the client’s. The agreed corridor is Annex 1 to this service schedule.'),
+    P('Der Kunde legt für jede Einheit einen Mindestpreis, einen Basispreis und einen Höchstpreis fest sowie den kürzesten und längsten Aufenthalt, den wir verkaufen dürfen — getrennt für die Woche, für Anreisen am Wochenende und für Lücken zwischen zwei Buchungen. Elevate Software AG unterbreitet dazu einen Vorschlag aus der Historie des Kunden, aus dem eingesetzten Preiswerkzeug und aus Marktdaten; die Entscheidung trifft der Kunde. Die festgelegten Werte sind Anlage 1 und Anlage 2 dieses Leistungsscheins. Sie gelten je Einheit und können sich von Einheit zu Einheit unterscheiden.',
+      'For each unit the client sets a minimum price, a base price and a maximum price, and the shortest and longest stay we may sell — separately for weekdays, for weekend arrivals and for gaps between two bookings. Elevate Software AG submits a proposal based on the client’s history, on the pricing tool in use and on market data; the decision is the client’s. The agreed values are Annex 1 and Annex 2 to this service schedule. They apply per unit and may differ from unit to unit.'),
     P('Innerhalb des Korridors handelt Elevate Software AG ohne Rückfrage. Den Korridor selbst verschiebt sie nie ohne Freigabe des Kunden.',
       'Within the corridor Elevate Software AG acts without asking. It never moves the corridor itself without the client’s approval.'),
     { kvHead: [txt(L('Gegenstand', 'Matter'), l), txt(L('Ohne Rückfrage', 'Without asking'), l), txt(L('Freigabe nötig', 'Approval required'), l)],
       rows: (en ? [
         ['Daily price within minimum and maximum', 'yes', ''],
         ['Base price and season curve', 'yes', ''],
-        ['Minimum stay, lead times, arrival and departure days', 'yes', ''],
+        ['Minimum and maximum stay within Annex 2', 'yes', ''],
         ['Orphan gap pricing', 'yes', ''],
         ['Discount ladders within the agreed limit', 'yes', ''],
-        ['Changing the minimum or maximum price itself', '', 'yes'],
+        ['Changing the values in Annex 1 or Annex 2 themselves', '', 'yes'],
         ['Opening or closing a channel', '', 'yes'],
         ['Changing cancellation terms', '', 'yes'],
         ['Changing the cleaning fee or ancillary charges', '', 'yes'],
@@ -877,10 +877,10 @@ function rm(ctx) {
       ] : [
         ['Tagespreis innerhalb von Minimum und Maximum', 'ja', ''],
         ['Basispreis und Saisonkurve', 'ja', ''],
-        ['Mindestaufenthalt, Vorlauffristen, An- und Abreisetage', 'ja', ''],
+        ['Mindest- und Höchstaufenthalt innerhalb von Anlage 2', 'ja', ''],
         ['Bepreisung von Orphan Gaps', 'ja', ''],
         ['Rabattleitern innerhalb der vereinbarten Grenze', 'ja', ''],
-        ['Minimum oder Maximum selbst verändern', '', 'ja'],
+        ['Werte in Anlage 1 oder Anlage 2 selbst verändern', '', 'ja'],
         ['Kanal öffnen oder schliessen', '', 'ja'],
         ['Stornobedingungen ändern', '', 'ja'],
         ['Reinigungsgebühr oder Nebenkosten ändern', '', 'ja'],
@@ -996,8 +996,8 @@ function rm(ctx) {
   ]);
 
   S('13', L('Schlussbestimmungen', 'Final provisions'), [
-    P('Änderungen und Ergänzungen bedürfen der Textform. Angaben, die als vertragsrelevant gekennzeichnet sind, können nach der Unterzeichnung nur durch einen von beiden Seiten bestätigten Nachtrag geändert werden. Der Preiskorridor in Anlage 1 wird abweichend davon durch die in Ziffer 3 beschriebene Freigabe angepasst.',
-      'Amendments and additions require text form. Entries marked as contractually relevant can be changed after signature only by an addendum confirmed by both sides. By way of exception, the price corridor in Annex 1 is adjusted through the approval process described in section 3.'),
+    P('Änderungen und Ergänzungen bedürfen der Textform. Angaben, die als vertragsrelevant gekennzeichnet sind, können nach der Unterzeichnung nur durch einen von beiden Seiten bestätigten Nachtrag geändert werden. Die Werte in Anlage 1 und Anlage 2 werden abweichend davon durch die in Ziffer 3 beschriebene Freigabe angepasst.',
+      'Amendments and additions require text form. Entries marked as contractually relevant can be changed after signature only by an addendum confirmed by both sides. By way of exception, the values in Annex 1 and Annex 2 are adjusted through the approval process described in section 3.'),
     P('Bei Widersprüchen geht der Rahmenvertrag diesem Leistungsschein vor, soweit hier nicht ausdrücklich etwas anderes bestimmt ist. In Datenschutzfragen geht der Vertrag zur Auftragsverarbeitung beiden vor.',
       'In case of conflict the framework agreement prevails over this service schedule unless expressly provided otherwise here. On data protection matters the data processing agreement prevails over both.'),
     P('Dieser Leistungsschein liegt in deutscher und englischer Sprache vor. Verbindlich ist ausschliesslich die deutsche Fassung; die englische Fassung dient dem Verständnis.',
@@ -1037,23 +1037,43 @@ function corridorAnnex(ctx) {
   } catch (e) { rows = []; }
 
   const cur = ctx.terms.currency || 'EUR';
-  const body = rows.length
-    ? rows.map(function (r) {
-      return [String(r.name || r.id || ''),
-        r.min ? cur + ' ' + r.min : orOpen('', l),
-        r.base ? cur + ' ' + r.base : orOpen('', l),
-        r.max ? cur + ' ' + r.max : orOpen('', l)];
-    })
+  const nm = function (r) { return String(r.name || r.id || orOpen('', l)); };
+  const money = function (v) { return v ? cur + ' ' + v : orOpen('', l); };
+  const nights = function (v) {
+    if (!v) return orOpen('', l);
+    const n = parseInt(v, 10);
+    if (!n) return orOpen('', l);
+    return n + ' ' + (l === 'en' ? (n === 1 ? 'night' : 'nights') : (n === 1 ? 'Nacht' : 'Nächte'));
+  };
+
+  const priceRows = rows.length
+    ? rows.map(function (r) { return [nm(r), money(r.min), money(r.base), money(r.max)]; })
     : [[orOpen('', l), orOpen('', l), orOpen('', l), orOpen('', l)]];
+
+  const stayRows = rows.length
+    ? rows.map(function (r) {
+      return [nm(r), nights(r.minstay), nights(r.minstay_we), nights(r.maxstay), nights(r.gap)];
+    })
+    : [[orOpen('', l), orOpen('', l), orOpen('', l), orOpen('', l), orOpen('', l)]];
 
   return [{
     h: txt(L('Anlage 1 — Preiskorridor je Einheit', 'Annex 1 — Price corridor per unit'), l),
     blocks: [
-      { p: txt(L('Innerhalb dieser Grenzen setzt Elevate Software AG die Preise ohne Rückfrage. Die Grenzen selbst werden nur mit Freigabe des Kunden verändert.',
-        'Within these limits Elevate Software AG sets prices without asking. The limits themselves are changed only with the client’s approval.'), l) },
-      { kvHead: [txt(L('Einheit', 'Unit'), l), txt(L('Minimum', 'Minimum'), l),
-        txt(L('Basispreis', 'Base price'), l), txt(L('Maximum', 'Maximum'), l)],
-        rows: body }
+      { p: txt(L('Innerhalb dieser Grenzen setzt Elevate Software AG die Preise ohne Rückfrage. Die Grenzen selbst werden nur mit Freigabe des Kunden verändert. Die Werte gelten je Einheit und Nacht.',
+        'Within these limits Elevate Software AG sets prices without asking. The limits themselves are changed only with the client’s approval. The values apply per unit and night.'), l) },
+      { kvHead: [txt(L('Einheit', 'Unit'), l), txt(L('Mindestpreis', 'Minimum price'), l),
+        txt(L('Basispreis', 'Base price'), l), txt(L('Höchstpreis', 'Maximum price'), l)],
+        rows: priceRows }
+    ]
+  }, {
+    h: txt(L('Anlage 2 — Aufenthaltsregeln je Einheit', 'Annex 2 — Stay rules per unit'), l),
+    blocks: [
+      { p: txt(L('Innerhalb dieser Grenzen setzt Elevate Software AG Mindest- und Höchstaufenthalt ohne Rückfrage. „Wochenende" meint eine Anreise am Freitag oder Samstag. „Lücke" meint den kürzesten Aufenthalt, der in einer Lücke zwischen zwei bestehenden Buchungen zugelassen wird.',
+        'Within these limits Elevate Software AG sets minimum and maximum stays without asking. “Weekend” means an arrival on Friday or Saturday. “Gap” means the shortest stay allowed in a gap between two existing bookings.'), l) },
+      { kvHead: [txt(L('Einheit', 'Unit'), l), txt(L('Min. Aufenthalt', 'Min. stay'), l),
+        txt(L('Min. Wochenende', 'Min. weekend'), l), txt(L('Max. Aufenthalt', 'Max. stay'), l),
+        txt(L('Lücke', 'Gap'), l)],
+        rows: stayRows }
     ]
   }];
 }
