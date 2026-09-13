@@ -18,6 +18,7 @@
 
 const { t, L } = require('./i18n');
 const { FIELD_MAP, valueLabel, optionLabel } = require('./questions');
+const modules = require('./modules');
 
 /* ---------------- Partei Elev8 Suite ---------------- */
 
@@ -124,11 +125,9 @@ function today(lang) {
     : p(d.getDate()) + '.' + p(d.getMonth() + 1) + '.' + d.getFullYear();
 }
 
-/** Zusammenhängender Text für die Abdeckungszeiten. */
+/** Abdeckungszeiten - im Admin gepflegt, nicht vom Kunden beantwortet. */
 function coverageText(ctx) {
-  const code = (ctx.answers && ctx.answers.coverage) || '';
-  if (code === 'other') return ansOr(ctx, 'coverage_custom');
-  return ansOr(ctx, 'coverage');
+  return modules.coverageText(ctx.terms, 'gro', ctx.lang) || orOpen('', ctx.lang);
 }
 
 function startText(ctx) {
@@ -582,9 +581,7 @@ function gro(ctx) {
   const S = function (n, h, blocks) { sections.push({ n: n, h: txt(h, l), blocks: blocks }); };
   const P = function (de, enTxt) { return { p: txt(L(de, enTxt), l) }; };
 
-  const scope = ansList(ctx, 'scope');
-  const extra = ans(ctx, 'scope_extra');
-  if (extra) scope.push(extra);
+  const scope = modules.scopeLabels(ctx.terms, 'gro', l);
 
   S('1', L('Gegenstand und Verhältnis zum Rahmenvertrag', 'Subject matter and relation to the framework agreement'), [
     P('Dieser Leistungsschein ergänzt den zwischen den Parteien geschlossenen Rahmenvertrag Elev8 Suite und gilt nur zusammen mit ihm. Soweit hier nichts Abweichendes geregelt ist, gelten die Bestimmungen des Rahmenvertrags, insbesondere zu Vergütungsmodalitäten, Haftung, höherer Gewalt, Vertraulichkeit, Abwerbeverbot, anwendbarem Recht und Gerichtsstand.',
@@ -809,9 +806,12 @@ function rm(ctx) {
     ] }
   ]);
 
-  S('2', L('Leistungsumfang', 'Scope of services'), [
-    P('Ab Vertragsbeginn:', 'From the start of the agreement:'),
-    { ul: en ? [
+  const rmPricing = modules.hasScope(tm, 'rm', 'pricing');
+  const rmContent = modules.hasScope(tm, 'rm', 'content');
+  const scope2 = [];
+  if (rmPricing) {
+    scope2.push(P('Ab Vertragsbeginn:', 'From the start of the agreement:'));
+    scope2.push({ ul: en ? [
       'Daily pricing for all connected units within the agreed corridor.',
       'Minimum stay, lead-time rules and arrival and departure restrictions within the agreed ranges.',
       'Season and event calendar, maintenance of the price curve.',
@@ -829,10 +829,12 @@ function rm(ctx) {
       'Überwachung der Preisparität über die verbundenen Kanäle.',
       'Pflege von Rate-Plans und Stornobedingungen in Elev8 Suite.',
       'Regelmässiger Bericht mit Pace, Forecast und Empfehlungen.'
-    ] },
-    P('Ab Verfügbarkeit der Content-Schnittstelle zu den Buchungsportalen, ohne Preisänderung und ohne Nachtrag:',
-      'From the availability of the content interface to the booking portals, at no change in price and without an addendum:'),
-    { ul: en ? [
+    ] });
+  }
+  if (rmContent) {
+    scope2.push(P('Ab Verfügbarkeit der Content-Schnittstelle zu den Buchungsportalen, ohne Preisänderung und ohne Nachtrag:',
+      'From the availability of the content interface to the booking portals, at no change in price and without an addendum:'));
+    scope2.push({ ul: en ? [
       'Maintenance of titles, descriptions and amenity attributes on the connected channels.',
       'Uploading and ordering of image material supplied by the client.',
       'Ongoing observation of visibility factors and recommendations derived from them.'
@@ -840,17 +842,20 @@ function rm(ctx) {
       'Pflege von Titeln, Beschreibungen und Ausstattungsmerkmalen auf den verbundenen Kanälen.',
       'Einspielen und Sortieren des vom Kunden gelieferten Bildmaterials.',
       'Laufende Beobachtung der Sichtbarkeitsfaktoren und daraus abgeleitete Empfehlungen.'
-    ] },
-    P('Elevate Software AG nennt keinen Termin für die Verfügbarkeit der Schnittstelle und schuldet sie nicht. Bis dahin bleibt die Vergütung unverändert; ein Abzug wegen noch nicht aktivierter Leistungen ist ausgeschlossen.',
-      'Elevate Software AG names no date for the availability of the interface and does not owe it. Until then the fee remains unchanged; a deduction for services not yet activated is excluded.'),
-    { kv: [
-      [txt(L('Preispflege', 'Price maintenance'), l),
-        txt(L('täglich automatisiert, wöchentlich durch einen Revenue Manager geprüft',
-          'automated daily, reviewed weekly by a revenue manager'), l)],
-      [txt(L('Arbeitszeiten Revenue Management', 'Revenue management working hours'), l),
-        txt(L('Montag bis Samstag zu Bürozeiten', 'Monday to Saturday during office hours'), l)]
-    ] }
-  ]);
+    ] });
+    scope2.push(P('Elevate Software AG nennt keinen Termin für die Verfügbarkeit der Schnittstelle und schuldet sie nicht. Bis dahin bleibt die Vergütung unverändert; ein Abzug wegen noch nicht aktivierter Leistungen ist ausgeschlossen.',
+      'Elevate Software AG names no date for the availability of the interface and does not owe it. Until then the fee remains unchanged; a deduction for services not yet activated is excluded.'));
+  }
+  if (!scope2.length) scope2.push({ p: orOpen('', l) });
+  scope2.push({ kv: [
+    [txt(L('Preispflege', 'Price maintenance'), l),
+      txt(L('täglich automatisiert, wöchentlich durch einen Revenue Manager geprüft',
+        'automated daily, reviewed weekly by a revenue manager'), l)],
+    [txt(L('Arbeitszeiten Revenue Management', 'Revenue management working hours'), l),
+      txt(L('Montag bis Samstag zu Bürozeiten', 'Monday to Saturday during office hours'), l)]
+  ] });
+
+  S('2', L('Leistungsumfang', 'Scope of services'), scope2);
 
   S('3', L('Der Preiskorridor', 'The price corridor'), [
     P('Der Kunde legt für jede Einheit einen Mindestpreis, einen Basispreis und einen Höchstpreis fest. Elevate Software AG unterbreitet dazu einen Vorschlag aus der Historie des Kunden und aus Marktdaten; die Entscheidung trifft der Kunde. Der festgelegte Korridor ist Anlage 1 dieses Leistungsscheins.',
