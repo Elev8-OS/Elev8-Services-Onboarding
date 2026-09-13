@@ -78,6 +78,9 @@ async function init() {
     );
   `);
   await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS contracts_one_per_kind ON contracts(intake_id, kind);`);
+  // Jeder Vertrag wird in beiden Sprachen ausgestellt; verbindlich ist Deutsch.
+  await pool.query(`ALTER TABLE contracts ADD COLUMN IF NOT EXISTS pdf_en BYTEA`);
+  await pool.query(`ALTER TABLE contracts ADD COLUMN IF NOT EXISTS doc_text_en TEXT`);
   await migrateOptionCodes();
   await migrateModules();
 }

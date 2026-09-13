@@ -61,13 +61,17 @@ function para(d, text, opts) {
   reset(d);
   d.font(o.font || F.r).fontSize(size);
 
-  const h = d.heightOfString(str, { width: W, lineGap: gap });
   const lineH = size * 1.15 + gap;
+  // pdfkit setzt den Zeilenabstand auch hinter die letzte Zeile. Ohne Reserve
+  // sagt die Messung "passt" und die letzte Zeile rutscht trotzdem um.
+  const h = d.heightOfString(str, { width: W, lineGap: gap }) + gap + 2;
   const avail = (PAGE_H - BOTTOM) - d.y;
   if (h > avail) {
     const fits = Math.floor(avail / lineH);
-    const total = Math.max(1, Math.round(h / lineH));
-    if (fits < 2 || (total - fits) < 2) d.addPage();
+    const total = Math.max(1, Math.ceil(h / lineH));
+    // Eine Zeile Puffer nach beiden Seiten: die Messung liegt gelegentlich um
+    // eine Zeile daneben, und genau dann steht die Waise oben auf der Seite.
+    if (fits < 3 || (total - fits) < 3) d.addPage();
   }
 
   reset(d);
@@ -104,7 +108,7 @@ function bullets(d, items) {
     // Auch ein Aufzählungspunkt soll nicht mit einer Zeile auf der
     // nächsten Seite landen.
     d.font(F.r).fontSize(9.8);
-    const h = d.heightOfString(String(x), { width: W - 18, lineGap: 2.4 });
+    const h = d.heightOfString(String(x), { width: W - 18, lineGap: 2.4 }) + 4;
     if (d.y + h > PAGE_H - BOTTOM) d.addPage();
     const y = d.y;
     d.font(F.r).fontSize(9.8).fillColor(GOLD).text('—', M + 2, y, { width: 12, lineBreak: false });
@@ -118,6 +122,18 @@ function bullets(d, items) {
 }
 
 function keyvals(d, rows) {
+  // Eine kurze Merkmalsliste soll nicht auseinandergerissen werden - eine
+  // einzelne Zeile am Seitenkopf sieht aus wie ein Fehler.
+  const est = rows.reduce(function (sum, r) {
+    d.font(F.r).fontSize(9.8);
+    const hv = d.heightOfString(String(r[1] == null ? '' : r[1]), { width: W - KEY_W, lineGap: 1.8 });
+    d.font(F.r).fontSize(8.6);
+    const hk = d.heightOfString(String(r[0]), { width: KEY_W - 14, lineGap: 1.4 });
+    return sum + Math.max(hv, hk) + 10.5;
+  }, 0) + 5;
+  const room = (PAGE_H - BOTTOM) - d.y;
+  if (est > room && est <= (PAGE_H - BOTTOM) - TOP) d.addPage();
+
   rows.forEach(function (r, i) {
     need(d, 34);
     const y = d.y;
@@ -138,18 +154,22 @@ function keyvals(d, rows) {
 function table(d, head, rows) {
   const cols = Math.max(1, head.length);
   const cw = W / cols;
+  const drawHead = function () {
+    const y0 = d.y;
+    d.font(F.b).fontSize(7.8).fillColor(MUTED);
+    head.forEach(function (h, i) {
+      d.text(String(h).toUpperCase(), M + i * cw, y0, { width: cw - 10, characterSpacing: 0.4 });
+    });
+    d.y = y0 + 12;
+    reset(d);
+    rule(d, RULE, 0.7);
+    d.y += 7;
+  };
   need(d, 70);
-  const y0 = d.y;
-  d.font(F.b).fontSize(7.8).fillColor(MUTED);
-  head.forEach(function (h, i) {
-    d.text(String(h).toUpperCase(), M + i * cw, y0, { width: cw - 10, characterSpacing: 0.4 });
-  });
-  d.y = y0 + 12;
-  reset(d);
-  rule(d, RULE, 0.7);
-  d.y += 7;
+  drawHead();
   rows.forEach(function (r) {
-    need(d, 34);
+    // Reisst die Tabelle um, kommt der Kopf auf der neuen Seite mit.
+    if (need(d, 34)) drawHead();
     const y = d.y;
     let bottom = y;
     d.font(F.r).fontSize(9.2).fillColor(BODY);
@@ -320,11 +340,39 @@ function render(doc, sig, opts) {
         Keywords: draft ? draft.label : ''
       }
     });
+    // Das Wasserzeichen gehört unter den Text. pdfkit zeichnet in der
+    // Reihenfolge der Aufrufe, also muss es beim Anlegen der Seite entstehen -
+    // nachträglich läge es über den Tabellen und machte Zahlen unleserlich.
+    const stamp = function () {
+      if (!draft) return;
+      // Der Aufruf kommt mitten aus einem Seitenumbruch heraus, oft innerhalb
+      // eines laufenden Absatzes. save()/restore() sichert in pdfkit nur den
+      // Grafikzustand - Schrift, Grösse, Farbe und Position gehören dem
+      // Dokument und müssen von Hand zurückgelegt werden. Sonst setzt die
+      // Fortsetzung des Absatzes in 72 Punkt fett.
+      const x = d.x, y = d.y;
+      const prevFont = (d._font && d._font.name) || F.r;
+      const prevSize = d._fontSize || 9.8;
+      const prevFill = d._fillColor;
+      d.save();
+      d.rotate(-32, { origin: [PAGE_W / 2, PAGE_H / 2] });
+      d.fillOpacity(0.055).font(F.b).fontSize(72).fillColor(GOLD)
+        .text(draft.stamp || draft.label, 0, PAGE_H / 2 - 40,
+          { width: PAGE_W, align: 'center', lineBreak: false });
+      d.restore();
+      d.fillOpacity(1);
+      d.font(prevFont).fontSize(prevSize);
+      if (prevFill) d.fillColor(prevFill[0], prevFill[1]); else d.fillColor(BODY);
+      d.x = x; d.y = y;
+    };
+    d.on('pageAdded', stamp);
+
     const chunks = [];
     d.on('data', function (c) { chunks.push(c); });
     d.on('end', function () { resolve(Buffer.concat(chunks)); });
     d.on('error', reject);
 
+    stamp();                       // die erste Seite entsteht im Konstruktor
     titleBlock(d, doc, draft);
     partiesBlock(d, doc);
 
@@ -353,16 +401,6 @@ function render(doc, sig, opts) {
         d.font(F.r).fontSize(7.4).fillColor(MUTED)
           .text(doc.title, M + 92, 44, { width: W - 92, align: 'right', lineBreak: false });
         d.moveTo(M, 57).lineTo(M + W, 57).lineWidth(0.5).strokeColor(RULE).stroke();
-      }
-      if (draft) {
-        // Schräger Wasserzeichenzug quer über die Seite, bewusst blass.
-        d.save();
-        d.rotate(-34, { origin: [PAGE_W / 2, PAGE_H / 2] });
-        d.fillOpacity(0.09).font(F.b).fontSize(78).fillColor(GOLD)
-          .text(draft.stamp || draft.label, 0, PAGE_H / 2 - 46,
-            { width: PAGE_W, align: 'center', lineBreak: false });
-        d.restore();
-        d.fillOpacity(1);
       }
       d.moveTo(M, PAGE_H - 52).lineTo(M + W, PAGE_H - 52).lineWidth(0.5).strokeColor(RULE).stroke();
       d.font(F.r).fontSize(7.4).fillColor(MUTED)

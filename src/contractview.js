@@ -80,6 +80,11 @@ function contractPage(intake, doc, signed, lang, baseHref, opts) {
   const body = contracts.documentHtml(doc);
 
   const pdfHref = baseHref + '/' + doc.key + '.pdf';
+  const pdfHrefEn = pdfHref + '?lang=en';
+  // Beide Sprachfassungen zum Herunterladen, verbindlich bleibt Deutsch.
+  const pdfPair = '<a class="btn ghost" href="' + pdfHref + '">' +
+    esc(t(signed ? UI.contractPdf : UI.musterPdf, l)) + '</a>' +
+    '<a class="btn ghost" href="' + pdfHrefEn + '">' + esc(t(UI.pdfEn, l)) + '</a>';
   const banner = o.reading
     ? '<p class="cbanner warn">' + esc(t(UI.readingNotice, l)) + ' <a href="' + baseHref + '/' + doc.key + '">' +
       esc(t(UI.readingDe, l)) + '</a></p>'
@@ -92,7 +97,7 @@ function contractPage(intake, doc, signed, lang, baseHref, opts) {
     ? `<div class="signednote">
     <h3>${esc(t(UI.notSignableYet, l))}</h3>
     <p>${esc(o.blockReason)}</p>
-    <p><a class="btn ghost" href="${pdfHref}">${esc(t(UI.musterPdf, l))}</a></p>
+    <p class="cpair">${pdfPair}</p>
   </div>` : '';
 
   const tail = o.reading ? '' : blocked ? blocked : signed
@@ -105,7 +110,8 @@ function contractPage(intake, doc, signed, lang, baseHref, opts) {
       <dt>${esc(t(UI.signIp, l))}</dt><dd>${esc(signed.signer_ip || '—')}</dd>
       <dt>${esc(t(UI.docHash, l))}</dt><dd class="mono">${esc(signed.doc_hash)}</dd>
     </dl>
-    <p><a class="btn ghost" href="${baseHref}/${doc.key}.pdf">${esc(t(UI.contractPdf, l))}</a></p>
+    <p class="cpair">${pdfPair}</p>
+    <p class="fhelp">${esc(t(UI.bothLangs, l))}</p>
   </div>`
     : `<div class="signbox" id="signbox" data-kind="${doc.key}">
     <h3>${esc(t(UI.signH, l))}</h3>
@@ -120,7 +126,7 @@ function contractPage(intake, doc, signed, lang, baseHref, opts) {
     </div>
     <label class="agree"><input type="checkbox" id="sg_ok"><span>${esc(t(UI.signConfirm, l))}</span></label>
     <button class="btn big" type="button" id="signBtn">${esc(t(UI.signBtn, l))}</button>
-    <a class="btn ghost" href="${pdfHref}">${esc(t(UI.musterPdf, l))}</a>
+    <span class="cpair">${pdfPair}</span>
     <p class="finish-note" id="signNote"></p>
   </div>`;
 
@@ -171,6 +177,7 @@ function contractsBlock(intake, docs, statusByKind, lang) {
     <div class="cacts">
       <a class="btn ghost" href="${base}${d.key}">${esc(t(s ? UI.contractSigned : (st.reason ? UI.viewDraft : UI.contractOpen), l))}</a>
       <a class="btn ghost" href="${base}${d.key}.pdf">${esc(t(s ? UI.contractPdf : UI.musterPdf, l))}</a>
+      <a class="btn ghost" href="${base}${d.key}.pdf?lang=en">${esc(t(UI.pdfEn, l))}</a>
     </div>
   </div>`;
   }).join('');

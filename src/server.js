@@ -216,6 +216,11 @@ const DRAFT_MARK = {
   stamp: 'MUSTER',
   note: 'Unverbindlicher Entwurf zur Prüfung. Dieses Dokument ist nicht unterzeichnet und begründet keine Rechte oder Pflichten. Kaufmännische Angaben und die in eckigen Klammern stehenden Felder werden vor der Unterzeichnung gemeinsam festgelegt. Der verbindliche Vertrag entsteht erst durch die elektronische Unterzeichnung über Elev8 Ready.'
 };
+const DRAFT_MARK_EN = {
+  label: 'Sample',
+  stamp: 'SAMPLE',
+  note: 'Non-binding draft for review. This document is not signed and creates no rights or obligations. Commercial figures and the fields shown in square brackets are agreed before signature. The binding agreement comes into existence only through electronic signature via Elev8 Ready. Translation for convenience — the German version governs.'
+};
 // Verbindlich ist die deutsche Fassung. Englisch gibt es nur zum Lesen.
 const CONTRACT_LANG = 'de';
 
@@ -290,13 +295,31 @@ async function lockedFields(intake) {
   return out;
 }
 
+/**
+ * Die englische Fassung eines unterzeichneten Vertrags. Sie entsteht normal
+ * bei der Unterschrift; fehlt sie - etwa bei Vertraegen aus der Zeit vor der
+ * Zweisprachigkeit - wird sie aus den festgehaltenen Antworten nachgebaut und
+ * gespeichert. Unterschriftsangaben und Pruefsumme bleiben die der deutschen.
+ */
+async function englishPdf(intake, signed) {
+  if (signed && signed.pdf_en) return signed.pdf_en;
+  if (!signed) return null;
+  const doc = contracts.build(signed.kind, intake, signed.answers || {}, signed.terms || {}, 'en');
+  const buf = await pdfout.render(doc, signatureBlock('en', signed, doc.title));
+  try {
+    await db.pool.query('UPDATE contracts SET pdf_en = $2, doc_text_en = $3 WHERE id = $1',
+      [signed.id, buf, contracts.documentText(doc)]);
+  } catch (e) { /* der Download geht trotzdem raus */ }
+  return buf;
+}
+
 function signatureBlock(lang, signed, docTitle) {
   const de = lang !== 'en';
   return {
     heading: de ? 'Unterschrift' : 'Signature',
     note: de
       ? 'Dieses Dokument wurde elektronisch in Textform unterzeichnet. Art. 28 Abs. 9 DSGVO lässt das elektronische Format ausdrücklich zu; eine qualifizierte elektronische Signatur ist nicht erforderlich. Die folgenden Angaben wurden beim Absenden festgehalten.'
-      : 'This document was signed electronically in text form. Art. 28(9) GDPR expressly permits the electronic format; a qualified electronic signature is not required. The following details were recorded on submission.',
+      : 'This document was signed electronically in text form. Art. 28(9) GDPR expressly permits the electronic format; a qualified electronic signature is not required. The following details were recorded on submission. This English version is a translation issued alongside the binding German version; the checksum below is that of the German text, which governs.',
     labels: de
       ? { name: 'Name', role: 'Funktion', email: 'E-Mail', when: 'Zeitpunkt (UTC)', ip: 'IP-Adresse', agent: 'Browser', hash: 'Dokument-Prüfsumme (SHA-256)' }
       : { name: 'Name', role: 'Role', email: 'Email', when: 'Time (UTC)', ip: 'IP address', agent: 'Browser', hash: 'Document checksum (SHA-256)' },
@@ -308,7 +331,8 @@ function signatureBlock(lang, signed, docTitle) {
     ua: signed.signer_ua,
     hash: signed.doc_hash,
     counterHeading: de ? 'Gegenzeichnung' : 'Countersignature',
-    counterLines: [contracts.ELEV8.name, contracts.ELEV8.signer + ', ' + contracts.ELEV8.signerRole,
+    counterLines: [contracts.ELEV8.name, contracts.ELEV8.signer + ', ' +
+      (de ? contracts.ELEV8.signerRole : contracts.ELEV8.signerRoleEn),
       contracts.ELEV8.street + ', ' + contracts.ELEV8.city],
     footer: docTitle
   };
@@ -475,22 +499,27 @@ app.get('/admin/i/:id/vertrag/:kind.pdf', requireAdmin, async function (req, res
     const kind = String(req.params.kind);
     if (KINDS.indexOf(kind) < 0) return res.status(404).type('text/plain').send('Nicht gefunden');
 
+    const wantEn = i18n.normLang(req.query.lang) === 'en';
     if (String(req.query.muster || '') === '1') {
       const intake = await db.getIntakeById(id);
       if (!intake) return res.status(404).type('text/plain').send('Nicht gefunden');
       const a = await db.getAnswers(intake.id);
-      const doc = contracts.build(kind, intake, a.values, intake.terms || {}, CONTRACT_LANG);
-      const buf = await pdfout.render(doc, null, { draft: DRAFT_MARK });
+      const doc = contracts.build(kind, intake, a.values, intake.terms || {},
+        wantEn ? 'en' : CONTRACT_LANG);
+      const buf = await pdfout.render(doc, null, { draft: wantEn ? DRAFT_MARK_EN : DRAFT_MARK });
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', 'inline; filename="Muster-' + kind + '-' +
+        (wantEn ? 'en-' : '') +
         String(intake.tenant_name).replace(/[^A-Za-z0-9_-]+/g, '-') + '.pdf"');
       return res.send(buf);
     }
 
     const signed = await db.getContract(id, kind);
     if (!signed || !signed.pdf) return res.status(404).type('text/plain').send('Noch nicht unterzeichnet');
+    const intake = await db.getIntakeById(id);
+    const file = wantEn ? await englishPdf(intake, signed) : signed.pdf;
     res.setHeader('Content-Type', 'application/pdf');
-    res.send(signed.pdf);
+    res.send(file);
   } catch (e) { next(e); }
 });
 
@@ -818,20 +847,25 @@ app.get('/f/:token/vertrag/:kind.pdf', async function (req, res, next) {
     if (!intake) return res.status(404).type('text/plain').send('Nicht gefunden');
     const kind = String(req.params.kind || '');
     if (KINDS.indexOf(kind) < 0) return res.status(404).type('text/plain').send('Nicht gefunden');
+    const wantEn = i18n.normLang(req.query.lang) === 'en';
     const signed = await db.getContract(intake.id, kind);
     const stem = String(intake.tenant_name).replace(/[^A-Za-z0-9_-]+/g, '-');
     res.setHeader('Content-Type', 'application/pdf');
 
     if (signed && signed.pdf) {
-      res.setHeader('Content-Disposition', 'inline; filename="' + kind + '-' + stem + '.pdf"');
-      return res.send(signed.pdf);
+      const file = wantEn ? await englishPdf(intake, signed) : signed.pdf;
+      res.setHeader('Content-Disposition', 'inline; filename="' + kind + '-' +
+        (wantEn ? 'en-' : '') + stem + '.pdf"');
+      return res.send(file);
     }
     // Noch nicht unterzeichnet: gekennzeichneter Entwurf aus dem aktuellen Stand.
     const a = await db.getAnswers(intake.id);
     if (kindsFor(intake.terms || {}).indexOf(kind) < 0) return res.status(404).type('text/plain').send('Nicht gefunden');
-    const doc = contracts.build(kind, intake, a.values, intake.terms || {}, CONTRACT_LANG);
-    const buf = await pdfout.render(doc, null, { draft: DRAFT_MARK });
-    res.setHeader('Content-Disposition', 'inline; filename="Muster-' + kind + '-' + stem + '.pdf"');
+    const doc = contracts.build(kind, intake, a.values, intake.terms || {},
+      wantEn ? 'en' : CONTRACT_LANG);
+    const buf = await pdfout.render(doc, null, { draft: wantEn ? DRAFT_MARK_EN : DRAFT_MARK });
+    res.setHeader('Content-Disposition', 'inline; filename="Muster-' + kind + '-' +
+      (wantEn ? 'en-' : '') + stem + '.pdf"');
     res.setHeader('Cache-Control', 'no-store');
     res.send(buf);
   } catch (e) { next(e); }
@@ -910,11 +944,18 @@ app.post('/api/f/:token/sign', async function (req, res, next) {
     });
     if (!saved) return res.json({ ok: true, already: true });
 
-    // PDF im Hintergrund nachreichen - die Unterschrift ist bereits gueltig.
+    // Beide Fassungen nachreichen - die Unterschrift ist bereits gueltig.
+    // Verbindlich ist die deutsche; die englische traegt dieselben
+    // Unterschriftsangaben und dieselbe Pruefsumme.
     try {
       const fresh = await db.getContract(intake.id, kind);
       const buf = await pdfout.render(doc, signatureBlock(lang, fresh, doc.title));
       await db.pool.query('UPDATE contracts SET pdf = $2 WHERE id = $1', [saved.id, buf]);
+
+      const docEn = contracts.build(kind, intake, a.values, terms, 'en');
+      const bufEn = await pdfout.render(docEn, signatureBlock('en', fresh, docEn.title));
+      await db.pool.query('UPDATE contracts SET pdf_en = $2, doc_text_en = $3 WHERE id = $1',
+        [saved.id, bufEn, contracts.documentText(docEn)]);
     } catch (e) {
       console.warn('PDF konnte nicht erzeugt werden: ' + errText(e));
     }
