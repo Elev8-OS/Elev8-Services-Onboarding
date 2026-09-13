@@ -72,6 +72,24 @@ const UI = {
   mxEmpty: L('Sobald Ihre Einheiten in Elev8 Suite stehen, erscheint hier die Tabelle.',
     'The table appears here as soon as your units are in Elev8 Suite.'),
   mxSaved: L('Korridor gespeichert', 'Corridor saved'),
+  mxNights: L('Nächte', 'nights'),
+  mxAll: L('Alle auswählen', 'Select all'),
+  mxNone: L('Auswahl aufheben', 'Clear selection'),
+  mxByCity: L('Alle in einer Stadt …', 'All in one city …'),
+  mxSelected: L('ausgewählt', 'selected'),
+  mxTemplate: L('Als Vorlage', 'Use as template'),
+  mxTemplateHint: L('Werte dieser Zeile auf die ausgewählten Einheiten übertragen',
+    'Copy this row’s values to the selected units'),
+  mxFrom: L('Übertragen von', 'Copy from'),
+  mxApply: L('Übertragen', 'Copy'),
+  mxCancel: L('Abbrechen', 'Cancel'),
+  mxOnlyPrices: L('nur Preise', 'prices only'),
+  mxOnlyStay: L('nur Aufenthalt', 'stay only'),
+  mxAllCols: L('alles', 'everything'),
+  mxCopied: L('übernommen', 'copied'),
+  mxPickFirst: L('Zuerst die Einheiten ankreuzen, die den Wert bekommen sollen.',
+    'First tick the units that should receive the values.'),
+  mxFromPl: L('Preise aus PriceLabs übernommen', 'Prices taken from PriceLabs'),
   mxRows: L('Einheiten im Korridor festgelegt', 'units with a corridor set'),
 
   eyebrow: L('Aufnahme für', 'Onboarding for'),
@@ -211,7 +229,8 @@ function clientStrings(lang) {
     'submitFail', 'missingOne', 'missingMany', 'missingTail', 'depBecause', 'depPrev', 'depWait',
     'resyncBtn', 'resyncBusy', 'resyncWait', 'resyncReload', 'resyncNone', 'resyncNoConn',
     'resyncFail', 'yourAnswer', 'fromElev8Confirmed', 'change', 'lastFetched',
-    'signBusy', 'signDone', 'signFail', 'mxSaved', 'mxRows'];
+    'signBusy', 'signDone', 'signFail', 'mxSaved', 'mxRows', 'mxSelected',
+    'mxCopied', 'mxPickFirst', 'mxAll', 'mxNone'];
   const out = {};
   keys.forEach(function (k) { out[k] = t(UI[k], lang); });
   out.justNow = lang === 'en' ? 'just now' : 'gerade eben';

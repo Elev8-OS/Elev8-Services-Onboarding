@@ -1,6 +1,7 @@
 'use strict';
 
 const { L } = require('./i18n');
+const pricelabs = require('./pricelabs');
 
 /**
  * Anbindung an den Elev8-MCP-Server.
@@ -202,16 +203,27 @@ function isoDay(d) {
  * mehrere Zeilen - leere und gefuellte. Wir behalten je listing_id den hoechsten
  * belastbaren Wert und ignorieren Zeilen ohne Buchungen.
  */
-function adrMap(raw) {
+function perfMap(raw) {
   const rows = Array.isArray(raw && raw.performance) ? raw.performance
     : (raw && raw.performance && Array.isArray(raw.performance.results) ? raw.performance.results : []);
   const out = {};
   rows.forEach(function (r) {
     const id = nonEmpty(r.listing_id);
+    if (!id) return;
     const adr = num(r.avg_daily_rate);
-    if (!id || !adr) return;
-    if (!out[id] || adr > out[id]) out[id] = adr;
+    const los = num(r.avg_length_of_stay);
+    const cur = out[id] || (out[id] = { adr: 0, los: 0 });
+    if (adr > cur.adr) cur.adr = adr;
+    if (los > cur.los) cur.los = los;
   });
+  return out;
+}
+
+/** Nur die Durchschnittspreise - fuer die Stellen, die sonst nichts brauchen. */
+function adrMap(raw) {
+  const out = {};
+  const m = perfMap(raw);
+  Object.keys(m).forEach(function (id) { if (m[id].adr) out[id] = m[id].adr; });
   return out;
 }
 
@@ -261,7 +273,7 @@ function tally(items, pick) {
 
 function deriveFacts(raw) {
   const all = Array.isArray(raw.listings) ? raw.listings : [];
-  const adr = adrMap(raw);
+  const perf = perfMap(raw);
   const live = all.filter(function (l) { return String(l.status) !== '0'; });
   const base = live.length ? live : all;
   const total = base.length;
@@ -297,7 +309,8 @@ function deriveFacts(raw) {
         city: nonEmpty(l.city),
         capacity: num(l.maximum_capacity),
         currency: nonEmpty(l.currency),
-        adr: adr[nonEmpty(l.listing_id)] || 0
+        adr: (perf[nonEmpty(l.listing_id)] || {}).adr || 0,
+        los: (perf[nonEmpty(l.listing_id)] || {}).los || 0
       };
     }).sort(function (x, y) { return String(x.name).localeCompare(String(y.name), 'de'); }),
     addresses: addresses.slice(0, 6),
@@ -334,7 +347,7 @@ function deriveFacts(raw) {
       checkout: pick(raw.profile, /check.?out.*(time|until)|time.*check.?out/i)
     } : null,
     channels: summariseChannels(raw.channels),
-    adrKnown: Object.keys(adr).length,
+    adrKnown: Object.keys(perf).filter(function (k) { return perf[k].adr; }).length,
     warnings: raw.warnings || []
   };
 }
@@ -387,7 +400,7 @@ function lockSummary(facts) {
  * Liefert { fieldId: { value, evidence } } — evidence erklärt dem Tenant,
  * woher der Wert kommt, damit er ihn bestätigen statt tippen kann.
  */
-function prefillAnswers(facts, tenantName) {
+function prefillAnswers(facts, tenantName, pricelabsData) {
   const out = {};
   const put = function (id, value, evidence) {
     const v = String(value == null ? '' : value).trim();
@@ -456,13 +469,23 @@ function prefillAnswers(facts, tenantName) {
   put('checkin_time', ci, L('Check-in-Zeit aus Elev8 Suite', 'Check-in time from Elev8 Suite'));
   put('checkout_time', co, L('Check-out-Zeit aus Elev8 Suite', 'Check-out time from Elev8 Suite'));
 
-  const corridor = corridorProposal(facts);
+  const corridor = corridorProposal(facts, pricelabsData);
   if (corridor.rows.length) {
-    put('rm_corridor', JSON.stringify(corridor.rows), L(
-      'Vorschlag aus Ihren Zahlen der letzten zwölf Monate' +
-        (corridor.estimated ? ' (' + corridor.estimated + ' ohne eigene Historie, aus vergleichbaren Einheiten abgeleitet)' : ''),
-      'Proposal from your last twelve months' +
-        (corridor.estimated ? ' (' + corridor.estimated + ' without own history, derived from comparable units)' : '')));
+    if (facts.pricelabs) facts.pricelabs.matched = corridor.fromPricelabs || 0;
+    const src = corridor.fromPricelabs
+      ? L('Preise aus PriceLabs für ' + corridor.fromPricelabs + ' von ' + corridor.rows.length +
+            ' Einheiten, der Rest aus Ihren Zahlen der letzten zwölf Monate',
+        'Prices from PriceLabs for ' + corridor.fromPricelabs + ' of ' + corridor.rows.length +
+            ' units, the rest from your last twelve months')
+      : L('Vorschlag aus Ihren Zahlen der letzten zwölf Monate',
+        'Proposal from your last twelve months');
+    const tail = corridor.estimated
+      ? L(' — ' + corridor.estimated + ' Einheiten ohne eigene Historie, aus vergleichbaren Einheiten abgeleitet',
+        ' — ' + corridor.estimated + ' units without own history, derived from comparable units')
+      : L('', '');
+    put('rm_corridor', JSON.stringify(corridor.rows),
+      L(src.de + tail.de + '. Aufenthaltsregeln aus Ihrer durchschnittlichen Aufenthaltsdauer.',
+        src.en + tail.en + '. Stay rules from your average length of stay.'));
   }
 
   if (facts.deposits.length === 1) {
@@ -484,10 +507,38 @@ function prefillAnswers(facts, tenantName) {
  * Einheiten ohne eigene Historie erben den Median ihrer Stadt, sonst den
  * Median des Portfolios. Diese Zeilen sind als geschaetzt markiert.
  */
-function corridorProposal(facts) {
+/**
+ * Aufenthaltsregeln je Einheit, so wie ein Revenue Manager sie ansetzt.
+ *
+ *   Mindestaufenthalt   folgt der tatsaechlichen Aufenthaltsdauer: wer im
+ *                       Schnitt eine Nacht verkauft, darf keine zwei fordern.
+ *   Wochenende          eine Nacht mehr, damit Freitag und Samstag nicht als
+ *                       Einzelnacht verbrannt werden - aber nie mehr als drei.
+ *   Hoechstaufenthalt   28 Naechte als Regel; Objekte, die faktisch monatelang
+ *                       vermietet werden, bekommen 90.
+ *   Luecke              immer eine Nacht: eine Luecke zwischen zwei Buchungen
+ *                       ist sonst unverkaeuflich.
+ */
+function stayProposal(unit) {
+  const los = (unit && unit.los) || 0;
+  const cap = (unit && unit.capacity) || 0;
+  let minstay = 1;
+  if (los > 5) minstay = 3;
+  else if (los > 2.5) minstay = 2;
+  // Grosse Objekte lohnen eine Einzelnacht selten - Reinigung und Wechsel.
+  if (cap >= 6 && minstay < 2) minstay = 2;
+  let we = minstay + 1;
+  if (we > 3) we = 3;
+  const maxstay = los > 20 ? 90 : 28;
+  return { minstay: String(minstay), minstay_we: String(we), maxstay: String(maxstay), gap: '1' };
+}
+
+function corridorProposal(facts, pricelabs) {
   const units = facts.unitList || [];
+  const pl = (pricelabs && pricelabs.byUnit) || {};
   const withAdr = units.filter(function (u) { return u.adr > 0; });
-  if (!withAdr.length) return { rows: [], estimated: 0 };
+  const havePl = Object.keys(pl).length;
+  if (!withAdr.length && !havePl) return { rows: [], estimated: 0, fromPricelabs: 0 };
 
   const all = median(withAdr.map(function (u) { return u.adr; }));
   const byCity = {};
@@ -498,21 +549,25 @@ function corridorProposal(facts) {
   Object.keys(byCity).forEach(function (c) { byCity[c] = median(byCity[c]); });
 
   let estimated = 0;
+  let fromPl = 0;
   const rows = units.map(function (u) {
+    const p = pl[u.id] || null;
     const base = u.adr > 0 ? u.adr : (byCity[u.city || ''] || all);
-    const est = u.adr > 0 ? 0 : 1;
+    // Geschaetzt ist eine Zeile nur, wenn weder PriceLabs noch eigene
+    // Historie etwas hergeben.
+    const est = (p && (p.min || p.base || p.max)) ? 0 : (u.adr > 0 ? 0 : 1);
     if (est) estimated++;
-    const r = {
-      id: u.id,
-      name: u.name,
-      min: String(Math.round(base * 0.75)),
-      base: String(Math.round(base)),
-      max: String(Math.round(base * 1.9))
-    };
+    if (p && (p.min || p.base || p.max)) fromPl++;
+
+    const r = Object.assign({ id: u.id, name: u.name }, stayProposal(u));
+    r.min = String(Math.round((p && p.min) || (base * 0.75)));
+    r.base = String(Math.round((p && p.base) || base));
+    r.max = String(Math.round((p && p.max) || (Math.max((p && p.base) || base, base) * 1.9)));
     if (est) r.est = 1;
+    if (p && (p.min || p.base || p.max)) r.pl = 1;
     return r;
   });
-  return { rows: rows, estimated: estimated };
+  return { rows: rows, estimated: estimated, fromPricelabs: fromPl };
 }
 
 /**
@@ -544,15 +599,20 @@ function readiness(facts) {
 async function sync(token, tenantName) {
   const raw = await fetchRaw(token);
   const facts = deriveFacts(raw);
-  return {
-    facts: facts,
-    prefill: prefillAnswers(facts, tenantName),
-    readiness: readiness(facts)
-  };
+  // PriceLabs ist optional: ohne Schluessel oder bei einem Fehler bleiben die
+  // Vorschlaege bei den Zahlen aus Elev8 Suite.
+  let pl = { ok: false, reason: 'no_key', byUnit: {} };
+  try { pl = await pricelabs.fetchListings(); } catch (e) { /* egal */ }
+  if (!pl.ok && pl.reason !== 'no_key') {
+    facts.warnings = (facts.warnings || []).concat(['PriceLabs antwortete nicht (' + pl.reason + ').']);
+  }
+  facts.pricelabs = { ok: !!pl.ok, matched: 0 };
+  const prefill = prefillAnswers(facts, tenantName, pl);
+  return { facts: facts, prefill: prefill, readiness: readiness(facts) };
 }
 
 module.exports = {
   MCP_URL, withClient, callTool, listTools, fetchRaw,
   deriveFacts, prefillAnswers, readiness, sync, lockSummary, probeProfile,
-  corridorProposal, adrMap
+  corridorProposal, adrMap, perfMap, stayProposal
 };
