@@ -55,6 +55,11 @@ const DEFAULT_TERMS = {
   platform_price_per_booking: '',
   platform_term_months: '12',
   platform_notice_months: '3',
+  rm_price_per_unit: '',
+  rm_tier_from: '',
+  rm_tier_price: '',
+  rm_term_months: '6',
+  rm_notice_months: '3',
   price_per_unit: '',
   setup_fee: '',
   term_months: '12',
@@ -223,8 +228,8 @@ function avv(ctx) {
   S('6', L('Verarbeitung in Drittländern', 'Processing in third countries'), [
     P('Der Auftragsverarbeiter hat seinen Sitz in der Schweiz. Für die Schweiz besteht ein Angemessenheitsbeschluss der Europäischen Kommission; eine Übermittlung dorthin bedarf daher keiner zusätzlichen Garantien nach Art. 46 DSGVO.',
       'The processor is established in Switzerland. An adequacy decision of the European Commission is in place for Switzerland; transfers there therefore require no additional safeguards under Art. 46 GDPR.'),
-    P('Die Mitarbeitenden, die den Verantwortlichen betreuen, sind bei ' + GROUP.opsName + ' angestellt, einer Schwestergesellschaft des Auftragsverarbeiters mit Sitz in ' + GROUP.opsCountry + '. Sie arbeiten im Regelfall rund um die Uhr; Vertretung und Ausfallbetrieb können aus der Europäischen Union und aus der Schweiz erfolgen. Für die Übermittlung nach ' + GROUP.opsCountry + ' haben der Auftragsverarbeiter und ' + GROUP.opsName + ' die Standardvertragsklauseln der Europäischen Kommission in der Fassung des Durchführungsbeschlusses (EU) 2021/914, Modul 3 (Auftragsverarbeiter an Auftragsverarbeiter), abgeschlossen. Sie gelten zusammen mit der in Anlage 3 dokumentierten Beurteilung des Übermittlungsrisikos und den dort beschriebenen zusätzlichen Massnahmen.',
-      'The staff serving the controller are employed by ' + GROUP.opsName + ', a sister company of the processor established in ' + GROUP.opsCountryEn + '. They work, as a rule, around the clock; cover and fallback operation may take place from the European Union and from Switzerland. For the transfer to ' + GROUP.opsCountryEn + ', the processor and ' + GROUP.opsName + ' have concluded the Standard Contractual Clauses of the European Commission as set out in Implementing Decision (EU) 2021/914, Module Three (processor to processor). They apply together with the transfer risk assessment documented in Annex 3 and the supplementary measures described there.'),
+    P('Die Mitarbeitenden, die den Verantwortlichen betreuen, sind bei ' + GROUP.opsName + ' angestellt, einer Schwestergesellschaft des Auftragsverarbeiters mit Sitz in ' + GROUP.opsCountry + '. Es handelt sich um zwei getrennte Abteilungen mit unterschiedlichem Datenzugriff: Guest Relations betreut die Gästekommunikation im Regelfall rund um die Uhr, das Revenue Management arbeitet Montag bis Samstag zu Bürozeiten und ohne Zugriff auf Nachrichteninhalte, Gesprächsaufzeichnungen und Ausweisdokumente. Vertretung und Ausfallbetrieb können aus der Europäischen Union und aus der Schweiz erfolgen. Für die Übermittlung nach ' + GROUP.opsCountry + ' haben der Auftragsverarbeiter und ' + GROUP.opsName + ' die Standardvertragsklauseln der Europäischen Kommission in der Fassung des Durchführungsbeschlusses (EU) 2021/914, Modul 3 (Auftragsverarbeiter an Auftragsverarbeiter), abgeschlossen. Sie gelten zusammen mit der in Anlage 3 dokumentierten Beurteilung des Übermittlungsrisikos und den dort beschriebenen zusätzlichen Massnahmen.',
+      'The staff serving the controller are employed by ' + GROUP.opsName + ', a sister company of the processor established in ' + GROUP.opsCountryEn + '. They form two separate departments with different data access: guest relations handles guest communication as a rule around the clock, while revenue management works Monday to Saturday during office hours and without access to message content, call recordings or identity documents. Cover and fallback operation may take place from the European Union and from Switzerland. For the transfer to ' + GROUP.opsCountryEn + ', the processor and ' + GROUP.opsName + ' have concluded the Standard Contractual Clauses of the European Commission as set out in Implementing Decision (EU) 2021/914, Module Three (processor to processor). They apply together with the transfer risk assessment documented in Annex 3 and the supplementary measures described there.'),
     P('Der Verantwortliche wird hiermit ausdrücklich darauf hingewiesen, dass für ' + GROUP.opsCountry + ' kein Angemessenheitsbeschluss der Europäischen Kommission vorliegt.',
       'The controller is expressly informed that no adequacy decision of the European Commission exists for ' + GROUP.opsCountryEn + '.')
   ]);
@@ -290,9 +295,14 @@ function lawTextEn(ctx) {
  */
 function subprocessors(ctx) {
   return [
-    { name: GROUP.opsName,
-      service: L('Gästekommunikation und, soweit beauftragt, Revenue Management; im Regelfall rund um die Uhr, einschliesslich Nacht- und Wochenendschichten',
-        'Guest communication and, where commissioned, revenue management; as a rule around the clock, including night and weekend shifts'),
+    { name: GROUP.opsName + ' — Guest Relations',
+      service: L('Gästekommunikation über die verbundenen Kanäle; im Regelfall rund um die Uhr, einschliesslich Nacht- und Wochenendschichten. Zugriff auf Gastdaten einschliesslich Kontaktdaten, Nachrichteninhalten, Gesprächsaufzeichnungen und hinterlegten Ausweisdaten.',
+        'Guest communication through the connected channels; as a rule around the clock, including night and weekend shifts. Access to guest data including contact details, message content, call recordings and stored identity document data.'),
+      place: L(GROUP.opsCountry + '; Vertretung und Ausfallbetrieb in der EU und/oder der Schweiz',
+        GROUP.opsCountryEn + '; cover and fallback operation in the EU and/or Switzerland') },
+    { name: GROUP.opsName + ' — Revenue Management',
+      service: L('Preissetzung, Restriktionen und Auswertung, soweit beauftragt; Montag bis Samstag zu Bürozeiten. Zugriff auf Buchungs- und Gastprofildaten zur Segmentierung — insbesondere Reisegruppe, Herkunftsland, Sprache, Kanal, Rate, Aufenthaltsdauer und Vorlaufzeit. Kein Zugriff auf Nachrichteninhalte, Gesprächsaufzeichnungen und Ausweisdokumente.',
+        'Pricing, restrictions and analysis where commissioned; Monday to Saturday during office hours. Access to booking and guest profile data for segmentation — in particular party composition, country of origin, language, channel, rate, length of stay and lead time. No access to message content, call recordings or identity documents.'),
       place: L(GROUP.opsCountry + '; Vertretung und Ausfallbetrieb in der EU und/oder der Schweiz',
         GROUP.opsCountryEn + '; cover and fallback operation in the EU and/or Switzerland') },
     { name: txt(L('Technische Dienstleister der Plattform', 'Technical platform providers'), ctx.lang),
@@ -314,6 +324,7 @@ function avvAnnexes(ctx) {
         { ul: en ? [
           'Access control: named user accounts, no shared logins, multi-factor authentication for all administrative access, immediate revocation on departure.',
           'Authorisation: role-based rights in Elev8 Suite, least privilege, quarterly review of assignments.',
+          'Separation by department: revenue management users are assigned a role without access to message content, call recordings or identity documents. The role is set on creation and reviewed quarterly.',
           'Transmission: TLS for all connections, no guest data over private channels or personal devices.',
           'Storage: data resides in Elev8 Suite; no local copies on end devices, no exports without a documented reason.',
           'Separation: strict tenant separation in Elev8 Suite; a GRO only sees the tenants assigned to them.',
@@ -324,6 +335,7 @@ function avvAnnexes(ctx) {
         ] : [
           'Zugangskontrolle: benannte Benutzerkonten, keine geteilten Zugänge, Mehrfaktor-Authentisierung für alle administrativen Zugriffe, sofortiger Entzug beim Austritt.',
           'Berechtigungen: rollenbasierte Rechte in Elev8 Suite, Minimalprinzip, vierteljährliche Überprüfung der Zuweisungen.',
+          'Trennung nach Abteilung: Benutzer des Revenue Managements erhalten eine Rolle ohne Zugriff auf Nachrichteninhalte, Gesprächsaufzeichnungen und Ausweisdokumente. Die Rolle wird beim Anlegen gesetzt und vierteljährlich überprüft.',
           'Übertragung: TLS für sämtliche Verbindungen, keine Gastdaten über private Kanäle oder Privatgeräte.',
           'Speicherung: Die Daten liegen in Elev8 Suite; keine lokalen Kopien auf Endgeräten, keine Exporte ohne dokumentierten Anlass.',
           'Trennung: strikte Mandantentrennung in Elev8 Suite; ein GRO sieht ausschliesslich die ihm zugewiesenen Tenants.',
@@ -422,8 +434,8 @@ function platform(ctx) {
       'For the duration of a valid subscription the client receives a non-exclusive, non-transferable right to use Elev8 Suite within the agreed scope. The right is not restricted in substance for as long as the subscription is valid.'),
     P('Die Zahl der Benutzerkonten ist unbegrenzt. Der Kunde verwaltet seine Benutzer selbst, verantwortet deren Berechtigungen und die Geheimhaltung der Zugangsdaten und entzieht Zugänge unverzüglich, wenn eine Person ausscheidet.',
       'The number of user accounts is unlimited. The client manages its own users, is responsible for their permissions and for keeping credentials confidential, and withdraws access without delay when a person leaves.'),
-    P('Bleiben fällige Beträge länger als ' + GROUP.suspendDays + ' Tage offen, ist Elevate Software AG berechtigt, den Zugang zu deaktivieren, bis der Rückstand ausgeglichen ist. Der Vergütungsanspruch bleibt für diesen Zeitraum bestehen. Die Daten des Kunden bleiben während der Deaktivierung gespeichert.',
-      'If amounts due remain unpaid for more than ' + GROUP.suspendDays + ' days, Elevate Software AG is entitled to deactivate access until the arrears are settled. The right to remuneration for that period remains. The client’s data remains stored during deactivation.')
+    P('Das Nutzungsrecht besteht, solange die Subscription bezahlt ist. Die Folgen einer ausbleibenden Zahlung — mehrfacher Einzugsversuch, laufende Information des Kunden und Einstellung der Leistungen nach ' + GROUP.suspendDays + ' Tagen — regelt Ziffer 5.',
+      'The right of use exists for as long as the subscription is paid. The consequences of non-payment — repeated charge attempts, ongoing notification of the client and suspension of services after ' + GROUP.suspendDays + ' days — are governed by section 5.')
   ]);
 
   S('3', L('Verfügbarkeit und Betrieb', 'Availability and operation'), [
@@ -447,8 +459,12 @@ function platform(ctx) {
       [txt(L('Preis', 'Price'), l), platformPrice(ctx)],
       [txt(L('Einheiten bei Vertragsschluss', 'Units at signature'), l), ansOr(ctx, 'units')]
     ] },
-    P('Als Einheit gilt jede in Elev8 Suite aktive Einheit des Kunden, unabhängig davon, wie viele Angebote daraus gebildet werden. Die Abrechnung erfolgt monatlich, zahlbar innert 30 Tagen ab Rechnungsdatum ohne Abzug. Alle Beträge verstehen sich netto zuzüglich allfälliger Steuern und Abgaben.',
-      'A unit means every unit of the client active in Elev8 Suite, regardless of how many listings are formed from it. Invoicing is monthly, payable within 30 days of the invoice date without deduction. All amounts are net and exclusive of any taxes and levies.'),
+    P('Als Einheit gilt jede in Elev8 Suite aktive Einheit des Kunden, unabhängig davon, wie viele Angebote daraus gebildet werden. Alle Beträge verstehen sich netto zuzüglich allfälliger Steuern und Abgaben.',
+      'A unit means every unit of the client active in Elev8 Suite, regardless of how many listings are formed from it. All amounts are net and exclusive of any taxes and levies.'),
+    P('Die Abrechnung erfolgt monatlich im Voraus. Am ersten Tag jedes Monats wird die Vergütung für den kommenden Monat über die vom Kunden hinterlegte Kreditkarte eingezogen. Das gilt für sämtliche aktiven Einheiten und für alle gebuchten Module, einschliesslich der Leistungsscheine. Der Kunde hält eine gültige Kreditkarte mit ausreichender Deckung hinterlegt und aktualisiert sie unverzüglich, wenn sie abläuft, gesperrt oder ersetzt wird.',
+      'Billing is monthly in advance. On the first day of each month the fee for the coming month is charged to the credit card the client has provided. This covers all active units and all booked modules, including the service schedules. The client keeps a valid credit card with sufficient funds on file and updates it without delay if it expires, is blocked or is replaced.'),
+    P('Scheitert der Einzug, informiert Elevate Software AG den Kunden und wiederholt den Einzug mehrfach. Ist die Vergütung zehn Tage nach Fälligkeit weiterhin nicht vollständig beglichen, stellt Elevate Software AG die Leistungen ein und deaktiviert den Zugang, bis der Rückstand vollständig ausgeglichen ist. Der Vergütungsanspruch bleibt für diesen Zeitraum bestehen; die Daten des Kunden bleiben während der Einstellung gespeichert.',
+      'If the charge fails, Elevate Software AG informs the client and retries the charge several times. If the fee is still not settled in full ten days after it fell due, Elevate Software AG suspends the services and deactivates access until the arrears are settled in full. The right to remuneration for that period remains; the client’s data stays stored during the suspension.'),
     P('Ändert sich die Anzahl der Einheiten, wird taggenau pro rata abgerechnet: Jede Einheit wird ab dem Tag ihrer Aktivierung und bis zum Tag ihrer Deaktivierung berechnet.',
       'If the number of units changes, billing is pro rata on a daily basis: each unit is charged from the day it is activated until the day it is deactivated.'),
     P('Bei Zahlungsverzug fallen Verzugszinsen in gesetzlicher Höhe an. Aufrechnen darf der Kunde nur mit unbestrittenen oder rechtskräftig festgestellten Forderungen. Elevate Software AG kann die Vergütung einmal je Kalenderjahr mit einer Frist von zwei Monaten zum Monatsende anpassen; übersteigt die Erhöhung fünf Prozent, steht dem Kunden ein Sonderkündigungsrecht zum Wirksamwerden der Anpassung zu.',
@@ -573,8 +589,8 @@ function gro(ctx) {
   S('1', L('Gegenstand und Verhältnis zum Rahmenvertrag', 'Subject matter and relation to the framework agreement'), [
     P('Dieser Leistungsschein ergänzt den zwischen den Parteien geschlossenen Rahmenvertrag Elev8 Suite und gilt nur zusammen mit ihm. Soweit hier nichts Abweichendes geregelt ist, gelten die Bestimmungen des Rahmenvertrags, insbesondere zu Vergütungsmodalitäten, Haftung, höherer Gewalt, Vertraulichkeit, Abwerbeverbot, anwendbarem Recht und Gerichtsstand.',
       'This service schedule supplements the Elev8 Suite framework agreement concluded between the parties and applies only together with it. Unless otherwise provided here, the provisions of the framework agreement apply, in particular on payment terms, liability, force majeure, confidentiality, non-solicitation, applicable law and jurisdiction.'),
-    P('Elevate Software AG erbringt für den Kunden Guest-Relations-Leistungen. Sie erbringt diese Leistungen über ihre Plattform Elev8 Suite. Ein Guest Relations Officer (nachfolgend „GRO") führt die Kommunikation mit den Gästen des Kunden im Namen und im Auftrag des Kunden. Der GRO tritt gegenüber Gästen unter dem vom Kunden bestimmten Namen auf. Die betreuenden Mitarbeitenden sind bei ' + GROUP.opsName + ' angestellt, einer Schwestergesellschaft von Elevate Software AG.',
-      'Elevate Software AG provides guest relations services to the client. It delivers those services through its platform, Elev8 Suite. A Guest Relations Officer (“GRO”) handles communication with the client’s guests in the client’s name and on the client’s behalf. Towards guests the GRO appears under the name specified by the client. The staff serving the client are employed by ' + GROUP.opsName + ', a sister company of Elevate Software AG.'),
+    P('Elevate Software AG erbringt für den Kunden Guest-Relations-Leistungen. Sie erbringt diese Leistungen über ihre Plattform Elev8 Suite. Ein Guest Relations Officer (nachfolgend „GRO") führt die Kommunikation mit den Gästen des Kunden im Namen und im Auftrag des Kunden. Der GRO tritt gegenüber Gästen unter dem vom Kunden bestimmten Namen auf. Die betreuenden Guest Relations Officer sind bei ' + GROUP.opsName + ' angestellt, einer Schwestergesellschaft von Elevate Software AG, und gehören dort der Abteilung Guest Relations an.',
+      'Elevate Software AG provides guest relations services to the client. It delivers those services through its platform, Elev8 Suite. A Guest Relations Officer (“GRO”) handles communication with the client’s guests in the client’s name and on the client’s behalf. Towards guests the GRO appears under the name specified by the client. The Guest Relations Officers serving the client are employed by ' + GROUP.opsName + ', a sister company of Elevate Software AG, in its guest relations department.'),
     { kv: [
       [txt(L('Objekt', 'Property'), l), ansOr(ctx, 'address')],
       [txt(L('Anzahl Einheiten', 'Number of units'), l), ansOr(ctx, 'units')],
@@ -681,8 +697,8 @@ function gro(ctx) {
       [txt(L('Einmalige Einrichtung', 'One-off setup'), l),
         tm.setup_fee ? money(tm.setup_fee, tm.currency, l) : txt(L('entfällt', 'not applicable'), l)]
     ] },
-    P('Als Einheit gilt jede in Elev8 Suite aktive Einheit des Kunden, unabhängig davon, wie viele Angebote daraus gebildet werden. Die Abrechnung erfolgt monatlich im Voraus, zahlbar innert 30 Tagen ab Rechnungsdatum ohne Abzug. Alle Beträge verstehen sich netto zuzüglich allfälliger Steuern und Abgaben.',
-      'A unit means every unit of the client active in Elev8 Suite, regardless of how many listings are formed from it. Invoicing is monthly in advance, payable within 30 days of the invoice date without deduction. All amounts are net and exclusive of any taxes and levies.'),
+    P('Als Einheit gilt jede in Elev8 Suite aktive Einheit des Kunden, unabhängig davon, wie viele Angebote daraus gebildet werden. Alle Beträge verstehen sich netto zuzüglich allfälliger Steuern und Abgaben. Der Einzug erfolgt zusammen mit der Vergütung für die Plattform am ersten Tag jedes Monats für den kommenden Monat über die hinterlegte Kreditkarte.',
+      'A unit means every unit of the client active in Elev8 Suite, regardless of how many listings are formed from it. All amounts are net and exclusive of any taxes and levies. The charge is made together with the platform fee on the first day of each month for the coming month, to the credit card on file.'),
     P('Ändert sich die Anzahl der Einheiten, wird taggenau pro rata abgerechnet: Jede Einheit wird ab dem Tag ihrer Aktivierung und bis zum Tag ihrer Deaktivierung in Elev8 Suite berechnet. Die Differenz erscheint auf der nächsten Rechnung.',
       'If the number of units changes, billing is pro rata on a daily basis: each unit is charged from the day it is activated until the day it is deactivated in Elev8 Suite. The difference appears on the next invoice.'),
     P('Zahlungsmodalitäten, Verzugsfolgen und Preisanpassung richten sich nach dem Rahmenvertrag Elev8 Suite.',
@@ -755,6 +771,288 @@ function monthlyTotal(ctx) {
   return (tm.currency || 'EUR') + ' ' + total.toFixed(2).replace('.', ctx.lang === 'en' ? '.' : ',');
 }
 
+/* ---------------- Leistungsschein Revenue Management ---------------- */
+
+function rmPrice(ctx) {
+  const tm = ctx.terms;
+  const l = ctx.lang;
+  const base = money(tm.rm_price_per_unit, tm.currency, l) + ' ' +
+    txt(L('je Einheit und Monat', 'per unit and month'), l);
+  if (String(tm.rm_tier_from || '').trim() && String(tm.rm_tier_price || '').trim()) {
+    return base + '; ' + txt(L('ab ' + tm.rm_tier_from + ' Einheiten ' +
+      money(tm.rm_tier_price, tm.currency, l) + ' je Einheit und Monat',
+      'from ' + tm.rm_tier_from + ' units ' + money(tm.rm_tier_price, tm.currency, l) +
+      ' per unit and month'), l);
+  }
+  return base;
+}
+
+function rm(ctx) {
+  const l = ctx.lang;
+  const en = l === 'en';
+  const tm = ctx.terms;
+  const sections = [];
+  const S = function (n, h, blocks) { sections.push({ n: n, h: txt(h, l), blocks: blocks }); };
+  const P = function (de, enTxt) { return { p: txt(L(de, enTxt), l) }; };
+
+  S('1', L('Gegenstand und Verhältnis zum Rahmenvertrag', 'Subject matter and relation to the framework agreement'), [
+    P('Dieser Leistungsschein ergänzt den zwischen den Parteien geschlossenen Rahmenvertrag Elev8 Suite und gilt nur zusammen mit ihm. Soweit hier nichts Abweichendes geregelt ist, gelten die Bestimmungen des Rahmenvertrags, insbesondere zu Zahlung und Einzug, Haftung, höherer Gewalt, Vertraulichkeit, Abwerbeverbot, anwendbarem Recht und Gerichtsstand.',
+      'This service schedule supplements the Elev8 Suite framework agreement concluded between the parties and applies only together with it. Unless otherwise provided here, the provisions of the framework agreement apply, in particular on payment and collection, liability, force majeure, confidentiality, non-solicitation, applicable law and jurisdiction.'),
+    P('Elevate Software AG übernimmt für den Kunden das Revenue Management der in Elev8 Suite verbundenen Einheiten. Die Arbeit leistet ein Revenue Manager. Das Revenue Management ist eine von der Gästebetreuung getrennte Abteilung bei ' + GROUP.opsName + ' mit eigenem, eingeschränktem Zugang: Es sieht Buchungs- und Gastprofildaten zur Segmentierung, jedoch keine Nachrichteninhalte, Gesprächsaufzeichnungen oder Ausweisdokumente.',
+      'Elevate Software AG takes on revenue management for the client for the units connected in Elev8 Suite. The work is performed by a revenue manager. Revenue management is a department at ' + GROUP.opsName + ' separate from guest relations, with its own restricted access: it sees booking and guest profile data for segmentation, but no message content, call recordings or identity documents.'),
+    { kv: [
+      [txt(L('Objekt', 'Property'), l), ansOr(ctx, 'address')],
+      [txt(L('Anzahl Einheiten', 'Number of units'), l), ansOr(ctx, 'units')],
+      [txt(L('Optimierungsziel', 'Optimisation goal'), l), ansOr(ctx, 'rm_goal')],
+      [txt(L('Zielauslastung', 'Target occupancy'), l), ansOr(ctx, 'rm_target_occupancy')],
+      [txt(L('Leistungsbeginn', 'Start of service'), l), startText(ctx)]
+    ] }
+  ]);
+
+  S('2', L('Leistungsumfang', 'Scope of services'), [
+    P('Ab Vertragsbeginn:', 'From the start of the agreement:'),
+    { ul: en ? [
+      'Daily pricing for all connected units within the agreed corridor.',
+      'Minimum stay, lead-time rules and arrival and departure restrictions within the agreed ranges.',
+      'Season and event calendar, maintenance of the price curve.',
+      'Targeted pricing of orphan gaps — single nights between bookings.',
+      'Discount ladders for last-minute, early-bird and long stays within the agreed limits.',
+      'Monitoring of rate parity across the connected channels.',
+      'Maintenance of rate plans and cancellation terms in Elev8 Suite.',
+      'Regular report with pace, forecast and recommendations.'
+    ] : [
+      'Tagesaktuelle Preissetzung für alle verbundenen Einheiten innerhalb des vereinbarten Korridors.',
+      'Mindestaufenthalt, Vorlauffristen sowie An- und Abreisebeschränkungen innerhalb der vereinbarten Spannen.',
+      'Saison- und Ereigniskalender, Pflege der Preiskurve.',
+      'Gezielte Bepreisung von Orphan Gaps — Einzelnächten zwischen Buchungen.',
+      'Rabattleitern für Last Minute, Frühbucher und Langzeit innerhalb der vereinbarten Grenzen.',
+      'Überwachung der Preisparität über die verbundenen Kanäle.',
+      'Pflege von Rate-Plans und Stornobedingungen in Elev8 Suite.',
+      'Regelmässiger Bericht mit Pace, Forecast und Empfehlungen.'
+    ] },
+    P('Ab Verfügbarkeit der Content-Schnittstelle zu den Buchungsportalen, ohne Preisänderung und ohne Nachtrag:',
+      'From the availability of the content interface to the booking portals, at no change in price and without an addendum:'),
+    { ul: en ? [
+      'Maintenance of titles, descriptions and amenity attributes on the connected channels.',
+      'Uploading and ordering of image material supplied by the client.',
+      'Ongoing observation of visibility factors and recommendations derived from them.'
+    ] : [
+      'Pflege von Titeln, Beschreibungen und Ausstattungsmerkmalen auf den verbundenen Kanälen.',
+      'Einspielen und Sortieren des vom Kunden gelieferten Bildmaterials.',
+      'Laufende Beobachtung der Sichtbarkeitsfaktoren und daraus abgeleitete Empfehlungen.'
+    ] },
+    P('Elevate Software AG nennt keinen Termin für die Verfügbarkeit der Schnittstelle und schuldet sie nicht. Bis dahin bleibt die Vergütung unverändert; ein Abzug wegen noch nicht aktivierter Leistungen ist ausgeschlossen.',
+      'Elevate Software AG names no date for the availability of the interface and does not owe it. Until then the fee remains unchanged; a deduction for services not yet activated is excluded.'),
+    { kv: [
+      [txt(L('Preispflege', 'Price maintenance'), l),
+        txt(L('täglich automatisiert, wöchentlich durch einen Revenue Manager geprüft',
+          'automated daily, reviewed weekly by a revenue manager'), l)],
+      [txt(L('Arbeitszeiten Revenue Management', 'Revenue management working hours'), l),
+        txt(L('Montag bis Samstag zu Bürozeiten', 'Monday to Saturday during office hours'), l)]
+    ] }
+  ]);
+
+  S('3', L('Der Preiskorridor', 'The price corridor'), [
+    P('Der Kunde legt für jede Einheit einen Mindestpreis, einen Basispreis und einen Höchstpreis fest. Elevate Software AG unterbreitet dazu einen Vorschlag aus der Historie des Kunden und aus Marktdaten; die Entscheidung trifft der Kunde. Der festgelegte Korridor ist Anlage 1 dieses Leistungsscheins.',
+      'For each unit the client sets a minimum price, a base price and a maximum price. Elevate Software AG submits a proposal based on the client’s history and on market data; the decision is the client’s. The agreed corridor is Annex 1 to this service schedule.'),
+    P('Innerhalb des Korridors handelt Elevate Software AG ohne Rückfrage. Den Korridor selbst verschiebt sie nie ohne Freigabe des Kunden.',
+      'Within the corridor Elevate Software AG acts without asking. It never moves the corridor itself without the client’s approval.'),
+    { kvHead: [txt(L('Gegenstand', 'Matter'), l), txt(L('Ohne Rückfrage', 'Without asking'), l), txt(L('Freigabe nötig', 'Approval required'), l)],
+      rows: (en ? [
+        ['Daily price within minimum and maximum', 'yes', ''],
+        ['Base price and season curve', 'yes', ''],
+        ['Minimum stay, lead times, arrival and departure days', 'yes', ''],
+        ['Orphan gap pricing', 'yes', ''],
+        ['Discount ladders within the agreed limit', 'yes', ''],
+        ['Changing the minimum or maximum price itself', '', 'yes'],
+        ['Opening or closing a channel', '', 'yes'],
+        ['Changing cancellation terms', '', 'yes'],
+        ['Changing the cleaning fee or ancillary charges', '', 'yes'],
+        ['Creating or deleting a rate plan', '', 'yes']
+      ] : [
+        ['Tagespreis innerhalb von Minimum und Maximum', 'ja', ''],
+        ['Basispreis und Saisonkurve', 'ja', ''],
+        ['Mindestaufenthalt, Vorlauffristen, An- und Abreisetage', 'ja', ''],
+        ['Bepreisung von Orphan Gaps', 'ja', ''],
+        ['Rabattleitern innerhalb der vereinbarten Grenze', 'ja', ''],
+        ['Minimum oder Maximum selbst verändern', '', 'ja'],
+        ['Kanal öffnen oder schliessen', '', 'ja'],
+        ['Stornobedingungen ändern', '', 'ja'],
+        ['Reinigungsgebühr oder Nebenkosten ändern', '', 'ja'],
+        ['Rate-Plan anlegen oder löschen', '', 'ja']
+      ]) },
+    { kv: [
+      [txt(L('Spanne Mindestaufenthalt', 'Minimum stay range'), l), ansOr(ctx, 'rm_minstay')],
+      [txt(L('Maximaler Rabatt', 'Maximum discount'), l), ansOr(ctx, 'rm_discount_max')],
+      [txt(L('Last Minute', 'Last minute'), l), ansOr(ctx, 'rm_lastminute')],
+      [txt(L('Frühbucher', 'Early bird'), l), ansOr(ctx, 'rm_earlybird')],
+      [txt(L('Preisparität', 'Rate parity'), l), ansOr(ctx, 'rm_parity')]
+    ] },
+    P('Der Korridor gilt unbefristet. Einmal jährlich unterbreitet Elevate Software AG einen Vorschlag zur Anpassung; bis zur Freigabe durch den Kunden gilt der bisherige Korridor weiter.',
+      'The corridor applies indefinitely. Once a year Elevate Software AG submits a proposal for adjustment; until the client approves it, the existing corridor continues to apply.')
+  ]);
+
+  S('4', L('Eingriffe des Kunden', 'Client interventions'), [
+    P('Der Kunde darf jederzeit selbst Preise, Restriktionen oder Verfügbarkeiten setzen. Für die betroffenen Einheiten und Zeiträume entfällt dadurch jede Zielzusage von Elevate Software AG. Jeder Eingriff wird im Bericht mit Datum, Einheit und geschätzter Auswirkung ausgewiesen.',
+      'The client may set prices, restrictions or availability at any time. For the units and periods concerned, any target commitment by Elevate Software AG lapses. Every intervention is shown in the report with date, unit and estimated effect.')
+  ]);
+
+  S('5', L('Eskalation', 'Escalation'), [
+    P('Weicht die Belegung der kommenden 30 Tage um mehr als 15 Prozentpunkte vom Vorjahreswert oder vom Forecast ab, meldet Elevate Software AG dies innerhalb von drei Werktagen in Textform und unterbreitet einen Vorschlag. Unabhängig davon meldet sie erkannte Paritätsverstösse und technische Störungen der Preisverteilung unverzüglich.',
+      'If occupancy for the coming 30 days deviates by more than 15 percentage points from the previous year or from the forecast, Elevate Software AG reports this in text form within three working days and submits a proposal. Independently of this it reports detected parity breaches and technical failures in price distribution without delay.')
+  ]);
+
+  S('6', L('Berichtswesen', 'Reporting'), [
+    { kv: [
+      [txt(L('Rhythmus', 'Frequency'), l), ansOr(ctx, 'rm_report_rhythm')],
+      [txt(L('Empfänger', 'Recipient'), l), ansOr(ctx, 'rm_report_to')]
+    ] },
+    P('Der Bericht enthält Kernzahlen gegen Vormonat und Vorjahr, die Belegungsentwicklung für die kommenden 30, 60 und 90 Tage, den Kanalmix, die stärksten und schwächsten Einheiten, einen Marktvergleich, die durchgeführten Massnahmen, die Eingriffe des Kunden sowie Empfehlungen. Kennzahlen, die Elev8 Suite nicht zuverlässig liefert — derzeit der Bewertungsschnitt — sind nicht Bestandteil des Berichts.',
+      'The report contains key figures against the previous month and previous year, the occupancy pace for the coming 30, 60 and 90 days, the channel mix, the strongest and weakest units, a market comparison, the measures taken, the client’s interventions and recommendations. Key figures that Elev8 Suite does not deliver reliably — currently the average review score — are not part of the report.')
+  ]);
+
+  S('7', L('Mitwirkungspflichten des Kunden', 'Client’s duties to cooperate'), [
+    { ul: en ? [
+      'Set the corridor per unit and approve adjustments without undue delay.',
+      'Conclude and maintain the contracts with the booking portals; Elevate Software AG does not act as a contracting party towards the portals.',
+      'Keep unit data in Elev8 Suite current and remove units that are no longer let, so that reports are not distorted.',
+      'Supply image material and, where required, texts for the content services.',
+      'Report offline bookings, owner stays and blocks promptly.'
+    ] : [
+      'Den Korridor je Einheit festlegen und Anpassungen ohne unnötige Verzögerung freigeben.',
+      'Die Verträge mit den Buchungsportalen selbst schliessen und unterhalten; Elevate Software AG tritt gegenüber den Portalen nicht als Vertragspartei auf.',
+      'Die Einheitendaten in Elev8 Suite aktuell halten und nicht mehr vermietete Einheiten entfernen, damit die Auswertungen nicht verzerrt werden.',
+      'Bildmaterial und, soweit erforderlich, Texte für die Content-Leistungen liefern.',
+      'Offline-Buchungen, Eigennutzung und Blockierungen zeitnah erfassen.'
+    ] }
+  ]);
+
+  S('8', L('Nicht enthaltene Leistungen', 'Services not included'), [
+    { ul: en ? [
+      'Guest communication — that is the subject of the guest relations service schedule.',
+      'Photo production and copywriting in foreign languages.',
+      'Concluding contracts with booking portals.',
+      'Any guarantee of a particular ranking, occupancy, average rate or revenue.',
+      'Handing over the pricing tool or an account in it.'
+    ] : [
+      'Gästekommunikation — dafür gilt der Leistungsschein Guest Relations.',
+      'Fotoproduktion und Texterstellung in Fremdsprachen.',
+      'Abschluss von Verträgen mit Buchungsportalen.',
+      'Jede Garantie für ein bestimmtes Ranking, eine Auslastung, einen Durchschnittspreis oder einen Umsatz.',
+      'Herausgabe des Preiswerkzeugs oder eines Zugangs dazu.'
+    ] }
+  ]);
+
+  S('9', L('Werkzeuge und Arbeitsergebnisse', 'Tools and work product'), [
+    P('Elevate Software AG setzt zur Preissetzung eigene Werkzeuge und Verfahren ein und betreibt sie auf eigene Rechnung. Ein Zugang des Kunden zu diesen Werkzeugen ist nicht Gegenstand dieses Leistungsscheins.',
+      'Elevate Software AG uses its own tools and methods for pricing and operates them at its own expense. Client access to those tools is not part of this service schedule.'),
+    P('Die Buchungs-, Gast- und Objektdaten des Kunden gehören ihm; das regelt der Rahmenvertrag. Die von Elevate Software AG daraus abgeleiteten Preisparameter, Regelwerke, Vergleichsgruppen und Auswertungsmethoden sind demgegenüber Arbeitsergebnis von Elevate Software AG und verbleiben bei ihr. Nach Vertragsende erhält der Kunde auf Anfrage die zuletzt gültigen Preise und den Korridor in einem gängigen Format.',
+      'The client’s booking, guest and property data belongs to the client; this is governed by the framework agreement. By contrast, the pricing parameters, rule sets, comparison groups and analysis methods derived from it by Elevate Software AG are its work product and remain with it. After the agreement ends, the client receives on request the last valid prices and the corridor in a common format.')
+  ]);
+
+  S('10', L('Vergütung', 'Remuneration'), [
+    { kv: [
+      [txt(L('Preis', 'Price'), l), rmPrice(ctx)],
+      [txt(L('Abgerechnete Einheiten', 'Units billed'), l), ansOr(ctx, 'units')],
+      [txt(L('Monatliche Vergütung', 'Monthly fee'), l), rmTotal(ctx)]
+    ] },
+    P('Die Vergütung wird zusammen mit der Vergütung für die Plattform am ersten Tag jedes Monats für den kommenden Monat über die hinterlegte Kreditkarte eingezogen. Die Werkzeugkosten sind darin enthalten. Ändert sich die Anzahl der Einheiten, wird taggenau pro rata abgerechnet. Im Übrigen gilt Ziffer 5 des Rahmenvertrags.',
+      'The fee is charged together with the platform fee on the first day of each month for the coming month, to the credit card on file. Tool costs are included. If the number of units changes, billing is pro rata on a daily basis. Section 5 of the framework agreement applies in all other respects.')
+  ]);
+
+  S('11', L('Laufzeit und Kündigung', 'Term and termination'), [
+    { kv: [
+      [txt(L('Beginn', 'Start'), l), startText(ctx)],
+      [txt(L('Mindestlaufzeit', 'Minimum term'), l),
+        (tm.rm_term_months || '6') + ' ' + txt(L('Monate', 'months'), l)],
+      [txt(L('Kündigungsfrist', 'Notice period'), l),
+        (tm.rm_notice_months || '3') + ' ' + txt(L('Monate zum Monatsende', 'months to the end of a month'), l)]
+    ] },
+    P('Die Mindestlaufzeit trägt dem Umstand Rechnung, dass Preisstrategie erst über das Buchungsfenster wirkt. Nach ihrem Ablauf verlängert sich der Leistungsschein unbefristet und kann mit der genannten Frist gekündigt werden. Mit dem Ende des Rahmenvertrags endet auch dieser Leistungsschein.',
+      'The minimum term reflects the fact that pricing strategy only takes effect over the booking window. After it expires the service schedule continues indefinitely and may be terminated on the stated notice. When the framework agreement ends, this service schedule ends as well.')
+  ]);
+
+  S('12', L('Haftung', 'Liability'), [
+    P('Es gilt die Haftungsregelung des Rahmenvertrags Elev8 Suite. Ergänzend gilt für diesen Leistungsschein:',
+      'The liability provisions of the Elev8 Suite framework agreement apply. In addition, the following applies to this service schedule:'),
+    { ul: en ? [
+      'Pricing decisions taken within the corridor set out in section 3 are deemed authorised by the client.',
+      'No particular commercial outcome is owed — in particular no occupancy, no average rate, no revenue and no ranking.',
+      'Elevate Software AG is not liable for the consequences of incorrect or outdated data supplied by the client, nor for its interventions under section 4.',
+      'Elevate Software AG is not liable for outages or malfunctions of the booking channels, the channel connection or the pricing tool.',
+      'Market data and forecasts are estimates; no liability attaches to their accuracy.'
+    ] : [
+      'Preisentscheidungen innerhalb des Korridors nach Ziffer 3 gelten als vom Kunden autorisiert.',
+      'Ein bestimmter wirtschaftlicher Erfolg wird nicht geschuldet — insbesondere keine Auslastung, kein Durchschnittspreis, kein Umsatz und kein Ranking.',
+      'Elevate Software AG haftet nicht für Folgen unrichtiger oder veralteter Daten des Kunden und nicht für dessen Eingriffe nach Ziffer 4.',
+      'Elevate Software AG haftet nicht für Ausfälle oder Fehlfunktionen der Buchungskanäle, der Kanalanbindung oder des Preiswerkzeugs.',
+      'Marktdaten und Prognosen sind Schätzungen; für ihre Richtigkeit wird nicht gehaftet.'
+    ] }
+  ]);
+
+  S('13', L('Schlussbestimmungen', 'Final provisions'), [
+    P('Änderungen und Ergänzungen bedürfen der Textform. Angaben, die als vertragsrelevant gekennzeichnet sind, können nach der Unterzeichnung nur durch einen von beiden Seiten bestätigten Nachtrag geändert werden. Der Preiskorridor in Anlage 1 wird abweichend davon durch die in Ziffer 3 beschriebene Freigabe angepasst.',
+      'Amendments and additions require text form. Entries marked as contractually relevant can be changed after signature only by an addendum confirmed by both sides. By way of exception, the price corridor in Annex 1 is adjusted through the approval process described in section 3.'),
+    P('Bei Widersprüchen geht der Rahmenvertrag diesem Leistungsschein vor, soweit hier nicht ausdrücklich etwas anderes bestimmt ist. In Datenschutzfragen geht der Vertrag zur Auftragsverarbeitung beiden vor.',
+      'In case of conflict the framework agreement prevails over this service schedule unless expressly provided otherwise here. On data protection matters the data processing agreement prevails over both.'),
+    P('Dieser Leistungsschein liegt in deutscher und englischer Sprache vor. Verbindlich ist ausschliesslich die deutsche Fassung; die englische Fassung dient dem Verständnis.',
+      'This service schedule exists in German and English. Only the German version is binding; the English version serves comprehension only.')
+  ]);
+
+  return {
+    key: 'rm',
+    title: txt(L('Leistungsschein Revenue Management', 'Revenue Management Service Schedule'), l),
+    subtitle: txt(L('Zum Rahmenvertrag Elev8 Suite', 'To the Elev8 Suite framework agreement'), l),
+    parties: partyBlock(ctx, L('Kunde', 'Client'), L('Dienstleister', 'Service provider')),
+    sections: sections,
+    annexes: corridorAnnex(ctx)
+  };
+}
+
+function rmTotal(ctx) {
+  const tm = ctx.terms;
+  const units = parseInt(String((ctx.answers && ctx.answers.units) || '').replace(/\D/g, ''), 10);
+  const tierFrom = parseInt(String(tm.rm_tier_from || '').replace(/\D/g, ''), 10);
+  const rate = (units && tierFrom && units >= tierFrom && String(tm.rm_tier_price || '').trim())
+    ? parseFloat(String(tm.rm_tier_price).replace(',', '.'))
+    : parseFloat(String(tm.rm_price_per_unit || '').replace(',', '.'));
+  if (!rate || !units) return money('', tm.currency, ctx.lang);
+  const total = Math.round(rate * units * 100) / 100;
+  return (tm.currency || 'EUR') + ' ' + total.toFixed(2).replace('.', ctx.lang === 'en' ? '.' : ',');
+}
+
+/** Anlage 1: der Preiskorridor, wie ihn der Kunde im Formular festgelegt hat. */
+function corridorAnnex(ctx) {
+  const l = ctx.lang;
+  const raw = (ctx.answers && ctx.answers.rm_corridor) || '';
+  let rows = [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) rows = parsed;
+  } catch (e) { rows = []; }
+
+  const cur = ctx.terms.currency || 'EUR';
+  const body = rows.length
+    ? rows.map(function (r) {
+      return [String(r.name || r.id || ''),
+        r.min ? cur + ' ' + r.min : orOpen('', l),
+        r.base ? cur + ' ' + r.base : orOpen('', l),
+        r.max ? cur + ' ' + r.max : orOpen('', l)];
+    })
+    : [[orOpen('', l), orOpen('', l), orOpen('', l), orOpen('', l)]];
+
+  return [{
+    h: txt(L('Anlage 1 — Preiskorridor je Einheit', 'Annex 1 — Price corridor per unit'), l),
+    blocks: [
+      { p: txt(L('Innerhalb dieser Grenzen setzt Elevate Software AG die Preise ohne Rückfrage. Die Grenzen selbst werden nur mit Freigabe des Kunden verändert.',
+        'Within these limits Elevate Software AG sets prices without asking. The limits themselves are changed only with the client’s approval.'), l) },
+      { kvHead: [txt(L('Einheit', 'Unit'), l), txt(L('Minimum', 'Minimum'), l),
+        txt(L('Basispreis', 'Base price'), l), txt(L('Maximum', 'Maximum'), l)],
+        rows: body }
+    ]
+  }];
+}
+
 /* ---------------- Ausgabe ---------------- */
 
 function esc(s) {
@@ -818,10 +1116,11 @@ function build(kind, intake, answers, terms, lang) {
   const ctx = buildContext(intake, answers, terms, lang);
   if (kind === 'avv') return avv(ctx);
   if (kind === 'platform') return platform(ctx);
+  if (kind === 'rm') return rm(ctx);
   return gro(ctx);
 }
 
 module.exports = {
-  ELEV8, GROUP, DEFAULT_TERMS, buildContext, build, avv, gro, platform,
+  ELEV8, GROUP, DEFAULT_TERMS, buildContext, build, avv, gro, platform, rm,
   subprocessors, documentHtml, documentText, today, money
 };
