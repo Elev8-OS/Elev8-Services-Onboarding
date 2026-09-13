@@ -63,53 +63,114 @@ function parseMatrix(v) {
  */
 function matrixControl(f, v, lang, units, opts) {
   const o = opts || {};
+  const cols = (f.columns || []).map(function (c) {
+    return { key: c.key, kind: c.kind || 'text', label: t(c.label, lang), hint: t(c.hint, lang) };
+  });
+  const keys = cols.map(function (c) { return c.key; });
   const stored = parseMatrix(v);
   const byId = {};
   stored.forEach(function (r) { if (r && (r.id || r.name)) byId[r.id || r.name] = r; });
 
+  const take = function (src, id, name, city) {
+    const row = { id: id, name: name, city: city || '', est: src.est || 0, pl: src.pl || 0 };
+    keys.forEach(function (k) { row[k] = src[k] == null ? '' : String(src[k]); });
+    return row;
+  };
   const list = (units && units.length)
     ? units.map(function (u) {
       const r = byId[u.id] || byId[u.name] || {};
-      return { id: u.id, name: r.name || u.name, city: u.city || '',
-        min: r.min || '', base: r.base || '', max: r.max || '', est: r.est || 0 };
+      return take(r, u.id, r.name || u.name, u.city);
     })
-    : stored.map(function (r) {
-      return { id: r.id || '', name: r.name || '', city: '', min: r.min || '',
-        base: r.base || '', max: r.max || '', est: r.est || 0 };
-    });
+    : stored.map(function (r) { return take(r, r.id || '', r.name || '', ''); });
 
-  const hidden = '<input type="hidden" name="' + f.id + '" value="' +
-    esc(list.length ? JSON.stringify(list.map(function (r) {
-      const out = { id: r.id, name: r.name, min: r.min, base: r.base, max: r.max };
-      if (r.est) out.est = 1;
-      return out;
-    })) : '') + '"' + (o.locked ? ' data-frozen="1"' : '') + '>';
+  const json = list.length ? JSON.stringify(list.map(function (r) {
+    const out = { id: r.id, name: r.name };
+    keys.forEach(function (k) { out[k] = r[k]; });
+    if (r.est) out.est = 1;
+    if (r.pl) out.pl = 1;
+    return out;
+  })) : '';
+  const hidden = '<input type="hidden" name="' + f.id + '" value="' + esc(json) + '"' +
+    (o.locked ? ' data-frozen="1"' : '') + '>';
 
   if (!list.length) return '<p class="fhelp">' + esc(t(UI.mxEmpty, lang)) + '</p>' + hidden;
 
   const cur = esc(o.currency || 'EUR');
   const dis = o.locked ? ' disabled' : '';
-  const cols = (f.columns || []).map(function (c) { return { key: c.key, label: t(c.label, lang) }; });
+  const nights = esc(t(UI.mxNights, lang));
 
-  const head = '<tr><th class="mxu">' + esc(t(UI.mxUnit, lang)) + '</th>' +
-    cols.map(function (c) { return '<th>' + esc(c.label) + '</th>'; }).join('') + '</tr>';
+  // Staedte fuer die Schnellauswahl - nur wenn es mehr als eine gibt.
+  const cities = [];
+  list.forEach(function (r) { if (r.city && cities.indexOf(r.city) < 0) cities.push(r.city); });
+  cities.sort(function (a, b) { return a.localeCompare(b, 'de'); });
 
-  const body = list.map(function (r) {
+  const head = '<tr>' +
+    '<th class="mxpick"><input type="checkbox" data-mxall title="' + esc(t(UI.mxAll, lang)) + '"' + dis + '></th>' +
+    '<th class="mxu">' + esc(t(UI.mxUnit, lang)) + '</th>' +
+    cols.map(function (c) {
+      return '<th' + (c.kind === 'nights' ? ' class="mxnight"' : '') + '>' +
+        '<span class="mxh">' + esc(c.label) + '</span>' +
+        (c.hint ? '<span class="mxhint">' + esc(c.hint) + '</span>' : '') + '</th>';
+    }).join('') +
+    '<th class="mxact"></th></tr>';
+
+  const body = list.map(function (r, i) {
     const cells = cols.map(function (c) {
+      const val = esc(r[c.key] || '');
+      if (c.kind === 'nights') {
+        return '<td class="mxnight"><div class="nights"><input type="text" inputmode="numeric" ' +
+          'data-mx="' + esc(c.key) + '" value="' + val + '" placeholder="1"' + dis + '>' +
+          '<span class="unit">' + nights + '</span></div></td>';
+      }
       return '<td><div class="money"><span class="cur">' + cur + '</span>' +
-        '<input type="text" inputmode="decimal" data-mx="' + esc(c.key) + '" value="' +
-        esc(r[c.key] || '') + '" placeholder="0"' + dis + '></div></td>';
+        '<input type="text" inputmode="decimal" data-mx="' + esc(c.key) + '" value="' + val +
+        '" placeholder="0"' + dis + '></div></td>';
     }).join('');
+    const flags = (r.pl ? '<span class="mxsrc" title="' + esc(t(UI.mxFromPl, lang)) + '">PriceLabs</span>' : '') +
+      (r.est ? '<span class="mxest" title="' + esc(t(UI.mxEstHint, lang)) + '">' + esc(t(UI.mxEst, lang)) + '</span>' : '');
     return '<tr data-mxrow data-uid="' + esc(r.id) + '" data-uname="' + esc(r.name) + '"' +
+      ' data-city="' + esc(r.city) + '"' + (r.pl ? ' data-pl="1"' : '') +
       (r.est ? ' class="est"' : '') + '>' +
+      '<td class="mxpick"><input type="checkbox" data-mxsel' + dis + '></td>' +
       '<th scope="row"><span class="mxn">' + esc(r.name) + '</span>' +
       (r.city ? '<span class="mxsub">' + esc(r.city) + '</span>' : '') +
-      (r.est ? '<span class="mxest" title="' + esc(t(UI.mxEstHint, lang)) + '">' +
-        esc(t(UI.mxEst, lang)) + '</span>' : '') +
-      '</th>' + cells + '</tr>';
+      (flags ? '<span class="mxflags">' + flags + '</span>' : '') +
+      '</th>' + cells +
+      '<td class="mxact"><button type="button" class="mini" data-mxtpl title="' +
+      esc(t(UI.mxTemplateHint, lang)) + '"' + dis + '>' + esc(t(UI.mxTemplate, lang)) + '</button></td>' +
+      '</tr>';
   }).join('');
 
-  return '<div class="mxwrap"><table class="mxt"><thead>' + head + '</thead><tbody>' +
+  // Kopierleiste: Vorlage waehlen, Spalten waehlen, auf die Auswahl uebertragen.
+  const chips = cols.map(function (c) {
+    return '<label class="chip"><input type="checkbox" data-mxcol="' + esc(c.key) + '" checked><span>' +
+      esc(c.label) + '</span></label>';
+  }).join('');
+  const groups = '<button type="button" class="mini" data-mxgroup="prices">' + esc(t(UI.mxOnlyPrices, lang)) + '</button>' +
+    '<button type="button" class="mini" data-mxgroup="stay">' + esc(t(UI.mxOnlyStay, lang)) + '</button>' +
+    '<button type="button" class="mini" data-mxgroup="all">' + esc(t(UI.mxAllCols, lang)) + '</button>';
+  const cityPick = cities.length > 1
+    ? '<select class="mxcity" data-mxcity><option value="">' + esc(t(UI.mxByCity, lang)) + '</option>' +
+      cities.map(function (c) { return '<option value="' + esc(c) + '">' + esc(c) + '</option>'; }).join('') +
+      '</select>'
+    : '';
+
+  const bar = o.locked ? '' : `<div class="mxbar" data-mxbar hidden>
+  <div class="mxbarrow">
+    <span class="mxcount" data-mxcount></span>
+    <button type="button" class="mini" data-mxnone>${esc(t(UI.mxNone, lang))}</button>
+    ${cityPick}
+  </div>
+  <div class="mxbarrow mxcopy" data-mxcopy hidden>
+    <span class="mxfrom">${esc(t(UI.mxFrom, lang))} <b data-mxfromname></b></span>
+    <div class="mxcols">${chips}</div>
+    <div class="mxgroups">${groups}</div>
+    <button type="button" class="mini primary" data-mxapply>${esc(t(UI.mxApply, lang))}</button>
+    <button type="button" class="mini" data-mxcancel>${esc(t(UI.mxCancel, lang))}</button>
+  </div>
+</div>`;
+
+  return bar + '<div class="mxwrap"><table class="mxt"><thead>' + head + '</thead><tbody>' +
     body + '</tbody></table></div>' +
     '<p class="fhelp mxnote">' + esc(t(UI.mxNote, lang)) + '</p>' + hidden;
 }

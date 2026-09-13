@@ -283,9 +283,22 @@ const SECTIONS = [
         help: L('Wir haben aus Ihrer Historie und dem Markt einen Vorschlag gerechnet. Innerhalb dieses Korridors setzen wir die Preise ohne Rückfrage; den Korridor selbst verschieben wir nie ohne Ihre Freigabe.',
           'We have calculated a proposal from your history and the market. Within this corridor we set prices without asking; we never move the corridor itself without your approval.'),
         columns: [
-          { key: 'min', label: L('Minimum', 'Minimum') },
-          { key: 'base', label: L('Basispreis', 'Base price') },
-          { key: 'max', label: L('Maximum', 'Maximum') }
+          { key: 'min', kind: 'money', label: L('Mindestpreis', 'Minimum price'),
+            hint: L('Darunter verkaufen wir nie.', 'We never sell below this.') },
+          { key: 'base', kind: 'money', label: L('Basispreis', 'Base price'),
+            hint: L('Der Preis bei normaler Nachfrage.', 'The price at normal demand.') },
+          { key: 'max', kind: 'money', label: L('Höchstpreis', 'Maximum price'),
+            hint: L('Die Obergrenze an Spitzentagen.', 'The ceiling on peak days.') },
+          { key: 'minstay', kind: 'nights', label: L('Min. Aufenthalt', 'Min. stay'),
+            hint: L('Kürzester Aufenthalt unter der Woche.', 'Shortest stay on weekdays.') },
+          { key: 'minstay_we', kind: 'nights', label: L('Min. Wochenende', 'Min. weekend'),
+            hint: L('Kürzester Aufenthalt mit Anreise Freitag oder Samstag.',
+              'Shortest stay arriving Friday or Saturday.') },
+          { key: 'maxstay', kind: 'nights', label: L('Max. Aufenthalt', 'Max. stay'),
+            hint: L('Längster Aufenthalt, den wir zulassen.', 'Longest stay we allow.') },
+          { key: 'gap', kind: 'nights', label: L('Lücke', 'Gap'),
+            hint: L('Kürzester Aufenthalt in einer Lücke zwischen zwei Buchungen.',
+              'Shortest stay in a gap between two bookings.') }
         ] },
       { id: 'rm_minstay', type: 'radio', contract: true,
         label: L('In welcher Spanne dürfen wir den Mindestaufenthalt setzen?',
@@ -784,9 +797,16 @@ function matrixLabel(v, lang) {
   let rows = [];
   try { const p = JSON.parse(v); if (Array.isArray(p)) rows = p; } catch (e) { rows = []; }
   if (!rows.length) return '';
+  const en = lang === 'en';
   return rows.map(function (r) {
-    return (r.name || r.id || '—') + ': ' + (r.min || '—') + ' / ' + (r.base || '—') + ' / ' + (r.max || '—') +
-      (r.est ? (lang === 'en' ? ' (estimated)' : ' (geschätzt)') : '');
+    const price = (r.min || '—') + ' / ' + (r.base || '—') + ' / ' + (r.max || '—');
+    const stay = [r.minstay, r.minstay_we, r.maxstay, r.gap].some(function (x) { return x; })
+      ? ' · ' + (en ? 'stay ' : 'Aufenthalt ') +
+        (r.minstay || '—') + ' / ' + (r.minstay_we || '—') + ' / ' + (r.maxstay || '—') +
+        ' · ' + (en ? 'gap ' : 'Lücke ') + (r.gap || '—')
+      : '';
+    return (r.name || r.id || '—') + ': ' + price + stay +
+      (r.est ? (en ? ' (estimated)' : ' (geschätzt)') : '');
   }).join('\n');
 }
 
