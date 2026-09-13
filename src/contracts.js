@@ -858,15 +858,17 @@ function rm(ctx) {
   S('2', L('Leistungsumfang', 'Scope of services'), scope2);
 
   S('3', L('Der Preiskorridor', 'The price corridor'), [
-    P('Der Kunde legt für jede Einheit einen Mindestpreis, einen Basispreis und einen Höchstpreis fest sowie den kürzesten und längsten Aufenthalt, den wir verkaufen dürfen — getrennt für die Woche, für Anreisen am Wochenende und für Lücken zwischen zwei Buchungen. Elevate Software AG unterbreitet dazu einen Vorschlag aus der Historie des Kunden, aus dem eingesetzten Preiswerkzeug und aus Marktdaten; die Entscheidung trifft der Kunde. Die festgelegten Werte sind Anlage 1 und Anlage 2 dieses Leistungsscheins. Sie gelten je Einheit und können sich von Einheit zu Einheit unterscheiden.',
-      'For each unit the client sets a minimum price, a base price and a maximum price, and the shortest and longest stay we may sell — separately for weekdays, for weekend arrivals and for gaps between two bookings. Elevate Software AG submits a proposal based on the client’s history, on the pricing tool in use and on market data; the decision is the client’s. The agreed values are Annex 1 and Annex 2 to this service schedule. They apply per unit and may differ from unit to unit.'),
+    P('Der Kunde legt für jede Einheit einen Mindestpreis und einen Basispreis fest sowie den kürzesten und längsten Aufenthalt, den wir verkaufen dürfen — getrennt für die Woche, für Anreisen am Wochenende und für Lücken zwischen zwei Buchungen. Der Höchstpreis in Anlage 1 ist ein Ausgangswert und keine vertragliche Obergrenze. Elevate Software AG unterbreitet zu allen Werten einen Vorschlag aus der Historie des Kunden, aus dem eingesetzten Preiswerkzeug und aus Marktdaten. Die festgelegten Werte sind Anlage 1 und Anlage 2 dieses Leistungsscheins. Sie gelten je Einheit und können sich von Einheit zu Einheit unterscheiden.',
+      'For each unit the client sets a minimum price and a base price, and the shortest and longest stay we may sell — separately for weekdays, for weekend arrivals and for gaps between two bookings. The maximum price in Annex 1 is a starting value and not a contractual ceiling. Elevate Software AG submits a proposal for all values based on the client’s history, on the pricing tool in use and on market data. The agreed values are Annex 1 and Annex 2 to this service schedule. They apply per unit and may differ from unit to unit.'),
+    P('Nach unten ist der Kunde geschützt, nach oben entscheidet Elevate Software AG. Der Mindestpreis ist verbindlich und wird nur mit Freigabe des Kunden verändert. Den Höchstpreis führt Elevate Software AG laufend selbst: sie darf ihn ohne Rückfrage anheben und überschreiten, insbesondere an Spitzenterminen, bei Grossereignissen und in Phasen ausserordentlicher Nachfrage. Eine Absenkung des Höchstpreises unter den Basispreis bedarf der Freigabe des Kunden.',
+      'Downwards the client is protected, upwards Elevate Software AG decides. The minimum price is binding and is changed only with the client’s approval. Elevate Software AG manages the maximum price on an ongoing basis: it may raise and exceed it without asking, in particular on peak dates, during major events and in periods of exceptional demand. Lowering the maximum price below the base price requires the client’s approval.'),
     P('Sämtliche Werte in Anlage 1 sind Nettopreise je Einheit und Nacht. Nicht enthalten sind Mehrwertsteuer und sonstige Umsatzsteuern, Kur-, Beherbergungs- und Tourismusabgaben, die Reinigungsgebühr, Zuschläge für zusätzliche Gäste, Haustiere oder Nebenleistungen sowie die Kaution. Diese Beträge setzt und pflegt der Kunde in Elev8 Suite; Elevate Software AG verändert sie nicht ohne seine Freigabe. Der Kunde verantwortet die korrekte Erhebung und Abführung von Steuern und Abgaben.',
       'All values in Annex 1 are net prices per unit and night. They exclude value added tax and other sales taxes, city, accommodation and tourism levies, the cleaning fee, surcharges for additional guests, pets or ancillary services, and the deposit. The client sets and maintains those amounts in Elev8 Suite; Elevate Software AG does not change them without the client’s approval. The client is responsible for correctly collecting and remitting taxes and levies.'),
-    P('Innerhalb des Korridors handelt Elevate Software AG ohne Rückfrage. Den Korridor selbst verschiebt sie nie ohne Freigabe des Kunden. Der Mindestpreis gilt nach Abzug sämtlicher Rabatte, Programme und Aktionen: was der Gast am Ende zahlt, liegt nie unter dem Mindestpreis. Einzige Ausnahme sind Lückennächte zwischen zwei bestehenden Buchungen; dort darf der Preis bis zum vereinbarten Maximalrabatt unter dem Mindestpreis liegen, weil eine solche Nacht sonst unverkäuflich bleibt.',
-      'Within the corridor Elevate Software AG acts without asking. It never moves the corridor itself without the client’s approval. The minimum price applies after all discounts, programmes and campaigns: what the guest finally pays is never below the minimum price. The only exception is gap nights between two existing bookings; there the price may fall below the minimum price by up to the agreed maximum discount, because such a night would otherwise remain unsold.'),
+    P('Der Mindestpreis gilt nach Abzug sämtlicher Rabatte, Programme und Aktionen: was der Gast am Ende zahlt, liegt nie unter dem Mindestpreis. Einzige Ausnahme sind Lückennächte zwischen zwei bestehenden Buchungen; dort darf der Preis bis zum vereinbarten Maximalrabatt unter dem Mindestpreis liegen, weil eine solche Nacht sonst unverkäuflich bleibt.',
+      'The minimum price applies after all discounts, programmes and campaigns: what the guest finally pays is never below the minimum price. The only exception is gap nights between two existing bookings; there the price may fall below the minimum price by up to the agreed maximum discount, because such a night would otherwise remain unsold.'),
     { kvHead: [txt(L('Gegenstand', 'Matter'), l), txt(L('Ohne Rückfrage', 'Without asking'), l), txt(L('Freigabe nötig', 'Approval required'), l)],
       rows: (en ? [
-        ['Daily price within minimum and maximum', 'yes', ''],
+        ['Daily price above the minimum price', 'yes', ''],
         ['Base price and season curve', 'yes', ''],
         ['Minimum and maximum stay within Annex 2', 'yes', ''],
         ['Orphan gap pricing', 'yes', ''],
@@ -875,13 +877,16 @@ function rm(ctx) {
         ['Time-limited campaigns within the agreed maximum discount', 'yes', ''],
         ['Campaigns beyond the maximum discount, or running longer than 90 days', '', 'yes'],
         ['Programmes that raise the commission or the channel fee', '', 'yes'],
-        ['Changing the values in Annex 1 or Annex 2 themselves', '', 'yes'],
+        ['Raising or exceeding the maximum price', 'yes', ''],
+        ['Changing the minimum price', '', 'yes'],
+        ['Lowering the maximum price below the base price', '', 'yes'],
+        ['Changing the stay rules in Annex 2', '', 'yes'],
         ['Opening or closing a channel', '', 'yes'],
         ['Changing cancellation terms', '', 'yes'],
         ['Changing the cleaning fee or ancillary charges', '', 'yes'],
         ['Creating or deleting a rate plan', '', 'yes']
       ] : [
-        ['Tagespreis innerhalb von Minimum und Maximum', 'ja', ''],
+        ['Tagespreis oberhalb des Mindestpreises', 'ja', ''],
         ['Basispreis und Saisonkurve', 'ja', ''],
         ['Mindest- und Höchstaufenthalt innerhalb von Anlage 2', 'ja', ''],
         ['Bepreisung von Orphan Gaps', 'ja', ''],
@@ -890,7 +895,10 @@ function rm(ctx) {
         ['Befristete Aktionen innerhalb des Maximalrabatts', 'ja', ''],
         ['Aktionen über dem Maximalrabatt oder länger als 90 Tage', '', 'ja'],
         ['Programme, die Provision oder Kanalgebühr erhöhen', '', 'ja'],
-        ['Werte in Anlage 1 oder Anlage 2 selbst verändern', '', 'ja'],
+        ['Höchstpreis anheben oder überschreiten', 'ja', ''],
+        ['Mindestpreis verändern', '', 'ja'],
+        ['Höchstpreis unter den Basispreis senken', '', 'ja'],
+        ['Aufenthaltsregeln in Anlage 2 ändern', '', 'ja'],
         ['Kanal öffnen oder schliessen', '', 'ja'],
         ['Stornobedingungen ändern', '', 'ja'],
         ['Reinigungsgebühr oder Nebenkosten ändern', '', 'ja'],
@@ -902,8 +910,8 @@ function rm(ctx) {
       [txt(L('Frühbucher', 'Early bird'), l), ansOr(ctx, 'rm_earlybird')],
       [txt(L('Preisparität', 'Rate parity'), l), ansOr(ctx, 'rm_parity')]
     ] },
-    P('Der Korridor gilt unbefristet. Einmal jährlich unterbreitet Elevate Software AG einen Vorschlag zur Anpassung; bis zur Freigabe durch den Kunden gilt der bisherige Korridor weiter.',
-      'The corridor applies indefinitely. Once a year Elevate Software AG submits a proposal for adjustment; until the client approves it, the existing corridor continues to apply.')
+    P('Die freigabepflichtigen Werte gelten unbefristet. Einmal jährlich unterbreitet Elevate Software AG einen Vorschlag zu ihrer Anpassung; bis zur Freigabe durch den Kunden gelten die bisherigen Werte weiter.',
+      'The values subject to approval apply indefinitely. Once a year Elevate Software AG submits a proposal to adjust them; until the client approves, the existing values continue to apply.')
   ]);
 
   S('4', L('Aktionen und Programme auf den Kanälen', 'Campaigns and programmes on the channels'), [
@@ -1001,13 +1009,13 @@ function rm(ctx) {
     P('Es gilt die Haftungsregelung des Rahmenvertrags Elev8 Suite. Ergänzend gilt für diesen Leistungsschein:',
       'The liability provisions of the Elev8 Suite framework agreement apply. In addition, the following applies to this service schedule:'),
     { ul: en ? [
-      'Pricing decisions taken within the corridor set out in section 3 are deemed authorised by the client.',
+      'Pricing decisions taken within the framework of section 3 — including prices above the maximum price in Annex 1 — are deemed authorised by the client.',
       'No particular commercial outcome is owed — in particular no occupancy, no average rate, no revenue and no ranking.',
       'Elevate Software AG is not liable for the consequences of incorrect or outdated data supplied by the client, nor for its interventions under section 5.',
       'Elevate Software AG is not liable for outages or malfunctions of the booking channels, the channel connection or the pricing tool.',
       'Market data and forecasts are estimates; no liability attaches to their accuracy.'
     ] : [
-      'Preisentscheidungen innerhalb des Korridors nach Ziffer 3 gelten als vom Kunden autorisiert.',
+      'Preisentscheidungen im Rahmen von Ziffer 3 — einschliesslich Preisen über dem Höchstpreis der Anlage 1 — gelten als vom Kunden autorisiert.',
       'Ein bestimmter wirtschaftlicher Erfolg wird nicht geschuldet — insbesondere keine Auslastung, kein Durchschnittspreis, kein Umsatz und kein Ranking.',
       'Elevate Software AG haftet nicht für Folgen unrichtiger oder veralteter Daten des Kunden und nicht für dessen Eingriffe nach Ziffer 5.',
       'Elevate Software AG haftet nicht für Ausfälle oder Fehlfunktionen der Buchungskanäle, der Kanalanbindung oder des Preiswerkzeugs.',
@@ -1079,10 +1087,11 @@ function corridorAnnex(ctx) {
   return [{
     h: txt(L('Anlage 1 — Preiskorridor je Einheit', 'Annex 1 — Price corridor per unit'), l),
     blocks: [
-      { p: txt(L('Innerhalb dieser Grenzen setzt Elevate Software AG die Preise ohne Rückfrage. Die Grenzen selbst werden nur mit Freigabe des Kunden verändert. Die Werte gelten je Einheit und Nacht.',
-        'Within these limits Elevate Software AG sets prices without asking. The limits themselves are changed only with the client’s approval. The values apply per unit and night.'), l) },
+      { p: txt(L('Alle Werte sind Nettopreise je Einheit und Nacht. Der Mindestpreis ist verbindlich und wird nur mit Freigabe des Kunden verändert; der Höchstpreis ist ein Ausgangswert, den Elevate Software AG ohne Rückfrage anheben und überschreiten darf.',
+        'All values are net prices per unit and night. The minimum price is binding and is changed only with the client’s approval; the maximum price is a starting value which Elevate Software AG may raise and exceed without asking.'), l) },
       { kvHead: [txt(L('Einheit', 'Unit'), l), txt(L('Mindestpreis', 'Minimum price'), l),
-        txt(L('Basispreis', 'Base price'), l), txt(L('Höchstpreis', 'Maximum price'), l)],
+        txt(L('Basispreis', 'Base price'), l),
+        txt(L('Höchstpreis (Ausgangswert)', 'Maximum price (starting value)'), l)],
         rows: priceRows }
     ]
   }, {
