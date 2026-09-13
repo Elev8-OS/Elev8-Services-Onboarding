@@ -59,6 +59,10 @@ const UI = {
   applyFailed: L('Übernahme fehlgeschlagen — bitte nochmals', 'Could not apply — please try again'),
   taking: L('Wird übernommen …', 'Applying …'),
 
+  bookedScope: L('Ihr gebuchter Leistungsumfang', 'Your booked scope of services'),
+  bookedScopeNote: L('Der Leistungsumfang ist Teil Ihres Vertrags und wird von Elev8 Suite gepflegt. Für Änderungen wenden Sie sich an Ihren Ansprechpartner.',
+    'The scope of services is part of your agreement and is maintained by Elev8 Suite. For changes, please contact your account manager.'),
+
   mxUnit: L('Einheit', 'Unit'),
   mxNote: L('Alle Beträge je Nacht. Innerhalb dieser Grenzen setzen wir die Preise ohne Rückfrage.',
     'All amounts per night. Within these limits we set prices without asking.'),
