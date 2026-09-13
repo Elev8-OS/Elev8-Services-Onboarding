@@ -832,8 +832,8 @@ function rm(ctx) {
     ] });
   }
   if (rmContent) {
-    scope2.push(P('Ab Verfügbarkeit der Content-Schnittstelle zu den Buchungsportalen, ohne Preisänderung und ohne Nachtrag:',
-      'From the availability of the content interface to the booking portals, at no change in price and without an addendum:'));
+    scope2.push(P('Stellt der Kunde Elevate Software AG Zugangsdaten zu seinen Buchungsportalen zur Verfügung, kommen ohne Preisänderung und ohne Nachtrag hinzu:',
+      'If the client provides Elevate Software AG with access credentials to its booking portals, the following are added at no change in price and without an addendum:'));
     scope2.push({ ul: en ? [
       'Maintenance of titles, descriptions and amenity attributes on the connected channels.',
       'Uploading and ordering of image material supplied by the client.',
@@ -843,8 +843,8 @@ function rm(ctx) {
       'Einspielen und Sortieren des vom Kunden gelieferten Bildmaterials.',
       'Laufende Beobachtung der Sichtbarkeitsfaktoren und daraus abgeleitete Empfehlungen.'
     ] });
-    scope2.push(P('Elevate Software AG nennt keinen Termin für die Verfügbarkeit der Schnittstelle und schuldet sie nicht. Bis dahin bleibt die Vergütung unverändert; ein Abzug wegen noch nicht aktivierter Leistungen ist ausgeschlossen.',
-      'Elevate Software AG names no date for the availability of the interface and does not owe it. Until then the fee remains unchanged; a deduction for services not yet activated is excluded.'));
+    scope2.push(P('Die Überlassung der Zugangsdaten steht dem Kunden frei; er ist dazu nicht verpflichtet und kann sie jederzeit widerrufen. Elevate Software AG nutzt die Zugänge ausschliesslich für die in diesem Leistungsschein beschriebenen Aufgaben. Solange keine Zugänge vorliegen oder sie nicht funktionieren, entfallen die Leistungen dieses Absatzes. Die Vergütung bleibt in diesem Fall unverändert; eine Minderung oder ein Abzug wegen nicht erbrachter Content-Pflege ist ausgeschlossen.',
+      'Providing the access credentials is at the client’s discretion; the client is not obliged to do so and may revoke them at any time. Elevate Software AG uses the access solely for the tasks described in this service schedule. For as long as no access is provided or the access does not work, the services in this paragraph do not apply. The fee remains unchanged in that case; any reduction or deduction for content maintenance not performed is excluded.'));
   }
   if (!scope2.length) scope2.push({ p: orOpen('', l) });
   scope2.push({ kv: [
@@ -921,13 +921,13 @@ function rm(ctx) {
       'Set the corridor per unit and approve adjustments without undue delay.',
       'Conclude and maintain the contracts with the booking portals; Elevate Software AG does not act as a contracting party towards the portals.',
       'Keep unit data in Elev8 Suite current and remove units that are no longer let, so that reports are not distorted.',
-      'Supply image material and, where required, texts for the content services.',
+      'Supply image material and, where required, texts for the content services, and provide access credentials to the booking portals if the content services are to be delivered.',
       'Report offline bookings, owner stays and blocks promptly.'
     ] : [
       'Den Korridor je Einheit festlegen und Anpassungen ohne unnötige Verzögerung freigeben.',
       'Die Verträge mit den Buchungsportalen selbst schliessen und unterhalten; Elevate Software AG tritt gegenüber den Portalen nicht als Vertragspartei auf.',
       'Die Einheitendaten in Elev8 Suite aktuell halten und nicht mehr vermietete Einheiten entfernen, damit die Auswertungen nicht verzerrt werden.',
-      'Bildmaterial und, soweit erforderlich, Texte für die Content-Leistungen liefern.',
+      'Bildmaterial und, soweit erforderlich, Texte für die Content-Leistungen liefern sowie Zugangsdaten zu den Buchungsportalen zur Verfügung stellen, wenn die Content-Leistungen erbracht werden sollen.',
       'Offline-Buchungen, Eigennutzung und Blockierungen zeitnah erfassen.'
     ] }
   ]);
