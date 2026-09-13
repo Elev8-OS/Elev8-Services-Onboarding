@@ -271,7 +271,164 @@ const SECTIONS = [
         ] },
       { id: 'peaks_note', type: 'text',
         label: L('Konkrete Termine, die wir kennen sollten', 'Specific dates we should know about'),
-        placeholder: L('Messe Stuttgart, 12.–15. März', 'Stuttgart trade fair, 12–15 March') }
+        placeholder: L('Messe Stuttgart, 12.–15. März', 'Stuttgart trade fair, 12–15 March') },
+      { id: 'revenue_package', type: 'radio', required: true, contract: true,
+        label: L('Haben Sie zusätzlich das Revenue-Management-Paket gebucht?',
+          'Have you also booked the revenue management package?'),
+        help: L('Bei „Ja" folgt weiter unten ein eigener Abschnitt dazu.',
+          'If "Yes", a separate section on this follows below.'),
+        options: [o('yes', 'Ja', 'Yes'), o('no', 'Nein', 'No'), o('open', 'Noch offen', 'Still open')] }
+    ]
+  },
+
+  {
+    id: 'revenue',
+    title: L('Revenue Management', 'Revenue management'),
+    intro: L('Nur für Kunden mit Revenue-Management-Paket. Das meiste steht schon in Elev8 Suite — Sie prüfen vor allem den Preiskorridor.',
+      'Only for clients with the revenue management package. Most of it is already in Elev8 Suite — mainly you check the price corridor.'),
+    dependsOn: { field: 'revenue_package', equals: 'yes' },
+    fields: [
+      { id: 'rm_goal', type: 'radio', required: true, contract: true,
+        label: L('Worauf sollen wir optimieren?', 'What should we optimise for?'),
+        help: L('Beides zugleich geht nicht — wer den Preis hochhält, verkauft weniger Nächte.',
+          'You cannot have both — holding the rate high sells fewer nights.'),
+        options: [
+          o('adr', 'Höherer Durchschnittspreis, auch bei weniger Nächten', 'Higher average rate, even at fewer nights'),
+          o('occupancy', 'Höhere Auslastung, auch zu tieferen Preisen', 'Higher occupancy, even at lower rates'),
+          o('balanced', 'Ausgewogen auf den Umsatz je verfügbare Einheit', 'Balanced towards revenue per available unit')
+        ],
+        dependsOn: { field: 'revenue_package', equals: 'yes' } },
+      { id: 'rm_target_occupancy', type: 'radio',
+        label: L('Zielauslastung im Jahresmittel', 'Target occupancy on annual average'),
+        options: [
+          o('lt60', 'unter 60 %', 'under 60%'),
+          o('60_70', '60 bis 70 %', '60 to 70%'),
+          o('70_80', '70 bis 80 %', '70 to 80%'),
+          o('gt80', 'über 80 %', 'over 80%'),
+          o('none', 'Kein festes Ziel', 'No fixed target')
+        ],
+        dependsOn: { field: 'revenue_package', equals: 'yes' } },
+      { id: 'rm_breakeven', type: 'money',
+        label: L('Kostenschwelle je Einheit und Nacht', 'Cost threshold per unit and night'),
+        help: L('Unter diesem Betrag lohnt sich eine Nacht für Sie nicht. Freiwillig, hilft uns beim Vorschlag für den Mindestpreis.',
+          'Below this amount a night is not worth it for you. Optional, helps us propose the minimum price.'),
+        dependsOn: { field: 'revenue_package', equals: 'yes' } },
+
+      { id: 'rm_corridor', type: 'matrix', required: true, contract: true,
+        label: L('Preiskorridor je Einheit', 'Price corridor per unit'),
+        help: L('Wir haben aus Ihrer Historie und dem Markt einen Vorschlag gerechnet. Innerhalb dieses Korridors setzen wir die Preise ohne Rückfrage; den Korridor selbst verschieben wir nie ohne Ihre Freigabe.',
+          'We have calculated a proposal from your history and the market. Within this corridor we set prices without asking; we never move the corridor itself without your approval.'),
+        columns: [
+          { key: 'min', label: L('Minimum', 'Minimum') },
+          { key: 'base', label: L('Basispreis', 'Base price') },
+          { key: 'max', label: L('Maximum', 'Maximum') }
+        ],
+        dependsOn: { field: 'revenue_package', equals: 'yes' } },
+      { id: 'rm_minstay', type: 'radio', contract: true,
+        label: L('In welcher Spanne dürfen wir den Mindestaufenthalt setzen?',
+          'Within which range may we set the minimum stay?'),
+        options: [
+          o('1_3', '1 bis 3 Nächte', '1 to 3 nights'),
+          o('1_5', '1 bis 5 Nächte', '1 to 5 nights'),
+          o('1_7', '1 bis 7 Nächte', '1 to 7 nights'),
+          o('2_7', '2 bis 7 Nächte', '2 to 7 nights')
+        ],
+        dependsOn: { field: 'revenue_package', equals: 'yes' } },
+      { id: 'rm_discount_max', type: 'radio', contract: true,
+        label: L('Maximaler Rabatt auf den Basispreis', 'Maximum discount on the base price'),
+        options: [
+          o('p10', 'bis 10 %', 'up to 10%'),
+          o('p15', 'bis 15 %', 'up to 15%'),
+          o('p20', 'bis 20 %', 'up to 20%'),
+          o('p25', 'bis 25 %', 'up to 25%')
+        ],
+        dependsOn: { field: 'revenue_package', equals: 'yes' } },
+      { id: 'rm_lastminute', type: 'radio', contract: true,
+        label: L('Last-Minute-Rabatte', 'Last-minute discounts'),
+        options: [
+          o('d7', 'Ab 7 Tagen vor Anreise', 'From 7 days before arrival'),
+          o('d3', 'Ab 3 Tagen vor Anreise', 'From 3 days before arrival'),
+          o('none', 'Keine Last-Minute-Rabatte', 'No last-minute discounts')
+        ],
+        dependsOn: { field: 'revenue_package', equals: 'yes' } },
+      { id: 'rm_earlybird', type: 'radio', contract: true,
+        label: L('Frühbucherrabatte', 'Early-bird discounts'),
+        options: [
+          o('d90', 'Ab 90 Tagen vor Anreise', 'From 90 days before arrival'),
+          o('d180', 'Ab 180 Tagen vor Anreise', 'From 180 days before arrival'),
+          o('none', 'Keine Frühbucherrabatte', 'No early-bird discounts')
+        ],
+        dependsOn: { field: 'revenue_package', equals: 'yes' } },
+
+      { id: 'rm_history', type: 'radio',
+        label: L('Können Sie uns zwölf Monate Historie liefern?', 'Can you provide twelve months of history?'),
+        help: L('Durchschnittspreis, Auslastung und Umsatz je Einheit und Monat. Ohne Historie messen wir gegen den Markt statt gegen Ihr Vorjahr.',
+          'Average rate, occupancy and revenue per unit and month. Without history we measure against the market instead of your previous year.'),
+        options: [
+          o('yes', 'Ja, wir liefern sie', 'Yes, we will provide it'),
+          o('partly', 'Nur teilweise', 'Only partly'),
+          o('no', 'Nein, haben wir nicht', 'No, we do not have it')
+        ],
+        dependsOn: { field: 'revenue_package', equals: 'yes' } },
+      { id: 'rm_channels_wanted', type: 'multi',
+        label: L('Welche Kanäle sollen wir zusätzlich öffnen?', 'Which channels should we additionally open?'),
+        help: L('Die Verträge mit den Portalen schliessen Sie selbst; wir richten ein und pflegen.',
+          'You conclude the contracts with the portals yourself; we set them up and maintain them.'),
+        options: [
+          o('booking', 'Booking.com', 'Booking.com'),
+          o('airbnb', 'Airbnb', 'Airbnb'),
+          o('expedia', 'Expedia', 'Expedia'),
+          o('vrbo', 'Vrbo', 'Vrbo'),
+          o('google', 'Google Vacation Rentals', 'Google Vacation Rentals'),
+          o('direct', 'Direktbuchung über die eigene Website', 'Direct booking via your own website'),
+          o('none', 'Keine weiteren', 'None further')
+        ],
+        dependsOn: { field: 'revenue_package', equals: 'yes' } },
+      { id: 'rm_parity', type: 'radio', contract: true,
+        label: L('Wie halten wir es mit der Preisparität?', 'How do we handle rate parity?'),
+        options: [
+          o('strict', 'Überall derselbe Preis', 'The same price everywhere'),
+          o('direct_cheaper', 'Direktbuchung darf günstiger sein', 'Direct booking may be cheaper'),
+          o('free', 'Keine Vorgabe', 'No requirement')
+        ],
+        dependsOn: { field: 'revenue_package', equals: 'yes' } },
+
+      { id: 'note_rm_phase2', type: 'note',
+        label: L('Die folgenden drei Fragen betreffen Titel, Beschreibungen und Bilder auf den Buchungsportalen. Diese Leistung aktivieren wir, sobald die Content-Schnittstelle zu den Portalen verfügbar ist — ohne Preisänderung und ohne Nachtrag.',
+          'The next three questions concern titles, descriptions and images on the booking portals. We activate this service as soon as the content interface to the portals is available — at no change in price and without an addendum.'),
+        dependsOn: { field: 'revenue_package', equals: 'yes' } },
+      { id: 'rm_photos', type: 'radio',
+        label: L('Wie steht es um Ihr Bildmaterial?', 'What about your photography?'),
+        options: [
+          o('professional', 'Professionelle Fotos vorhanden', 'Professional photos available'),
+          o('mixed', 'Gemischt, einige Einheiten brauchen neue', 'Mixed, some units need new ones'),
+          o('needed', 'Neue Fotos werden gebraucht', 'New photos are needed')
+        ],
+        dependsOn: { field: 'revenue_package', equals: 'yes' } },
+      { id: 'rm_content_langs', type: 'multi',
+        label: L('In welchen Sprachen sollen Titel und Beschreibungen laufen?',
+          'In which languages should titles and descriptions run?'),
+        options: [o('de', 'Deutsch', 'German'), o('en', 'Englisch', 'English')],
+        dependsOn: { field: 'revenue_package', equals: 'yes' } },
+      { id: 'rm_content_approval', type: 'radio', contract: true,
+        label: L('Wer gibt Texte und Bilder frei?', 'Who approves texts and images?'),
+        options: [
+          o('client', 'Wir geben jede Änderung frei', 'We approve every change'),
+          o('elev8', 'Sie dürfen selbst entscheiden', 'You may decide yourselves')
+        ],
+        dependsOn: { field: 'revenue_package', equals: 'yes' } },
+
+      { id: 'rm_report_rhythm', type: 'radio', contract: true,
+        label: L('Wie oft wünschen Sie den Bericht?', 'How often would you like the report?'),
+        options: [
+          o('monthly', 'Monatlich', 'Monthly'),
+          o('biweekly', 'Alle zwei Wochen', 'Every two weeks')
+        ],
+        dependsOn: { field: 'revenue_package', equals: 'yes' } },
+      { id: 'rm_report_to', type: 'text', contract: true,
+        label: L('An wen geht der Bericht?', 'Who receives the report?'),
+        placeholder: L('Name und E-Mail-Adresse', 'Name and email address'),
+        dependsOn: { field: 'revenue_package', equals: 'yes' } }
     ]
   },
 
@@ -625,16 +782,6 @@ const SECTIONS = [
         ] },
       { id: 'anything', type: 'textarea',
         label: L('Sonstiges, das wir wissen sollten', 'Anything else we should know') },
-      { id: 'revenue_package', type: 'radio', required: true,
-        label: L('Haben Sie zusätzlich das Revenue-Management-Paket gebucht?',
-          'Have you also booked the revenue management package?'),
-        help: L('Zugänge zu den OTA-Extranets fragen wir hier bewusst nicht ab — die gehören zum Revenue Management.',
-          'We deliberately do not ask for OTA extranet access here — that belongs to revenue management.'),
-        options: [o('yes', 'Ja', 'Yes'), o('no', 'Nein', 'No'), o('open', 'Noch offen', 'Still open')] },
-      { id: 'note_revenue', type: 'note',
-        label: L('Gut. Sobald diese Aufnahme abgeschlossen ist, schalten wir Ihnen die zweite, kurze Checkliste zum Revenue Management frei — Kanäle, Extranet-Zugänge und Preisstrategie.',
-          'Good. Once this onboarding is complete we will open the second, short revenue management checklist for you — channels, extranet access and pricing strategy.'),
-        dependsOn: { field: 'revenue_package', equals: 'yes' } }
     ]
   }
 ];
@@ -668,9 +815,24 @@ function optionLabel(field, code, lang) {
  */
 function valueLabel(field, value, lang) {
   const v = value == null ? '' : String(value);
+  if (field && field.type === 'matrix') return matrixLabel(v, lang);
   if (!field || !field.options || v === '') return v;
   return v.split(',').map(function (x) { return optionLabel(field, x.trim(), lang); })
     .filter(function (x) { return x !== ''; }).join(', ');
+}
+
+/**
+ * Eine Matrix wird als JSON gespeichert. Lesbar gemacht wird sie als eine
+ * Zeile je Einheit — so steht sie im Admin-Export und im Vertrag brauchbar da.
+ */
+function matrixLabel(v, lang) {
+  let rows = [];
+  try { const p = JSON.parse(v); if (Array.isArray(p)) rows = p; } catch (e) { rows = []; }
+  if (!rows.length) return '';
+  return rows.map(function (r) {
+    return (r.name || r.id || '—') + ': ' + (r.min || '—') + ' / ' + (r.base || '—') + ' / ' + (r.max || '—') +
+      (r.est ? (lang === 'en' ? ' (estimated)' : ' (geschätzt)') : '');
+  }).join('\n');
 }
 
 /** Vorschläge, die von uns kommen und nicht aus Elev8 Suite. */
@@ -710,5 +872,5 @@ function legacyCodeMap() {
 
 module.exports = {
   SECTIONS, ALL_FIELDS, INPUT_FIELDS, CONTRACT_FIELDS, FIELD_MAP,
-  isInput, optionLabel, valueLabel, presets, mergePrefill, legacyCodeMap
+  isInput, optionLabel, valueLabel, matrixLabel, presets, mergePrefill, legacyCodeMap
 };

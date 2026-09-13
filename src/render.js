@@ -51,6 +51,68 @@ ${opts.script ? '<script src="' + opts.script + '" defer></script>' : ''}
 
 /* ---------------- form controls ---------------- */
 
+function parseMatrix(v) {
+  try { const p = JSON.parse(v); return Array.isArray(p) ? p : []; } catch (e) { return []; }
+}
+
+/**
+ * Preiskorridor-Tabelle: eine Zeile je Einheit aus Elev8 Suite.
+ * Gespeichert wird das verborgene JSON-Feld - die Zellen halten es aktuell.
+ * Steht in Elev8 Suite noch keine Einheit, bleibt ein Hinweis stehen.
+ */
+function matrixControl(f, v, lang, units, opts) {
+  const o = opts || {};
+  const stored = parseMatrix(v);
+  const byId = {};
+  stored.forEach(function (r) { if (r && (r.id || r.name)) byId[r.id || r.name] = r; });
+
+  const list = (units && units.length)
+    ? units.map(function (u) {
+      const r = byId[u.id] || byId[u.name] || {};
+      return { id: u.id, name: r.name || u.name, city: u.city || '',
+        min: r.min || '', base: r.base || '', max: r.max || '', est: r.est || 0 };
+    })
+    : stored.map(function (r) {
+      return { id: r.id || '', name: r.name || '', city: '', min: r.min || '',
+        base: r.base || '', max: r.max || '', est: r.est || 0 };
+    });
+
+  const hidden = '<input type="hidden" name="' + f.id + '" value="' +
+    esc(list.length ? JSON.stringify(list.map(function (r) {
+      const out = { id: r.id, name: r.name, min: r.min, base: r.base, max: r.max };
+      if (r.est) out.est = 1;
+      return out;
+    })) : '') + '"' + (o.locked ? ' data-frozen="1"' : '') + '>';
+
+  if (!list.length) return '<p class="fhelp">' + esc(t(UI.mxEmpty, lang)) + '</p>' + hidden;
+
+  const cur = esc(o.currency || 'EUR');
+  const dis = o.locked ? ' disabled' : '';
+  const cols = (f.columns || []).map(function (c) { return { key: c.key, label: t(c.label, lang) }; });
+
+  const head = '<tr><th class="mxu">' + esc(t(UI.mxUnit, lang)) + '</th>' +
+    cols.map(function (c) { return '<th>' + esc(c.label) + '</th>'; }).join('') + '</tr>';
+
+  const body = list.map(function (r) {
+    const cells = cols.map(function (c) {
+      return '<td><div class="money"><span class="cur">' + cur + '</span>' +
+        '<input type="text" inputmode="decimal" data-mx="' + esc(c.key) + '" value="' +
+        esc(r[c.key] || '') + '" placeholder="0"' + dis + '></div></td>';
+    }).join('');
+    return '<tr data-mxrow data-uid="' + esc(r.id) + '" data-uname="' + esc(r.name) + '"' +
+      (r.est ? ' class="est"' : '') + '>' +
+      '<th scope="row"><span class="mxn">' + esc(r.name) + '</span>' +
+      (r.city ? '<span class="mxsub">' + esc(r.city) + '</span>' : '') +
+      (r.est ? '<span class="mxest" title="' + esc(t(UI.mxEstHint, lang)) + '">' +
+        esc(t(UI.mxEst, lang)) + '</span>' : '') +
+      '</th>' + cells + '</tr>';
+  }).join('');
+
+  return '<div class="mxwrap"><table class="mxt"><thead>' + head + '</thead><tbody>' +
+    body + '</tbody></table></div>' +
+    '<p class="fhelp mxnote">' + esc(t(UI.mxNote, lang)) + '</p>' + hidden;
+}
+
 function control(f, v, lang) {
   const id = 'f_' + f.id;
   if (f.type === 'note') return '';
@@ -82,7 +144,7 @@ function control(f, v, lang) {
  *  - aus Elev8 Suite, unbestätigt     → Wert steht da, ein Klick auf "Stimmt" genügt
  *  - beantwortet / bestätigt    → kompakte Zeile mit "Ändern"
  */
-function field(f, value, source, pre, conflict, lang) {
+function field(f, value, source, pre, conflict, lang, units, opts) {
   const v = value == null ? '' : value;
   const has = String(v).trim() !== '';
   const locked = !!(f.lockedNow);
@@ -95,6 +157,27 @@ function field(f, value, source, pre, conflict, lang) {
 
   const head = `<label class="flabel" for="f_${f.id}">${esc(t(f.label, lang))}${f.required ? '<span class="star" title="' + esc(t(UI.required, lang)) + '">*</span>' : ''}</label>` +
     (f.help ? '<p class="fhelp">' + esc(t(f.help, lang)) + '</p>' : '');
+
+  if (f.type === 'matrix') {
+    const src = has ? v : ((pre && pre.value) || '');
+    const waiting = !has && !!(pre && pre.value);
+    const badge = has
+      ? '<span class="src"><span class="tick" aria-hidden="true">✓</span> ' +
+        esc(t(source === 'confirmed' ? UI.fromElev8Confirmed : UI.yourAnswer, lang)) + '</span>'
+      : (waiting
+        ? '<span class="src elev8"><span class="dot"></span>' +
+          esc(t(pre.evidence, lang) || t(UI.fromElev8, lang)) + '</span>'
+        : '');
+    const acts = locked
+      ? '<span class="lockflag" title="' + esc(t(UI.lockedHint, lang)) + '">' + esc(t(UI.locked, lang)) + '</span>'
+      : (waiting ? '<button class="mini primary" type="button" data-act="ok">' + esc(t(UI.ok, lang)) + '</button>' : '');
+    return `<div class="field mx${f.required ? ' req' : ''}${has ? ' done' : (waiting ? ' pre' : '')}${locked ? ' locked' : ''}" data-field="${f.id}" data-type="matrix"${dep}>
+  ${head}
+  ${matrixControl(f, src, lang, units, { locked: locked, currency: (opts && opts.currency) || '' })}
+  <div class="mxfoot">${badge}${acts}</div>
+</div>`;
+  }
+
 
   if (has) {
     const shown = valueLabel(f, v, lang);
@@ -216,8 +299,15 @@ function tenantForm(intake, answers, sources, snapshot, opts) {
   }).length;
   const submitted = intake.status === 'submitted';
 
+  // Einheiten aus Elev8 Suite - Grundlage der Korridor-Tabelle.
+  const units = (snapshot && snapshot.facts && snapshot.facts.unitList) || [];
+  const currency = (units.find(function (u) { return u.currency; }) || {}).currency || 'EUR';
+
   const nav = SECTIONS.map(function (s, i) {
-    return `<a href="#s-${s.id}"><span class="n">${String(i + 1).padStart(2, '0')}</span>${esc(t(s.title, lang))}</a>`;
+    const d = s.dependsOn
+      ? ` data-navdep="${esc(s.dependsOn.field)}" data-navdep-value="${esc([].concat(s.dependsOn.equals).join('|'))}"`
+      : '';
+    return `<a href="#s-${s.id}" data-navsec="${s.id}"${d}><span class="n">${String(i + 1).padStart(2, '0')}</span>${esc(t(s.title, lang))}</a>`;
   }).join('');
 
   const body = SECTIONS.map(function (s, i) {
@@ -225,7 +315,10 @@ function tenantForm(intake, answers, sources, snapshot, opts) {
       return isInput(f) && (answers[f.id] || '').trim() === '' && pre[f.id] && pre[f.id].value;
     }).length;
     const bulkLabel = secPre + ' ' + t(secPre === 1 ? UI.confirmSecOne : UI.confirmSecMany, lang);
-    return `<section class="sec" id="s-${s.id}" data-sec="${s.id}">
+    const secDep = s.dependsOn
+      ? ` data-depends="${esc(s.dependsOn.field)}" data-depends-value="${esc([].concat(s.dependsOn.equals).join('|'))}"`
+      : '';
+    return `<section class="sec" id="s-${s.id}" data-sec="${s.id}"${secDep}>
   <div class="sec-head">
     <span class="sec-n">${String(i + 1).padStart(2, '0')}</span>
     <h2>${esc(t(s.title, lang))}</h2>
@@ -235,7 +328,8 @@ function tenantForm(intake, answers, sources, snapshot, opts) {
   ${secPre ? '<div class="secbulk"><button class="mini primary" type="button" data-act="okall" data-sec="' + s.id + '">' + esc(bulkLabel) + '</button></div>' : ''}
   <div class="fields">${s.fields.map(function (f) {
       const withLock = lockedSet[f.id] ? Object.assign({}, f, { lockedNow: true }) : f;
-      return field(withLock, answers[f.id], sources[f.id], pre[f.id], clashes[f.id], lang);
+      return field(withLock, answers[f.id], sources[f.id], pre[f.id], clashes[f.id], lang,
+        units, { currency: currency });
     }).join('')}</div>
 </section>`;
   }).join('');
@@ -588,9 +682,11 @@ function termsPanel(intake, extra) {
     </div>`;
   };
   const filled = function (k) { return String(tm[k] || '').trim() !== ''; };
+  const rmOrdered = String((extra.answers || {}).revenue_package || '') === 'yes';
   const platformPriceKey = tm.platform_model === 'per_booking' ? 'platform_price_per_booking' : 'platform_price_per_unit';
   const ready = filled(platformPriceKey) && filled('price_per_unit') &&
-    filled('term_months') && filled('notice_months');
+    filled('term_months') && filled('notice_months') &&
+    (!rmOrdered || (filled('rm_price_per_unit') && filled('rm_term_months') && filled('rm_notice_months')));
   const perBooking = tm.platform_model === 'per_booking';
 
   return `<section class="panel">
@@ -624,6 +720,17 @@ function termsPanel(intake, extra) {
       </div>
     </div>
 
+    <div class="tgroup${rmOrdered ? '' : ' off'}">
+      <h3>Leistungsschein Revenue Management${rmOrdered ? '' : ' <span class="tnote">nicht bestellt</span>'}</h3>
+      <div class="tgrid">
+        ${inp('rm_price_per_unit', 'Preis je Einheit/Monat', tm.rm_price_per_unit, '6.50')}
+        ${inp('rm_tier_from', 'Staffel ab Einheiten', tm.rm_tier_from, '25')}
+        ${inp('rm_tier_price', 'Staffelpreis je Einheit', tm.rm_tier_price, '5.50')}
+        ${inp('rm_term_months', 'Mindestlaufzeit (Mt.)', tm.rm_term_months || '6', '6')}
+        ${inp('rm_notice_months', 'Kündigungsfrist (Mt.)', tm.rm_notice_months || '3', '3')}
+      </div>
+    </div>
+
     <div class="tgroup">
       <h3>Für alle Dokumente</h3>
       <div class="tgrid">
@@ -639,12 +746,13 @@ function termsPanel(intake, extra) {
     ${row('platform', 'Rahmenvertrag Elev8 Suite')}
     ${row('avv', 'Vertrag zur Auftragsverarbeitung')}
     ${row('gro', 'Leistungsschein Guest Relations')}
+    ${rmOrdered ? row('rm', 'Leistungsschein Revenue Management') : ''}
   </div>
   <p class="lede small">${ready
     ? (missing.length
       ? 'Der Tenant sieht die Verträge noch nicht: ' + missing.length + ' Pflichtfeld' + (missing.length === 1 ? '' : 'er') + ' fehlt noch (' + esc(missing.slice(0, 6).join(', ')) + (missing.length > 6 ? ' …' : '') + ').'
-      : 'Der Tenant kann alle drei Dokumente lesen und in der Reihenfolge Rahmenvertrag, AVV, Leistungsschein unterzeichnen.')
-    : 'Sobald Preise, Mindestlaufzeit und Kündigungsfrist für beide Dokumente stehen, erscheinen die Verträge beim Tenant.'}</p>
+      : 'Der Tenant kann alle Dokumente lesen und in der Reihenfolge Rahmenvertrag, AVV, Leistungsscheine unterzeichnen.')
+    : 'Sobald Preise, Mindestlaufzeit und Kündigungsfrist stehen, erscheinen die Verträge beim Tenant.'}</p>
 </section>`;
 }
 
