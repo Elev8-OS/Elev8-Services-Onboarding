@@ -64,8 +64,8 @@ const UI = {
     'The scope of services is part of your agreement and is maintained by Elev8 Suite. For changes, please contact your account manager.'),
 
   mxUnit: L('Einheit', 'Unit'),
-  mxNote: L('Alle Beträge je Nacht. Innerhalb dieser Grenzen setzen wir die Preise ohne Rückfrage.',
-    'All amounts per night. Within these limits we set prices without asking.'),
+  mxNote: L('Alle Beträge je Nacht, netto — ohne Steuern, Abgaben, Reinigung und Nebenkosten. Der Mindestpreis ist verbindlich, der Höchstpreis ein Ausgangswert.',
+    'All amounts per night, net — excluding taxes, levies, cleaning and ancillary charges. The minimum price is binding, the maximum price a starting value.'),
   mxEst: L('geschätzt', 'estimated'),
   mxEstHint: L('Für diese Einheit liegt noch keine eigene Historie vor — der Vorschlag stammt aus vergleichbaren Einheiten.',
     'No own history yet for this unit — the proposal is derived from comparable units.'),
