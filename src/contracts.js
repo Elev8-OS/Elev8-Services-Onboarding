@@ -860,8 +860,10 @@ function rm(ctx) {
   S('3', L('Der Preiskorridor', 'The price corridor'), [
     P('Der Kunde legt für jede Einheit einen Mindestpreis, einen Basispreis und einen Höchstpreis fest sowie den kürzesten und längsten Aufenthalt, den wir verkaufen dürfen — getrennt für die Woche, für Anreisen am Wochenende und für Lücken zwischen zwei Buchungen. Elevate Software AG unterbreitet dazu einen Vorschlag aus der Historie des Kunden, aus dem eingesetzten Preiswerkzeug und aus Marktdaten; die Entscheidung trifft der Kunde. Die festgelegten Werte sind Anlage 1 und Anlage 2 dieses Leistungsscheins. Sie gelten je Einheit und können sich von Einheit zu Einheit unterscheiden.',
       'For each unit the client sets a minimum price, a base price and a maximum price, and the shortest and longest stay we may sell — separately for weekdays, for weekend arrivals and for gaps between two bookings. Elevate Software AG submits a proposal based on the client’s history, on the pricing tool in use and on market data; the decision is the client’s. The agreed values are Annex 1 and Annex 2 to this service schedule. They apply per unit and may differ from unit to unit.'),
-    P('Innerhalb des Korridors handelt Elevate Software AG ohne Rückfrage. Den Korridor selbst verschiebt sie nie ohne Freigabe des Kunden.',
-      'Within the corridor Elevate Software AG acts without asking. It never moves the corridor itself without the client’s approval.'),
+    P('Sämtliche Werte in Anlage 1 sind Nettopreise je Einheit und Nacht. Nicht enthalten sind Mehrwertsteuer und sonstige Umsatzsteuern, Kur-, Beherbergungs- und Tourismusabgaben, die Reinigungsgebühr, Zuschläge für zusätzliche Gäste, Haustiere oder Nebenleistungen sowie die Kaution. Diese Beträge setzt und pflegt der Kunde in Elev8 Suite; Elevate Software AG verändert sie nicht ohne seine Freigabe. Der Kunde verantwortet die korrekte Erhebung und Abführung von Steuern und Abgaben.',
+      'All values in Annex 1 are net prices per unit and night. They exclude value added tax and other sales taxes, city, accommodation and tourism levies, the cleaning fee, surcharges for additional guests, pets or ancillary services, and the deposit. The client sets and maintains those amounts in Elev8 Suite; Elevate Software AG does not change them without the client’s approval. The client is responsible for correctly collecting and remitting taxes and levies.'),
+    P('Innerhalb des Korridors handelt Elevate Software AG ohne Rückfrage. Den Korridor selbst verschiebt sie nie ohne Freigabe des Kunden. Der Mindestpreis gilt nach Abzug sämtlicher Rabatte, Programme und Aktionen: was der Gast am Ende zahlt, liegt nie unter dem Mindestpreis. Einzige Ausnahme sind Lückennächte zwischen zwei bestehenden Buchungen; dort darf der Preis bis zum vereinbarten Maximalrabatt unter dem Mindestpreis liegen, weil eine solche Nacht sonst unverkäuflich bleibt.',
+      'Within the corridor Elevate Software AG acts without asking. It never moves the corridor itself without the client’s approval. The minimum price applies after all discounts, programmes and campaigns: what the guest finally pays is never below the minimum price. The only exception is gap nights between two existing bookings; there the price may fall below the minimum price by up to the agreed maximum discount, because such a night would otherwise remain unsold.'),
     { kvHead: [txt(L('Gegenstand', 'Matter'), l), txt(L('Ohne Rückfrage', 'Without asking'), l), txt(L('Freigabe nötig', 'Approval required'), l)],
       rows: (en ? [
         ['Daily price within minimum and maximum', 'yes', ''],
@@ -869,6 +871,10 @@ function rm(ctx) {
         ['Minimum and maximum stay within Annex 2', 'yes', ''],
         ['Orphan gap pricing', 'yes', ''],
         ['Discount ladders within the agreed limit', 'yes', ''],
+        ['Setting up and maintaining permanent channel programmes', 'yes', ''],
+        ['Time-limited campaigns within the agreed maximum discount', 'yes', ''],
+        ['Campaigns beyond the maximum discount, or running longer than 90 days', '', 'yes'],
+        ['Programmes that raise the commission or the channel fee', '', 'yes'],
         ['Changing the values in Annex 1 or Annex 2 themselves', '', 'yes'],
         ['Opening or closing a channel', '', 'yes'],
         ['Changing cancellation terms', '', 'yes'],
@@ -880,6 +886,10 @@ function rm(ctx) {
         ['Mindest- und Höchstaufenthalt innerhalb von Anlage 2', 'ja', ''],
         ['Bepreisung von Orphan Gaps', 'ja', ''],
         ['Rabattleitern innerhalb der vereinbarten Grenze', 'ja', ''],
+        ['Dauerhafte Kanalprogramme einrichten und pflegen', 'ja', ''],
+        ['Befristete Aktionen innerhalb des Maximalrabatts', 'ja', ''],
+        ['Aktionen über dem Maximalrabatt oder länger als 90 Tage', '', 'ja'],
+        ['Programme, die Provision oder Kanalgebühr erhöhen', '', 'ja'],
         ['Werte in Anlage 1 oder Anlage 2 selbst verändern', '', 'ja'],
         ['Kanal öffnen oder schliessen', '', 'ja'],
         ['Stornobedingungen ändern', '', 'ja'],
@@ -887,7 +897,6 @@ function rm(ctx) {
         ['Rate-Plan anlegen oder löschen', '', 'ja']
       ]) },
     { kv: [
-      [txt(L('Spanne Mindestaufenthalt', 'Minimum stay range'), l), ansOr(ctx, 'rm_minstay')],
       [txt(L('Maximaler Rabatt', 'Maximum discount'), l), ansOr(ctx, 'rm_discount_max')],
       [txt(L('Last Minute', 'Last minute'), l), ansOr(ctx, 'rm_lastminute')],
       [txt(L('Frühbucher', 'Early bird'), l), ansOr(ctx, 'rm_earlybird')],
@@ -897,17 +906,28 @@ function rm(ctx) {
       'The corridor applies indefinitely. Once a year Elevate Software AG submits a proposal for adjustment; until the client approves it, the existing corridor continues to apply.')
   ]);
 
-  S('4', L('Eingriffe des Kunden', 'Client interventions'), [
+  S('4', L('Aktionen und Programme auf den Kanälen', 'Campaigns and programmes on the channels'), [
+    P('Rabatte, Aktionen und Kanalprogramme sind Teil der Preissteuerung und werden von Elevate Software AG in demselben Rahmen geführt wie der Tagespreis.',
+      'Discounts, campaigns and channel programmes are part of price management and are run by Elevate Software AG within the same framework as the daily rate.'),
+    P('Dauerhafte Programme der Kanäle richtet Elevate Software AG ein und pflegt sie laufend. Darunter fallen insbesondere Treue- und Mitgliederprogramme, mobile Preise, länderbezogene Preise sowie Wochen- und Monatsrabatte. Befristete Aktionen — Last Minute, Frühbucher, saisonale Kampagnen und Aktionstage der Portale — schaltet Elevate Software AG selbst, solange der Rabatt den vereinbarten Maximalrabatt nicht überschreitet und die Aktion nicht länger als 90 Tage läuft.',
+      'Elevate Software AG sets up and maintains the channels’ permanent programmes. These include in particular loyalty and member programmes, mobile rates, country rates and weekly and monthly discounts. Time-limited campaigns — last minute, early bird, seasonal campaigns and the portals’ promotion days — are run by Elevate Software AG itself, as long as the discount does not exceed the agreed maximum discount and the campaign does not run longer than 90 days.'),
+    P('Die Freigabe des Kunden benötigen Aktionen über dem Maximalrabatt, Aktionen mit einer Laufzeit über 90 Tage sowie sämtliche Programme, die die Provision oder die Gebühren eines Kanals erhöhen. Rabatte und Programme wirken kumulativ; der Mindestpreis aus Anlage 1 bleibt in jedem Fall die Untergrenze dessen, was der Gast zahlt.',
+      'The client’s approval is required for campaigns above the maximum discount, for campaigns running longer than 90 days, and for all programmes that increase a channel’s commission or fees. Discounts and programmes have a cumulative effect; the minimum price in Annex 1 remains in every case the lower limit of what the guest pays.'),
+    P('Aktionen und Programme, die der Kunde selbst schaltet, gelten als Eingriff nach Ziffer 5. Elevate Software AG weist die laufenden Aktionen und Programme im Bericht aus.',
+      'Campaigns and programmes the client runs itself count as an intervention under section 5. Elevate Software AG shows the running campaigns and programmes in the report.')
+  ]);
+
+  S('5', L('Eingriffe des Kunden', 'Client interventions'), [
     P('Der Kunde darf jederzeit selbst Preise, Restriktionen oder Verfügbarkeiten setzen. Für die betroffenen Einheiten und Zeiträume entfällt dadurch jede Zielzusage von Elevate Software AG. Jeder Eingriff wird im Bericht mit Datum, Einheit und geschätzter Auswirkung ausgewiesen.',
       'The client may set prices, restrictions or availability at any time. For the units and periods concerned, any target commitment by Elevate Software AG lapses. Every intervention is shown in the report with date, unit and estimated effect.')
   ]);
 
-  S('5', L('Eskalation', 'Escalation'), [
+  S('6', L('Eskalation', 'Escalation'), [
     P('Weicht die Belegung der kommenden 30 Tage um mehr als 15 Prozentpunkte vom Vorjahreswert oder vom Forecast ab, meldet Elevate Software AG dies innerhalb von drei Werktagen in Textform und unterbreitet einen Vorschlag. Unabhängig davon meldet sie erkannte Paritätsverstösse und technische Störungen der Preisverteilung unverzüglich.',
       'If occupancy for the coming 30 days deviates by more than 15 percentage points from the previous year or from the forecast, Elevate Software AG reports this in text form within three working days and submits a proposal. Independently of this it reports detected parity breaches and technical failures in price distribution without delay.')
   ]);
 
-  S('6', L('Berichtswesen', 'Reporting'), [
+  S('7', L('Berichtswesen', 'Reporting'), [
     { kv: [
       [txt(L('Rhythmus', 'Frequency'), l), ansOr(ctx, 'rm_report_rhythm')],
       [txt(L('Empfänger', 'Recipient'), l), ansOr(ctx, 'rm_report_to')]
@@ -916,7 +936,7 @@ function rm(ctx) {
       'The report contains key figures against the previous month and previous year, the occupancy pace for the coming 30, 60 and 90 days, the channel mix, the strongest and weakest units, a market comparison, the measures taken, the client’s interventions and recommendations. Key figures that Elev8 Suite does not deliver reliably — currently the average review score — are not part of the report.')
   ]);
 
-  S('7', L('Mitwirkungspflichten des Kunden', 'Client’s duties to cooperate'), [
+  S('8', L('Mitwirkungspflichten des Kunden', 'Client’s duties to cooperate'), [
     { ul: en ? [
       'Set the corridor per unit and approve adjustments without undue delay.',
       'Conclude and maintain the contracts with the booking portals; Elevate Software AG does not act as a contracting party towards the portals.',
@@ -932,7 +952,7 @@ function rm(ctx) {
     ] }
   ]);
 
-  S('8', L('Nicht enthaltene Leistungen', 'Services not included'), [
+  S('9', L('Nicht enthaltene Leistungen', 'Services not included'), [
     { ul: en ? [
       'Guest communication — that is the subject of the guest relations service schedule.',
       'Photo production and copywriting in foreign languages.',
@@ -948,14 +968,14 @@ function rm(ctx) {
     ] }
   ]);
 
-  S('9', L('Werkzeuge und Arbeitsergebnisse', 'Tools and work product'), [
+  S('10', L('Werkzeuge und Arbeitsergebnisse', 'Tools and work product'), [
     P('Elevate Software AG setzt zur Preissetzung eigene Werkzeuge und Verfahren ein und betreibt sie auf eigene Rechnung. Ein Zugang des Kunden zu diesen Werkzeugen ist nicht Gegenstand dieses Leistungsscheins.',
       'Elevate Software AG uses its own tools and methods for pricing and operates them at its own expense. Client access to those tools is not part of this service schedule.'),
     P('Die Buchungs-, Gast- und Objektdaten des Kunden gehören ihm; das regelt der Rahmenvertrag. Die von Elevate Software AG daraus abgeleiteten Preisparameter, Regelwerke, Vergleichsgruppen und Auswertungsmethoden sind demgegenüber Arbeitsergebnis von Elevate Software AG und verbleiben bei ihr. Nach Vertragsende erhält der Kunde auf Anfrage die zuletzt gültigen Preise und den Korridor in einem gängigen Format.',
       'The client’s booking, guest and property data belongs to the client; this is governed by the framework agreement. By contrast, the pricing parameters, rule sets, comparison groups and analysis methods derived from it by Elevate Software AG are its work product and remain with it. After the agreement ends, the client receives on request the last valid prices and the corridor in a common format.')
   ]);
 
-  S('10', L('Vergütung', 'Remuneration'), [
+  S('11', L('Vergütung', 'Remuneration'), [
     { kv: [
       [txt(L('Preis', 'Price'), l), rmPrice(ctx)],
       [txt(L('Abgerechnete Einheiten', 'Units billed'), l), ansOr(ctx, 'units')],
@@ -965,7 +985,7 @@ function rm(ctx) {
       'The fee is charged together with the platform fee on the first day of each month for the coming month, to the credit card on file. Tool costs are included. If the number of units changes, billing is pro rata on a daily basis. Section 5 of the framework agreement applies in all other respects.')
   ]);
 
-  S('11', L('Laufzeit und Kündigung', 'Term and termination'), [
+  S('12', L('Laufzeit und Kündigung', 'Term and termination'), [
     { kv: [
       [txt(L('Beginn', 'Start'), l), startText(ctx)],
       [txt(L('Mindestlaufzeit', 'Minimum term'), l),
@@ -977,25 +997,25 @@ function rm(ctx) {
       'The minimum term reflects the fact that pricing strategy only takes effect over the booking window. After it expires the service schedule continues indefinitely and may be terminated on the stated notice. When the framework agreement ends, this service schedule ends as well.')
   ]);
 
-  S('12', L('Haftung', 'Liability'), [
+  S('13', L('Haftung', 'Liability'), [
     P('Es gilt die Haftungsregelung des Rahmenvertrags Elev8 Suite. Ergänzend gilt für diesen Leistungsschein:',
       'The liability provisions of the Elev8 Suite framework agreement apply. In addition, the following applies to this service schedule:'),
     { ul: en ? [
       'Pricing decisions taken within the corridor set out in section 3 are deemed authorised by the client.',
       'No particular commercial outcome is owed — in particular no occupancy, no average rate, no revenue and no ranking.',
-      'Elevate Software AG is not liable for the consequences of incorrect or outdated data supplied by the client, nor for its interventions under section 4.',
+      'Elevate Software AG is not liable for the consequences of incorrect or outdated data supplied by the client, nor for its interventions under section 5.',
       'Elevate Software AG is not liable for outages or malfunctions of the booking channels, the channel connection or the pricing tool.',
       'Market data and forecasts are estimates; no liability attaches to their accuracy.'
     ] : [
       'Preisentscheidungen innerhalb des Korridors nach Ziffer 3 gelten als vom Kunden autorisiert.',
       'Ein bestimmter wirtschaftlicher Erfolg wird nicht geschuldet — insbesondere keine Auslastung, kein Durchschnittspreis, kein Umsatz und kein Ranking.',
-      'Elevate Software AG haftet nicht für Folgen unrichtiger oder veralteter Daten des Kunden und nicht für dessen Eingriffe nach Ziffer 4.',
+      'Elevate Software AG haftet nicht für Folgen unrichtiger oder veralteter Daten des Kunden und nicht für dessen Eingriffe nach Ziffer 5.',
       'Elevate Software AG haftet nicht für Ausfälle oder Fehlfunktionen der Buchungskanäle, der Kanalanbindung oder des Preiswerkzeugs.',
       'Marktdaten und Prognosen sind Schätzungen; für ihre Richtigkeit wird nicht gehaftet.'
     ] }
   ]);
 
-  S('13', L('Schlussbestimmungen', 'Final provisions'), [
+  S('14', L('Schlussbestimmungen', 'Final provisions'), [
     P('Änderungen und Ergänzungen bedürfen der Textform. Angaben, die als vertragsrelevant gekennzeichnet sind, können nach der Unterzeichnung nur durch einen von beiden Seiten bestätigten Nachtrag geändert werden. Die Werte in Anlage 1 und Anlage 2 werden abweichend davon durch die in Ziffer 3 beschriebene Freigabe angepasst.',
       'Amendments and additions require text form. Entries marked as contractually relevant can be changed after signature only by an addendum confirmed by both sides. By way of exception, the values in Annex 1 and Annex 2 are adjusted through the approval process described in section 3.'),
     P('Bei Widersprüchen geht der Rahmenvertrag diesem Leistungsschein vor, soweit hier nicht ausdrücklich etwas anderes bestimmt ist. In Datenschutzfragen geht der Vertrag zur Auftragsverarbeitung beiden vor.',
