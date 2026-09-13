@@ -300,15 +300,6 @@ const SECTIONS = [
             hint: L('Kürzester Aufenthalt in einer Lücke zwischen zwei Buchungen.',
               'Shortest stay in a gap between two bookings.') }
         ] },
-      { id: 'rm_minstay', type: 'radio', contract: true,
-        label: L('In welcher Spanne dürfen wir den Mindestaufenthalt setzen?',
-          'Within which range may we set the minimum stay?'),
-        options: [
-          o('1_3', '1 bis 3 Nächte', '1 to 3 nights'),
-          o('1_5', '1 bis 5 Nächte', '1 to 5 nights'),
-          o('1_7', '1 bis 7 Nächte', '1 to 7 nights'),
-          o('2_7', '2 bis 7 Nächte', '2 to 7 nights')
-        ] },
       { id: 'rm_discount_max', type: 'radio', contract: true,
         label: L('Maximaler Rabatt auf den Basispreis', 'Maximum discount on the base price'),
         options: [
@@ -332,15 +323,6 @@ const SECTIONS = [
           o('none', 'Keine Frühbucherrabatte', 'No early-bird discounts')
         ] },
 
-      { id: 'rm_history', type: 'radio',
-        label: L('Können Sie uns zwölf Monate Historie liefern?', 'Can you provide twelve months of history?'),
-        help: L('Durchschnittspreis, Auslastung und Umsatz je Einheit und Monat. Ohne Historie messen wir gegen den Markt statt gegen Ihr Vorjahr.',
-          'Average rate, occupancy and revenue per unit and month. Without history we measure against the market instead of your previous year.'),
-        options: [
-          o('yes', 'Ja, wir liefern sie', 'Yes, we will provide it'),
-          o('partly', 'Nur teilweise', 'Only partly'),
-          o('no', 'Nein, haben wir nicht', 'No, we do not have it')
-        ] },
       { id: 'rm_channels_wanted', type: 'multi',
         label: L('Welche Kanäle sollen wir zusätzlich öffnen?', 'Which channels should we additionally open?'),
         help: L('Die Verträge mit den Portalen schliessen Sie selbst; wir richten ein und pflegen.',
@@ -364,24 +346,28 @@ const SECTIONS = [
 
       { id: 'note_rm_phase2', type: 'note',
         label: L('Die folgenden drei Fragen betreffen Titel, Beschreibungen und Bilder auf den Buchungsportalen. Diese Leistung erbringen wir, sobald Sie uns Zugangsdaten zu Ihren Portalen zur Verfügung stellen — ohne Preisänderung und ohne Nachtrag. Sie müssen das nicht tun und können die Zugänge jederzeit widerrufen.',
-          'The next three questions concern titles, descriptions and images on the booking portals. We deliver this service as soon as you provide us with access credentials to your portals — at no change in price and without an addendum. You are not obliged to do so and may revoke the access at any time.') },
+          'The next three questions concern titles, descriptions and images on the booking portals. We deliver this service as soon as you provide us with access credentials to your portals — at no change in price and without an addendum. You are not obliged to do so and may revoke the access at any time.') ,
+        requiresScope: { module: 'rm', code: 'content' } },
       { id: 'rm_photos', type: 'radio',
         label: L('Wie steht es um Ihr Bildmaterial?', 'What about your photography?'),
         options: [
           o('professional', 'Professionelle Fotos vorhanden', 'Professional photos available'),
           o('mixed', 'Gemischt, einige Einheiten brauchen neue', 'Mixed, some units need new ones'),
           o('needed', 'Neue Fotos werden gebraucht', 'New photos are needed')
-        ] },
+        ] ,
+        requiresScope: { module: 'rm', code: 'content' } },
       { id: 'rm_content_langs', type: 'multi',
         label: L('In welchen Sprachen sollen Titel und Beschreibungen laufen?',
           'In which languages should titles and descriptions run?'),
-        options: [o('de', 'Deutsch', 'German'), o('en', 'Englisch', 'English')] },
+        options: [o('de', 'Deutsch', 'German'), o('en', 'Englisch', 'English')] ,
+        requiresScope: { module: 'rm', code: 'content' } },
       { id: 'rm_content_approval', type: 'radio', contract: true,
         label: L('Wer gibt Texte und Bilder frei?', 'Who approves texts and images?'),
         options: [
           o('client', 'Wir geben jede Änderung frei', 'We approve every change'),
           o('elev8', 'Sie dürfen selbst entscheiden', 'You may decide yourselves')
-        ] },
+        ] ,
+        requiresScope: { module: 'rm', code: 'content' } },
 
       { id: 'rm_report_rhythm', type: 'radio', contract: true,
         label: L('Wie oft wünschen Sie den Bericht?', 'How often would you like the report?'),

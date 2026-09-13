@@ -377,9 +377,7 @@ function tenantForm(intake, answers, sources, snapshot, opts) {
   const lockedSet = o.locked || {};
   // Elev8-Suite-Daten plus unsere eigenen Vorschlaege (z. B. der Leistungsumfang).
   const pre = mergePrefill(snapshot && snapshot.prefill);
-  const live = INPUT_FIELDS.filter(function (f) {
-    return modules.sectionAllowed({ module: (f.module || sectionModule(f.section)) }, o.terms || {});
-  });
+  const live = INPUT_FIELDS.filter(function (f) { return modules.fieldAllowed(f, o.terms || {}); });
   const filled = live.filter(function (f) { return (answers[f.id] || '').trim() !== ''; }).length;
   const open = live.filter(function (f) {
     return (answers[f.id] || '').trim() === '' && !(pre[f.id] && pre[f.id].value);
@@ -425,7 +423,9 @@ function tenantForm(intake, answers, sources, snapshot, opts) {
   ${s.intro ? '<p class="sec-intro">' + esc(t(s.intro, lang)) + '</p>' : ''}
   ${scopeBoxes[s.id] || ''}
   ${secPre ? '<div class="secbulk"><button class="mini primary" type="button" data-act="okall" data-sec="' + s.id + '">' + esc(bulkLabel) + '</button></div>' : ''}
-  <div class="fields">${s.fields.map(function (f) {
+  <div class="fields">${s.fields.filter(function (f) {
+      return modules.fieldAllowed(f, terms);
+    }).map(function (f) {
       const withLock = lockedSet[f.id] ? Object.assign({}, f, { lockedNow: true }) : f;
       return field(withLock, answers[f.id], sources[f.id], pre[f.id], clashes[f.id], lang,
         units, { currency: currency });
@@ -508,7 +508,9 @@ function tenantForm(intake, answers, sources, snapshot, opts) {
         return m;
       })(),
       sections: visible.map(function (s) {
-        return { id: s.id, fields: s.fields.filter(isInput).map(function (f) { return f.id; }) };
+        return { id: s.id, fields: s.fields.filter(function (f) {
+          return isInput(f) && modules.fieldAllowed(f, terms);
+        }).map(function (f) { return f.id; }) };
       })
     })}</script>
 `
@@ -909,7 +911,9 @@ function adminDetail(intake, answers, sources, baseUrl, flash, extra) {
   const blocks = SECTIONS.filter(function (s) {
     return modules.sectionAllowed(s, mterms);
   }).map(function (s) {
-    const inputs = s.fields.filter(isInput);
+    const inputs = s.fields.filter(function (f) {
+      return isInput(f) && modules.fieldAllowed(f, mterms);
+    });
     const rows = inputs.map(function (f) {
       const v = (answers[f.id] || '').trim();
       const src = sources[f.id];
@@ -976,7 +980,7 @@ function exportMarkdown(intake, answers, sources) {
   }).forEach(function (s) {
     out.push('## ' + t(s.title, 'de'));
     out.push('');
-    s.fields.filter(isInput).forEach(function (f) {
+    s.fields.filter(function (f) { return isInput(f) && modules.fieldAllowed(f, terms); }).forEach(function (f) {
       const v = (answers[f.id] || '').trim();
       out.push('**' + t(f.label, 'de') + '**' + (sources[f.id] === 'confirmed' ? ' _(aus Elev8 Suite, bestätigt)_' : ''));
       out.push('');
