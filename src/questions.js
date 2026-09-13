@@ -350,8 +350,8 @@ const SECTIONS = [
         ] },
 
       { id: 'note_rm_phase2', type: 'note',
-        label: L('Die folgenden drei Fragen betreffen Titel, Beschreibungen und Bilder auf den Buchungsportalen. Diese Leistung aktivieren wir, sobald die Content-Schnittstelle zu den Portalen verfügbar ist — ohne Preisänderung und ohne Nachtrag.',
-          'The next three questions concern titles, descriptions and images on the booking portals. We activate this service as soon as the content interface to the portals is available — at no change in price and without an addendum.') },
+        label: L('Die folgenden drei Fragen betreffen Titel, Beschreibungen und Bilder auf den Buchungsportalen. Diese Leistung erbringen wir, sobald Sie uns Zugangsdaten zu Ihren Portalen zur Verfügung stellen — ohne Preisänderung und ohne Nachtrag. Sie müssen das nicht tun und können die Zugänge jederzeit widerrufen.',
+          'The next three questions concern titles, descriptions and images on the booking portals. We deliver this service as soon as you provide us with access credentials to your portals — at no change in price and without an addendum. You are not obliged to do so and may revoke the access at any time.') },
       { id: 'rm_photos', type: 'radio',
         label: L('Wie steht es um Ihr Bildmaterial?', 'What about your photography?'),
         options: [
