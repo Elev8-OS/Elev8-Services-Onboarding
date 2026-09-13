@@ -252,8 +252,8 @@ const SECTIONS = [
     id: 'revenue',
     module: 'rm',
     title: L('Revenue Management', 'Revenue management'),
-    intro: L('Das meiste steht schon in Elev8 Suite — Sie prüfen vor allem den Preiskorridor und legen die Grenzen fest, innerhalb derer wir ohne Rückfrage arbeiten.',
-      'Most of it is already in Elev8 Suite — mainly you check the price corridor and set the limits within which we work without asking.'),
+    intro: L('Das meiste steht schon in Elev8 Suite — Sie prüfen vor allem den Preiskorridor und legen die Grenzen fest, innerhalb derer wir ohne Rückfrage arbeiten. Dazu gehört alle vierzehn Tage ein halbstündiger Videocall mit Ihrem Revenue Manager, auf Englisch.',
+      'Most of it is already in Elev8 Suite — mainly you check the price corridor and set the limits within which we work without asking. This includes a half-hour video call with your revenue manager every fourteen days, in English.'),
     fields: [
       { id: 'rm_goal', type: 'radio', required: true, contract: true,
         label: L('Worauf sollen wir optimieren?', 'What should we optimise for?'),
