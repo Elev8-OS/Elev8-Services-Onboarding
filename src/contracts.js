@@ -935,13 +935,20 @@ function rm(ctx) {
       'If occupancy for the coming 30 days deviates by more than 15 percentage points from the previous year or from the forecast, Elevate Software AG reports this in text form within three working days and submits a proposal. Independently of this it reports detected parity breaches and technical failures in price distribution without delay.')
   ]);
 
-  S('7', L('Berichtswesen', 'Reporting'), [
+  S('7', L('Berichtswesen und Abstimmung', 'Reporting and review'), [
     { kv: [
       [txt(L('Rhythmus', 'Frequency'), l), ansOr(ctx, 'rm_report_rhythm')],
-      [txt(L('Empfänger', 'Recipient'), l), ansOr(ctx, 'rm_report_to')]
+      [txt(L('Empfänger', 'Recipient'), l), ansOr(ctx, 'rm_report_to')],
+      [txt(L('Videocall', 'Video call'), l),
+        txt(L('alle 14 Tage, 30 Minuten, auf Englisch',
+          'every 14 days, 30 minutes, in English'), l)]
     ] },
     P('Der Bericht enthält Kernzahlen gegen Vormonat und Vorjahr, die Belegungsentwicklung für die kommenden 30, 60 und 90 Tage, den Kanalmix, die stärksten und schwächsten Einheiten, einen Marktvergleich, die durchgeführten Massnahmen, die Eingriffe des Kunden sowie Empfehlungen. Kennzahlen, die Elev8 Suite nicht zuverlässig liefert — derzeit der Bewertungsschnitt — sind nicht Bestandteil des Berichts.',
-      'The report contains key figures against the previous month and previous year, the occupancy pace for the coming 30, 60 and 90 days, the channel mix, the strongest and weakest units, a market comparison, the measures taken, the client’s interventions and recommendations. Key figures that Elev8 Suite does not deliver reliably — currently the average review score — are not part of the report.')
+      'The report contains key figures against the previous month and previous year, the occupancy pace for the coming 30, 60 and 90 days, the channel mix, the strongest and weakest units, a market comparison, the measures taken, the client’s interventions and recommendations. Key figures that Elev8 Suite does not deliver reliably — currently the average review score — are not part of the report.'),
+    P('Zusätzlich zum Bericht steht dem Kunden alle vierzehn Tage ein Videocall von dreissig Minuten mit dem zuständigen Revenue Manager zur Verfügung. Der Call wird auf Englisch geführt und im Voraus terminiert; die Einladung und das Werkzeug stellt Elevate Software AG. Er ist in der Vergütung enthalten.',
+      'In addition to the report, the client is entitled to a thirty-minute video call with the responsible revenue manager every fourteen days. The call is held in English and scheduled in advance; Elevate Software AG provides the invitation and the tool. It is included in the fee.'),
+    P('Nicht wahrgenommene Termine verfallen und werden nicht übertragen. Weitere oder längere Termine sowie Termine in einer anderen Sprache werden gesondert vereinbart und nach Aufwand abgerechnet.',
+      'Slots not taken up lapse and are not carried forward. Further or longer sessions, and sessions in another language, are agreed separately and charged on a time basis.')
   ]);
 
   S('8', L('Mitwirkungspflichten des Kunden', 'Client’s duties to cooperate'), [
