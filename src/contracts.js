@@ -44,6 +44,7 @@ const ELEV8 = {
   uid: process.env.ELEV8_UID || 'CHE-398.140.212',
   signer: process.env.ELEV8_SIGNER || 'Reto Wyss',
   signerRole: process.env.ELEV8_SIGNER_ROLE || 'Mitglied des Verwaltungsrats',
+  signerRoleEn: process.env.ELEV8_SIGNER_ROLE_EN || 'Member of the Board of Directors',
   email: process.env.ELEV8_EMAIL || 'legal@elev8-suite.com',
   privacyEmail: process.env.ELEV8_PRIVACY_EMAIL || 'datenschutz@elev8-suite.com',
   euRep: process.env.ELEV8_EU_REP || ''
