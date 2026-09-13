@@ -268,7 +268,7 @@ function signability(kind, terms, missing, signedByKind, lang) {
 function missingRequired(values, terms) {
   return INPUT_FIELDS.filter(function (f) {
     if (!f.required) return false;
-    if (f.module && !mods.isActive(terms || {}, f.module)) return false;
+    if (!mods.fieldAllowed(f, terms || {})) return false;
     if (f.dependsOn) {
       const have = String(values[f.dependsOn.field] || '').trim();
       const want = [].concat(f.dependsOn.equals);
@@ -694,7 +694,7 @@ app.post('/api/f/:token/answer', async function (req, res, next) {
       });
     }
     const fdef = FIELD_MAP.get(fieldId);
-    if (fdef.module && !mods.isActive(intake.terms || {}, fdef.module)) {
+    if (!mods.fieldAllowed(fdef, intake.terms || {})) {
       return res.status(409).json({ error: 'module_off' });
     }
     const cap = fdef.type === 'matrix' ? 200000 : 8000;

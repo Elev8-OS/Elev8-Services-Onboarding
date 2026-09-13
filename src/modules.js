@@ -85,6 +85,18 @@ function sectionAllowed(section, terms) {
   return isActive(terms, section.module);
 }
 
+/**
+ * Einzelne Fragen können an einem Teil des Leistungsumfangs hängen - die
+ * Content-Fragen etwa nur, wenn der Content-Teil auch bestellt ist.
+ */
+function fieldAllowed(field, terms) {
+  if (!field) return true;
+  if (field.module && !isActive(terms, field.module)) return false;
+  const need = field.requiresScope;
+  if (!need) return true;
+  return isActive(terms, need.module) && hasScope(terms, need.module, need.code);
+}
+
 /** Gewählte Codes eines Leistungsumfangs. */
 function scopeCodes(terms, id) {
   const m = BY_ID[id];
@@ -141,6 +153,6 @@ function defaults(id) {
 
 module.exports = {
   MODULES, BY_ID, GRO_SCOPE, COVERAGE, RM_SCOPE,
-  isActive, activeModules, sectionAllowed, scopeCodes, hasScope,
+  isActive, activeModules, sectionAllowed, fieldAllowed, scopeCodes, hasScope,
   scopeLabels, coverageText, scopeReady, defaults
 };
