@@ -63,6 +63,11 @@ const UI = {
   bookedScopeNote: L('Der Leistungsumfang ist Teil Ihres Vertrags und wird von Elev8 Suite gepflegt. Für Änderungen wenden Sie sich an Ihren Ansprechpartner.',
     'The scope of services is part of your agreement and is maintained by Elev8 Suite. For changes, please contact your account manager.'),
 
+  pdfEn: L('PDF Englisch', 'PDF English'),
+  pdfDe: L('PDF Deutsch', 'PDF German'),
+  bothLangs: L('Der Vertrag wird in beiden Sprachen ausgestellt. Verbindlich ist die deutsche Fassung.',
+    'The agreement is issued in both languages. The German version is the binding one.'),
+
   mxUnit: L('Einheit', 'Unit'),
   mxNote: L('Alle Beträge je Nacht, netto — ohne Steuern, Abgaben, Reinigung und Nebenkosten. Der Mindestpreis ist verbindlich, der Höchstpreis ein Ausgangswert.',
     'All amounts per night, net — excluding taxes, levies, cleaning and ancillary charges. The minimum price is binding, the maximum price a starting value.'),

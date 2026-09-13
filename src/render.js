@@ -777,8 +777,10 @@ function termsPanel(intake, extra) {
           esc(c.signer_ip || '—') + '<br><span class="mono">' + esc(c.doc_hash) + '</span>'
         : 'Noch nicht unterzeichnet'}</div></div>
       <div class="cacts">
-        <a class="btn ghost" href="/admin/i/${intake.id}/vertrag/${kind}.pdf?muster=1">Muster-PDF</a>
-        ${c ? '<a class="btn ghost" href="/admin/i/' + intake.id + '/vertrag/' + kind + '.pdf">Unterzeichnetes PDF</a>' : ''}
+        <a class="btn ghost" href="/admin/i/${intake.id}/vertrag/${kind}.pdf?muster=1">Muster DE</a>
+        <a class="btn ghost" href="/admin/i/${intake.id}/vertrag/${kind}.pdf?muster=1&amp;lang=en">Muster EN</a>
+        ${c ? '<a class="btn ghost" href="/admin/i/' + intake.id + '/vertrag/' + kind + '.pdf">Unterzeichnet DE</a>' +
+          '<a class="btn ghost" href="/admin/i/' + intake.id + '/vertrag/' + kind + '.pdf?lang=en">Unterzeichnet EN</a>' : ''}
       </div>
     </div>`;
   };
