@@ -27,6 +27,42 @@
 
   function box(fieldId) { return document.querySelector('[data-field="' + fieldId + '"]'); }
 
+  /* ---------- Korridor-Tabelle ---------- */
+
+  function isMatrix(b) { return !!(b && b.dataset && b.dataset.type === 'matrix'); }
+
+  /** Traegt den Stand der Tabelle in das verborgene Feld ein - das wird gespeichert. */
+  function syncMatrix(b) {
+    if (!isMatrix(b)) return '';
+    var rows = [].slice.call(b.querySelectorAll('[data-mxrow]')).map(function (tr) {
+      var r = { id: tr.dataset.uid || '', name: tr.dataset.uname || '' };
+      tr.querySelectorAll('[data-mx]').forEach(function (inp) {
+        r[inp.dataset.mx] = inp.value.trim();
+      });
+      if (tr.classList.contains('est')) r.est = 1;
+      return r;
+    });
+    var hidden = b.querySelector('input[type="hidden"][name="' + b.dataset.field + '"]');
+    var empty = rows.every(function (r) { return !r.min && !r.base && !r.max; });
+    if (hidden) hidden.value = (!rows.length || empty) ? '' : JSON.stringify(rows);
+    return hidden ? hidden.value : '';
+  }
+
+  /** Eine bearbeitete Tabelle gilt als beantwortet - ohne die Zeile zusammenzuklappen. */
+  function matrixDone(b, confirmed) {
+    if (!isMatrix(b)) return;
+    b.classList.remove('pre');
+    b.classList.add('done');
+    var ok = b.querySelector('.mxfoot [data-act="ok"]');
+    if (ok) ok.remove();
+    var src = b.querySelector('.mxfoot .src');
+    if (src) {
+      src.className = 'src';
+      src.innerHTML = '<span class="tick" aria-hidden="true">✓</span> ' +
+        (confirmed ? say('fromElev8Confirmed') : say('yourAnswer'));
+    }
+  }
+
   function valueOf(fieldId) {
     var els = document.getElementsByName(fieldId);
     if (!els.length) return '';
@@ -77,6 +113,12 @@
       if (el.type === 'radio' || el.type === 'checkbox') {
         if (el.checked) { el.checked = false; touched = true; }
       } else if (el.value !== '') { el.value = ''; touched = true; }
+    }
+    var mb = box(fieldId);
+    if (isMatrix(mb)) {
+      mb.querySelectorAll('[data-mx]').forEach(function (inp) {
+        if (inp.value !== '') { inp.value = ''; touched = true; }
+      });
     }
     if (touched) {
       var b = box(fieldId);
@@ -141,6 +183,16 @@
       if (depsReady && isOff && !wasOff && !protectedPre && b.dataset.field) clearField(b.dataset.field);
       b.dataset.depOff = isOff ? '1' : '0';
     });
+    // Abschnittsweise: die Sprungleiste zeigt nur, was auch offen ist.
+    document.querySelectorAll('[data-navdep]').forEach(function (a) {
+      var wanted = String(a.dataset.navdepValue || '').split('|');
+      var have = valueOf(a.dataset.navdep).trim();
+      var hit = wanted.some(function (w) {
+        if (have === w) return true;
+        return have.split(',').map(function (x) { return x.trim(); }).indexOf(w) > -1;
+      });
+      a.hidden = !hit;
+    });
     depsReady = true;
   }
 
@@ -174,6 +226,7 @@
   function markDone(fieldId, value, confirmed) {
     var b = box(fieldId);
     if (!b) return;
+    if (isMatrix(b)) { matrixDone(b, confirmed); return; }
     b.classList.remove('pre', 'editing');
     b.classList.add('done');
     var prebox = b.querySelector('.prebox');
@@ -299,6 +352,14 @@
 
   document.addEventListener('input', function (ev) {
     var el = ev.target;
+    if (el.dataset && el.dataset.mx) {
+      var mb = el.closest('.field');
+      if (!mb || mb.classList.contains('dep-off')) return;
+      syncMatrix(mb);
+      matrixDone(mb, false);
+      queue(mb.dataset.field);
+      return;
+    }
     if (!el.name || el.closest('.finish') || el.dataset.frozen) return;
     if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') queue(el.name);
   });
