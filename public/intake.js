@@ -58,7 +58,7 @@
     var src = b.querySelector('.mxfoot .src');
     if (src) {
       src.className = 'src';
-      src.innerHTML = '<span class="tick" aria-hidden="true">✓</span> ' +
+      src.innerHTML = '<span class="tick" aria-hidden="true">\\u2713</span> ' +
         (confirmed ? say('fromElev8Confirmed') : say('yourAnswer'));
     }
   }
