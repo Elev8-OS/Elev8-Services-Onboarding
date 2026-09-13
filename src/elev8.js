@@ -135,6 +135,17 @@ async function fetchRaw(token) {
       out.warnings.push('Kanalverteilung konnte nicht gelesen werden.');
     }
 
+    // ADR je Einheit - Grundlage fuer den Preiskorridor im Revenue Management.
+    try {
+      const from = new Date(now.getFullYear() - 1, now.getMonth(), 1);
+      out.performance = await callTool(client, 'get_listing_performance_summary', {
+        from_date: isoDay(from), to_date: isoDay(now)
+      });
+    } catch (e) {
+      out.performance = null;
+      out.warnings.push('Leistungsdaten je Einheit konnten nicht gelesen werden.');
+    }
+
     out.profile = await probeProfile(client);
 
     out.fetchedAt = new Date().toISOString();
@@ -181,6 +192,36 @@ async function probeProfile(client) {
 }
 
 /** Ersten Wert finden, dessen Schluessel zum Muster passt. */
+function isoDay(d) {
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' +
+    String(d.getDate()).padStart(2, '0');
+}
+
+/**
+ * ADR je Einheit aus der Leistungsuebersicht. Die Antwort enthaelt je Einheit
+ * mehrere Zeilen - leere und gefuellte. Wir behalten je listing_id den hoechsten
+ * belastbaren Wert und ignorieren Zeilen ohne Buchungen.
+ */
+function adrMap(raw) {
+  const rows = Array.isArray(raw && raw.performance) ? raw.performance
+    : (raw && raw.performance && Array.isArray(raw.performance.results) ? raw.performance.results : []);
+  const out = {};
+  rows.forEach(function (r) {
+    const id = nonEmpty(r.listing_id);
+    const adr = num(r.avg_daily_rate);
+    if (!id || !adr) return;
+    if (!out[id] || adr > out[id]) out[id] = adr;
+  });
+  return out;
+}
+
+function median(list) {
+  const xs = list.filter(function (x) { return x > 0; }).sort(function (a, b) { return a - b; });
+  if (!xs.length) return 0;
+  const mid = Math.floor(xs.length / 2);
+  return xs.length % 2 ? xs[mid] : Math.round((xs[mid - 1] + xs[mid]) / 2 * 100) / 100;
+}
+
 function pick(row, re) {
   if (!row) return '';
   const keys = Object.keys(row);
@@ -220,6 +261,7 @@ function tally(items, pick) {
 
 function deriveFacts(raw) {
   const all = Array.isArray(raw.listings) ? raw.listings : [];
+  const adr = adrMap(raw);
   const live = all.filter(function (l) { return String(l.status) !== '0'; });
   const base = live.length ? live : all;
   const total = base.length;
@@ -246,6 +288,18 @@ function deriveFacts(raw) {
     fetchedAt: raw.fetchedAt,
     total: total,
     inactive: all.length - live.length,
+    // Einheitenliste fuer die Korridor-Tabelle im Revenue Management.
+    unitList: base.map(function (l) {
+      return {
+        id: nonEmpty(l.listing_id) || nonEmpty(l.internal_name) || nonEmpty(l.listing_name),
+        name: nonEmpty(l.listing_name) || nonEmpty(l.internal_name) || '—',
+        internal: nonEmpty(l.internal_name),
+        city: nonEmpty(l.city),
+        capacity: num(l.maximum_capacity),
+        currency: nonEmpty(l.currency),
+        adr: adr[nonEmpty(l.listing_id)] || 0
+      };
+    }).sort(function (x, y) { return String(x.name).localeCompare(String(y.name), 'de'); }),
     addresses: addresses.slice(0, 6),
     primaryAddress: addresses.length ? addresses[0].value : '',
     cities: cities.slice(0, 4),
@@ -280,6 +334,7 @@ function deriveFacts(raw) {
       checkout: pick(raw.profile, /check.?out.*(time|until)|time.*check.?out/i)
     } : null,
     channels: summariseChannels(raw.channels),
+    adrKnown: Object.keys(adr).length,
     warnings: raw.warnings || []
   };
 }
@@ -401,6 +456,15 @@ function prefillAnswers(facts, tenantName) {
   put('checkin_time', ci, L('Check-in-Zeit aus Elev8 Suite', 'Check-in time from Elev8 Suite'));
   put('checkout_time', co, L('Check-out-Zeit aus Elev8 Suite', 'Check-out time from Elev8 Suite'));
 
+  const corridor = corridorProposal(facts);
+  if (corridor.rows.length) {
+    put('rm_corridor', JSON.stringify(corridor.rows), L(
+      'Vorschlag aus Ihren Zahlen der letzten zwölf Monate' +
+        (corridor.estimated ? ' (' + corridor.estimated + ' ohne eigene Historie, aus vergleichbaren Einheiten abgeleitet)' : ''),
+      'Proposal from your last twelve months' +
+        (corridor.estimated ? ' (' + corridor.estimated + ' without own history, derived from comparable units)' : '')));
+  }
+
   if (facts.deposits.length === 1) {
     put('deposit_amount', facts.deposits[0].value.trim(), L(
       'Kaution aus Elev8 Suite (' + plural(facts.deposits[0].n, 'Einheit', 'Einheiten') + ')',
@@ -410,6 +474,45 @@ function prefillAnswers(facts, tenantName) {
   }
 
   return out;
+}
+
+/**
+ * Preiskorridor-Vorschlag je Einheit.
+ *   Minimum   rund 75 Prozent des erzielten Durchschnittspreises
+ *   Basis     der erzielte Durchschnittspreis
+ *   Maximum   rund das 1,9-fache, damit Spitzentage mitgenommen werden
+ * Einheiten ohne eigene Historie erben den Median ihrer Stadt, sonst den
+ * Median des Portfolios. Diese Zeilen sind als geschaetzt markiert.
+ */
+function corridorProposal(facts) {
+  const units = facts.unitList || [];
+  const withAdr = units.filter(function (u) { return u.adr > 0; });
+  if (!withAdr.length) return { rows: [], estimated: 0 };
+
+  const all = median(withAdr.map(function (u) { return u.adr; }));
+  const byCity = {};
+  withAdr.forEach(function (u) {
+    const c = u.city || '';
+    (byCity[c] = byCity[c] || []).push(u.adr);
+  });
+  Object.keys(byCity).forEach(function (c) { byCity[c] = median(byCity[c]); });
+
+  let estimated = 0;
+  const rows = units.map(function (u) {
+    const base = u.adr > 0 ? u.adr : (byCity[u.city || ''] || all);
+    const est = u.adr > 0 ? 0 : 1;
+    if (est) estimated++;
+    const r = {
+      id: u.id,
+      name: u.name,
+      min: String(Math.round(base * 0.75)),
+      base: String(Math.round(base)),
+      max: String(Math.round(base * 1.9))
+    };
+    if (est) r.est = 1;
+    return r;
+  });
+  return { rows: rows, estimated: estimated };
 }
 
 /**
@@ -450,5 +553,6 @@ async function sync(token, tenantName) {
 
 module.exports = {
   MCP_URL, withClient, callTool, listTools, fetchRaw,
-  deriveFacts, prefillAnswers, readiness, sync, lockSummary, probeProfile
+  deriveFacts, prefillAnswers, readiness, sync, lockSummary, probeProfile,
+  corridorProposal, adrMap
 };

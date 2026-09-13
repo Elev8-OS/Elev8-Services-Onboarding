@@ -190,9 +190,21 @@ async function langFor(req, intake) {
 
 // Reihenfolge = Reihenfolge der Unterzeichnung: erst der Rahmen, dann der AVV,
 // dann die Leistungsscheine.
-const KINDS = ['platform', 'avv', 'gro'];
+const KINDS = ['platform', 'avv', 'gro', 'rm'];
 // Der Rahmenvertrag fixiert nur die Stammdaten, der Leistungsschein alles Weitere.
 const PLATFORM_FIELDS = ['company', 'address', 'contact_main', 'contact_email', 'units'];
+// Der GRO-Schein fixiert den Betrieb, der Revenue-Schein den Preisteil.
+const RM_FIELDS = CONTRACT_FIELDS.filter(function (f) { return f.section === 'revenue'; });
+const GRO_FIELDS = CONTRACT_FIELDS.filter(function (f) { return f.section !== 'revenue'; });
+
+/**
+ * Welche Dokumente gehoeren zu diesem Kunden? Der Leistungsschein Revenue
+ * Management existiert nur, wenn das Paket auch bestellt wurde.
+ */
+function kindsFor(values) {
+  const v = values || {};
+  return KINDS.filter(function (k) { return k !== 'rm' || String(v.revenue_package || '') === 'yes'; });
+}
 
 /** Kennzeichnung für Entwürfe, die an Interessenten gehen. */
 const DRAFT_MARK = {
@@ -220,6 +232,9 @@ function termsReady(terms, kind) {
   }
   if (kind === 'gro') {
     return has('price_per_unit') && has('term_months') && has('notice_months');
+  }
+  if (kind === 'rm') {
+    return has('rm_price_per_unit') && has('rm_term_months') && has('rm_notice_months');
   }
   return true;   // der AVV braucht keine kaufmaennischen Angaben
 }
@@ -261,7 +276,8 @@ async function lockedFields(intake) {
   const signed = await db.listContracts(intake.id);
   const out = {};
   signed.forEach(function (c) {
-    if (c.kind === 'gro') CONTRACT_FIELDS.forEach(function (f) { out[f.id] = true; });
+    if (c.kind === 'gro') GRO_FIELDS.forEach(function (f) { out[f.id] = true; });
+    if (c.kind === 'rm') RM_FIELDS.forEach(function (f) { out[f.id] = true; });
     if (c.kind === 'platform' || c.kind === 'avv') PLATFORM_FIELDS.forEach(function (id) { out[id] = true; });
   });
   return out;
@@ -360,7 +376,7 @@ app.get('/admin/i/:id', requireAdmin, async function (req, res, next) {
     const signedList = await db.listContracts(intake.id);
     res.type('html').send(view.adminDetail(intake, a.values, a.sources, baseUrl(req),
       req.query.msg || null, { terms: intake.terms || contracts.DEFAULT_TERMS, contracts: signedList,
-        missing: missingRequired(a.values) }));
+        missing: missingRequired(a.values), answers: a.values }));
   } catch (e) { next(e); }
 });
 
@@ -406,6 +422,11 @@ app.post('/admin/i/:id/terms', requireAdmin, async function (req, res, next) {
       setup_fee: pick('setup_fee', 20),
       term_months: pick('term_months', 4),
       notice_months: pick('notice_months', 4),
+      rm_price_per_unit: pick('rm_price_per_unit', 20),
+      rm_tier_from: pick('rm_tier_from', 6),
+      rm_tier_price: pick('rm_tier_price', 20),
+      rm_term_months: pick('rm_term_months', 4) || '6',
+      rm_notice_months: pick('rm_notice_months', 4) || '3',
       start_date: pick('start_date', 40),
       law: pick('law', 4) || 'CH',
       venue: pick('venue', 120) || 'Olten, Schweiz'
@@ -611,9 +632,10 @@ app.get('/f/:token', async function (req, res, next) {
     const signedByKind = {};
     signedList.forEach(function (c) { signedByKind[c.kind] = c; });
 
-    const docs = KINDS.map(function (k) { return contracts.build(k, intake, a.values, terms, CONTRACT_LANG); });
+    const kinds = kindsFor(a.values);
+    const docs = kinds.map(function (k) { return contracts.build(k, intake, a.values, terms, CONTRACT_LANG); });
     const statusByKind = {};
-    KINDS.forEach(function (k) { statusByKind[k] = signability(k, terms, missing, signedByKind, lang); });
+    kinds.forEach(function (k) { statusByKind[k] = signability(k, terms, missing, signedByKind, lang); });
     const block = contractview.contractsBlock(intake, docs, statusByKind, lang);
 
     const opts = {
@@ -641,7 +663,8 @@ app.post('/api/f/:token/answer', async function (req, res, next) {
         message: i18n.t(i18n.UI.lockedHint, i18n.normLang(intake.lang) || 'de')
       });
     }
-    const value = String(req.body.value == null ? '' : req.body.value).slice(0, 8000);
+    const cap = FIELD_MAP.get(fieldId).type === 'matrix' ? 200000 : 8000;
+    const value = String(req.body.value == null ? '' : req.body.value).slice(0, cap);
     await db.saveAnswer(intake.id, fieldId, value, 'tenant');
     res.json({ ok: true });
   } catch (e) { next(e); }
@@ -749,6 +772,9 @@ async function contractContext(req, res) {
   if (KINDS.indexOf(kind) < 0) { res.status(404).type('text/plain').send('Nicht gefunden'); return null; }
   const lang = await langFor(req, intake);
   const a = await db.getAnswers(intake.id);
+  if (kindsFor(a.values).indexOf(kind) < 0) {
+    res.status(404).type('text/plain').send('Nicht gefunden'); return null;
+  }
   return { intake: intake, kind: kind, lang: lang, answers: a.values, terms: intake.terms || {} };
 }
 
@@ -768,6 +794,7 @@ app.get('/f/:token/vertrag/:kind.pdf', async function (req, res, next) {
     }
     // Noch nicht unterzeichnet: gekennzeichneter Entwurf aus dem aktuellen Stand.
     const a = await db.getAnswers(intake.id);
+    if (kindsFor(a.values).indexOf(kind) < 0) return res.status(404).type('text/plain').send('Nicht gefunden');
     const doc = contracts.build(kind, intake, a.values, intake.terms || {}, CONTRACT_LANG);
     const buf = await pdfout.render(doc, null, { draft: DRAFT_MARK });
     res.setHeader('Content-Disposition', 'inline; filename="Muster-' + kind + '-' + stem + '.pdf"');
@@ -823,7 +850,10 @@ app.post('/api/f/:token/sign', async function (req, res, next) {
       return res.status(409).json({ error: 'no_terms', message: i18n.t(i18n.UI.contractsMissingTerms, uiLang) });
     }
     // Ein Leistungsschein steht nur zusammen mit dem Rahmenvertrag.
-    if (kind === 'gro') {
+    if (kind === 'rm' && String(a.values.revenue_package || '') !== 'yes') {
+      return res.status(409).json({ error: 'not_ordered' });
+    }
+    if (kind === 'gro' || kind === 'rm') {
       const base = await db.getContract(intake.id, 'platform');
       if (!base) {
         return res.status(409).json({ error: 'needs_platform', message: i18n.t(i18n.UI.needsPlatform, uiLang) });

@@ -59,6 +59,17 @@ const UI = {
   applyFailed: L('Übernahme fehlgeschlagen — bitte nochmals', 'Could not apply — please try again'),
   taking: L('Wird übernommen …', 'Applying …'),
 
+  mxUnit: L('Einheit', 'Unit'),
+  mxNote: L('Alle Beträge je Nacht. Innerhalb dieser Grenzen setzen wir die Preise ohne Rückfrage.',
+    'All amounts per night. Within these limits we set prices without asking.'),
+  mxEst: L('geschätzt', 'estimated'),
+  mxEstHint: L('Für diese Einheit liegt noch keine eigene Historie vor — der Vorschlag stammt aus vergleichbaren Einheiten.',
+    'No own history yet for this unit — the proposal is derived from comparable units.'),
+  mxEmpty: L('Sobald Ihre Einheiten in Elev8 Suite stehen, erscheint hier die Tabelle.',
+    'The table appears here as soon as your units are in Elev8 Suite.'),
+  mxSaved: L('Korridor gespeichert', 'Corridor saved'),
+  mxRows: L('Einheiten im Korridor festgelegt', 'units with a corridor set'),
+
   eyebrow: L('Aufnahme für', 'Onboarding for'),
   h1: L('Was unser Team über Ihr Haus wissen muss',
     'What our team needs to know about your property'),
@@ -196,7 +207,7 @@ function clientStrings(lang) {
     'submitFail', 'missingOne', 'missingMany', 'missingTail', 'depBecause', 'depPrev', 'depWait',
     'resyncBtn', 'resyncBusy', 'resyncWait', 'resyncReload', 'resyncNone', 'resyncNoConn',
     'resyncFail', 'yourAnswer', 'fromElev8Confirmed', 'change', 'lastFetched',
-    'signBusy', 'signDone', 'signFail'];
+    'signBusy', 'signDone', 'signFail', 'mxSaved', 'mxRows'];
   const out = {};
   keys.forEach(function (k) { out[k] = t(UI[k], lang); });
   out.justNow = lang === 'en' ? 'just now' : 'gerade eben';
