@@ -7,6 +7,7 @@ const path = require('path');
 const db = require('./db');
 const elev8 = require('./elev8');
 const { FIELD_MAP, SECTIONS, CONTRACT_FIELDS, INPUT_FIELDS, mergePrefill, valueLabel } = require('./questions');
+const mods = require('./modules');
 const contracts = require('./contracts');
 const contractview = require('./contractview');
 const pdfout = require('./pdf');
@@ -198,12 +199,15 @@ const RM_FIELDS = CONTRACT_FIELDS.filter(function (f) { return f.section === 're
 const GRO_FIELDS = CONTRACT_FIELDS.filter(function (f) { return f.section !== 'revenue'; });
 
 /**
- * Welche Dokumente gehoeren zu diesem Kunden? Der Leistungsschein Revenue
- * Management existiert nur, wenn das Paket auch bestellt wurde.
+ * Welche Dokumente gehoeren zu diesem Kunden? Rahmenvertrag und AVV immer,
+ * ein Leistungsschein nur, wenn das Modul im Admin freigeschaltet ist.
  */
-function kindsFor(values) {
-  const v = values || {};
-  return KINDS.filter(function (k) { return k !== 'rm' || String(v.revenue_package || '') === 'yes'; });
+function kindsFor(terms) {
+  const t = terms || {};
+  return KINDS.filter(function (k) {
+    if (k === 'platform' || k === 'avv') return true;
+    return mods.isActive(t, k);
+  });
 }
 
 /** Kennzeichnung für Entwürfe, die an Interessenten gehen. */
@@ -231,10 +235,12 @@ function termsReady(terms, kind) {
     return has(price) && has('platform_term_months') && has('platform_notice_months');
   }
   if (kind === 'gro') {
-    return has('price_per_unit') && has('term_months') && has('notice_months');
+    return mods.isActive(t, 'gro') && mods.scopeReady(t, 'gro') &&
+      has('price_per_unit') && has('term_months') && has('notice_months');
   }
   if (kind === 'rm') {
-    return has('rm_price_per_unit') && has('rm_term_months') && has('rm_notice_months');
+    return mods.isActive(t, 'rm') && mods.scopeReady(t, 'rm') &&
+      has('rm_price_per_unit') && has('rm_term_months') && has('rm_notice_months');
   }
   return true;   // der AVV braucht keine kaufmaennischen Angaben
 }
@@ -259,9 +265,10 @@ function signability(kind, terms, missing, signedByKind, lang) {
 }
 
 /** Welche Pflichtfelder fehlen noch? Abhaengige Felder zaehlen nur, wenn aktiv. */
-function missingRequired(values) {
+function missingRequired(values, terms) {
   return INPUT_FIELDS.filter(function (f) {
     if (!f.required) return false;
+    if (f.module && !mods.isActive(terms || {}, f.module)) return false;
     if (f.dependsOn) {
       const have = String(values[f.dependsOn.field] || '').trim();
       const want = [].concat(f.dependsOn.equals);
@@ -376,7 +383,7 @@ app.get('/admin/i/:id', requireAdmin, async function (req, res, next) {
     const signedList = await db.listContracts(intake.id);
     res.type('html').send(view.adminDetail(intake, a.values, a.sources, baseUrl(req),
       req.query.msg || null, { terms: intake.terms || contracts.DEFAULT_TERMS, contracts: signedList,
-        missing: missingRequired(a.values), answers: a.values }));
+        missing: missingRequired(a.values, intake.terms || {}), answers: a.values }));
   } catch (e) { next(e); }
 });
 
@@ -411,6 +418,21 @@ app.post('/admin/i/:id/terms', requireAdmin, async function (req, res, next) {
     const intake = await db.getIntakeById(Number(req.params.id));
     if (!intake) return res.status(404).type('text/plain').send('Nicht gefunden');
     const pick = function (k, max) { return String(req.body[k] == null ? '' : req.body[k]).trim().slice(0, max || 60); };
+    // Mehrfachauswahl: Checkboxen kommen je nach Anzahl als String oder Array.
+    const picks = function (k, allowed) {
+      const raw = req.body[k];
+      const list = Array.isArray(raw) ? raw : (raw == null ? [] : [raw]);
+      const ok = {};
+      allowed.forEach(function (x) { ok[x.code] = true; });
+      return list.map(String).filter(function (x) { return ok[x]; }).join(', ');
+    };
+    const flag = function (k) { return req.body[k] ? '1' : ''; };
+    // Ein unterzeichneter Leistungsschein friert sein Modul ein.
+    const signedKinds = {};
+    (await db.listContracts(intake.id)).forEach(function (c) { signedKinds[c.kind] = true; });
+    const cur = intake.terms || {};
+    const keep = function (id, value) { return signedKinds[id] ? (cur['mod_' + id] || '') : value; };
+
     await db.setTerms(intake.id, {
       currency: pick('currency', 8) || 'EUR',
       platform_model: pick('platform_model', 20) === 'per_booking' ? 'per_booking' : 'per_unit',
@@ -427,6 +449,13 @@ app.post('/admin/i/:id/terms', requireAdmin, async function (req, res, next) {
       rm_tier_price: pick('rm_tier_price', 20),
       rm_term_months: pick('rm_term_months', 4) || '6',
       rm_notice_months: pick('rm_notice_months', 4) || '3',
+      mod_gro: keep('gro', flag('mod_gro')),
+      mod_rm: keep('rm', flag('mod_rm')),
+      gro_scope: picks('gro_scope', mods.GRO_SCOPE),
+      gro_scope_extra: pick('gro_scope_extra', 200),
+      gro_coverage: pick('gro_coverage', 20),
+      gro_coverage_custom: pick('gro_coverage_custom', 120),
+      rm_scope: picks('rm_scope', mods.RM_SCOPE),
       start_date: pick('start_date', 40),
       law: pick('law', 4) || 'CH',
       venue: pick('venue', 120) || 'Olten, Schweiz'
@@ -628,11 +657,11 @@ app.get('/f/:token', async function (req, res, next) {
     const tenant = await tenantForIntake(intake);
     const [locked, signedList] = await Promise.all([lockedFields(intake), db.listContracts(intake.id)]);
     const terms = intake.terms || {};
-    const missing = missingRequired(a.values);
+    const missing = missingRequired(a.values, terms);
     const signedByKind = {};
     signedList.forEach(function (c) { signedByKind[c.kind] = c; });
 
-    const kinds = kindsFor(a.values);
+    const kinds = kindsFor(terms);
     const docs = kinds.map(function (k) { return contracts.build(k, intake, a.values, terms, CONTRACT_LANG); });
     const statusByKind = {};
     kinds.forEach(function (k) { statusByKind[k] = signability(k, terms, missing, signedByKind, lang); });
@@ -643,6 +672,7 @@ app.get('/f/:token', async function (req, res, next) {
       canResync: !!(tenant && tenant.elev8_token),
       conflicts: resync.conflictsFor(a.values, snapshot && snapshot.prefill),
       locked: locked,
+      terms: terms,
       contractsBlock: block
     };
     res.setHeader('Cache-Control', 'no-store');
@@ -663,7 +693,11 @@ app.post('/api/f/:token/answer', async function (req, res, next) {
         message: i18n.t(i18n.UI.lockedHint, i18n.normLang(intake.lang) || 'de')
       });
     }
-    const cap = FIELD_MAP.get(fieldId).type === 'matrix' ? 200000 : 8000;
+    const fdef = FIELD_MAP.get(fieldId);
+    if (fdef.module && !mods.isActive(intake.terms || {}, fdef.module)) {
+      return res.status(409).json({ error: 'module_off' });
+    }
+    const cap = fdef.type === 'matrix' ? 200000 : 8000;
     const value = String(req.body.value == null ? '' : req.body.value).slice(0, cap);
     await db.saveAnswer(intake.id, fieldId, value, 'tenant');
     res.json({ ok: true });
@@ -772,7 +806,7 @@ async function contractContext(req, res) {
   if (KINDS.indexOf(kind) < 0) { res.status(404).type('text/plain').send('Nicht gefunden'); return null; }
   const lang = await langFor(req, intake);
   const a = await db.getAnswers(intake.id);
-  if (kindsFor(a.values).indexOf(kind) < 0) {
+  if (kindsFor(intake.terms || {}).indexOf(kind) < 0) {
     res.status(404).type('text/plain').send('Nicht gefunden'); return null;
   }
   return { intake: intake, kind: kind, lang: lang, answers: a.values, terms: intake.terms || {} };
@@ -794,7 +828,7 @@ app.get('/f/:token/vertrag/:kind.pdf', async function (req, res, next) {
     }
     // Noch nicht unterzeichnet: gekennzeichneter Entwurf aus dem aktuellen Stand.
     const a = await db.getAnswers(intake.id);
-    if (kindsFor(a.values).indexOf(kind) < 0) return res.status(404).type('text/plain').send('Nicht gefunden');
+    if (kindsFor(intake.terms || {}).indexOf(kind) < 0) return res.status(404).type('text/plain').send('Nicht gefunden');
     const doc = contracts.build(kind, intake, a.values, intake.terms || {}, CONTRACT_LANG);
     const buf = await pdfout.render(doc, null, { draft: DRAFT_MARK });
     res.setHeader('Content-Disposition', 'inline; filename="Muster-' + kind + '-' + stem + '.pdf"');
@@ -816,7 +850,7 @@ app.get('/f/:token/vertrag/:kind', async function (req, res, next) {
     const all = await db.listContracts(c.intake.id);
     const byKind = {};
     all.forEach(function (x) { byKind[x.kind] = x; });
-    const st = signability(c.kind, c.terms, missingRequired(c.answers), byKind, c.lang);
+    const st = signability(c.kind, c.terms, missingRequired(c.answers, c.terms), byKind, c.lang);
 
     res.setHeader('Cache-Control', 'no-store');
     res.type('html').send(contractview.contractPage(
@@ -850,7 +884,7 @@ app.post('/api/f/:token/sign', async function (req, res, next) {
       return res.status(409).json({ error: 'no_terms', message: i18n.t(i18n.UI.contractsMissingTerms, uiLang) });
     }
     // Ein Leistungsschein steht nur zusammen mit dem Rahmenvertrag.
-    if (kind === 'rm' && String(a.values.revenue_package || '') !== 'yes') {
+    if (kindsFor(terms).indexOf(kind) < 0) {
       return res.status(409).json({ error: 'not_ordered' });
     }
     if (kind === 'gro' || kind === 'rm') {
@@ -859,7 +893,7 @@ app.post('/api/f/:token/sign', async function (req, res, next) {
         return res.status(409).json({ error: 'needs_platform', message: i18n.t(i18n.UI.needsPlatform, uiLang) });
       }
     }
-    const missing = missingRequired(a.values);
+    const missing = missingRequired(a.values, terms);
     if (missing.length) {
       return res.status(409).json({ error: 'missing', message: i18n.t(i18n.UI.contractsMissingFields, uiLang) });
     }

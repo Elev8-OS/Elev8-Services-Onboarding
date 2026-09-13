@@ -79,6 +79,45 @@ async function init() {
   `);
   await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS contracts_one_per_kind ON contracts(intake_id, kind);`);
   await migrateOptionCodes();
+  await migrateModules();
+}
+
+/**
+ * Vor den Modulen steckte der Leistungsumfang in den Antworten des Tenants
+ * und das Revenue-Paket in einer Frage. Beides wandert einmalig in die
+ * Vertragsdaten der Aufnahme, wo es nur noch der Admin pflegt. Aufnahmen,
+ * die bereits einen Modulstand tragen, bleiben unberuehrt.
+ */
+async function migrateModules() {
+  const mods = require('./modules');
+  const { rows } = await pool.query(`SELECT id, terms FROM intakes`);
+  let changed = 0;
+  for (const r of rows) {
+    const terms = r.terms || {};
+    if (terms.mod_gro !== undefined || terms.mod_rm !== undefined) continue;
+    const { rows: ans } = await pool.query(
+      `SELECT field_id, value FROM answers WHERE intake_id = $1
+         AND field_id IN ('scope','scope_extra','coverage','coverage_custom','revenue_package')`,
+      [r.id]);
+    const a = {};
+    ans.forEach(function (x) { a[x.field_id] = x.value; });
+
+    const next = Object.assign({}, terms);
+    // Guest Relations gab es bisher fuer jede Aufnahme.
+    next.mod_gro = '1';
+    next.gro_scope = String(a.scope || '').trim() || mods.defaults('gro').gro_scope;
+    next.gro_scope_extra = String(a.scope_extra || '').trim();
+    next.gro_coverage = String(a.coverage || '').trim() || 'h24_7';
+    next.gro_coverage_custom = String(a.coverage_custom || '').trim();
+    // Revenue Management nur dort, wo der Tenant es bestellt hatte.
+    const hadRm = String(a.revenue_package || '') === 'yes';
+    next.mod_rm = hadRm ? '1' : '';
+    next.rm_scope = terms.rm_scope || mods.defaults('rm').rm_scope;
+
+    await pool.query('UPDATE intakes SET terms = $2 WHERE id = $1', [r.id, next]);
+    changed++;
+  }
+  if (changed) console.log('Module aus den Antworten uebernommen: ' + changed + ' Aufnahmen');
 }
 
 /**
@@ -182,10 +221,16 @@ async function listIntakes() {
 }
 
 async function createIntake(tenant, token, snapshot) {
+  // Neue Aufnahme: Guest Relations ist das Standardmodul und kommt mit dem
+  // vollen Leistungsumfang; Revenue Management schaltet der Admin dazu.
+  const mods = require('./modules');
+  const terms = Object.assign({ mod_gro: '1', mod_rm: '' },
+    mods.defaults('gro'), { rm_scope: mods.defaults('rm').rm_scope });
   const { rows } = await pool.query(
-    `INSERT INTO intakes (tenant_id, tenant_name, token, note, snapshot)
-     VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-    [tenant.id, tenant.name, token, tenant.note || null, snapshot ? JSON.stringify(snapshot) : null]
+    `INSERT INTO intakes (tenant_id, tenant_name, token, note, snapshot, terms)
+     VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+    [tenant.id, tenant.name, token, tenant.note || null,
+      snapshot ? JSON.stringify(snapshot) : null, terms]
   );
   return rows[0];
 }
