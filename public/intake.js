@@ -40,12 +40,90 @@
         r[inp.dataset.mx] = inp.value.trim();
       });
       if (tr.classList.contains('est')) r.est = 1;
+      if (tr.dataset.pl) r.pl = 1;
       return r;
     });
     var hidden = b.querySelector('input[type="hidden"][name="' + b.dataset.field + '"]');
     var empty = rows.every(function (r) { return !r.min && !r.base && !r.max; });
     if (hidden) hidden.value = (!rows.length || empty) ? '' : JSON.stringify(rows);
     return hidden ? hidden.value : '';
+  }
+
+  /* --- Mehrfachauswahl und Kopieren ------------------------------------ */
+
+  function mxRows(b) { return [].slice.call(b.querySelectorAll('[data-mxrow]')); }
+  function mxPicked(b) {
+    return mxRows(b).filter(function (tr) {
+      var c = tr.querySelector('[data-mxsel]');
+      return c && c.checked;
+    });
+  }
+
+  /** Zeigt, wie viele Einheiten ausgewaehlt sind, und blendet die Leiste ein. */
+  function mxSync(b) {
+    var bar = b.querySelector('[data-mxbar]');
+    if (!bar) return;
+    var n = mxPicked(b).length;
+    bar.hidden = n === 0;
+    var count = bar.querySelector('[data-mxcount]');
+    if (count) count.textContent = n + ' ' + say('mxSelected');
+    var all = b.querySelector('[data-mxall]');
+    if (all) {
+      var total = mxRows(b).length;
+      all.checked = n === total && total > 0;
+      all.indeterminate = n > 0 && n < total;
+    }
+    if (!n) mxCloseCopy(b);
+  }
+
+  function mxCloseCopy(b) {
+    var copy = b.querySelector('[data-mxcopy]');
+    if (copy) copy.hidden = true;
+    b.querySelectorAll('[data-mxrow].tpl').forEach(function (tr) { tr.classList.remove('tpl'); });
+  }
+
+  /** Markiert eine Zeile als Vorlage und oeffnet die Spaltenauswahl. */
+  function mxTemplate(b, tr) {
+    if (!mxPicked(b).length) { setFlag(say('mxPickFirst'), 'err'); return; }
+    b.querySelectorAll('[data-mxrow].tpl').forEach(function (x) { x.classList.remove('tpl'); });
+    tr.classList.add('tpl');
+    var copy = b.querySelector('[data-mxcopy]');
+    if (copy) copy.hidden = false;
+    var name = b.querySelector('[data-mxfromname]');
+    if (name) name.textContent = tr.dataset.uname || '';
+  }
+
+  /** Uebertraegt die gewaehlten Spalten von der Vorlage auf die Auswahl. */
+  function mxApply(b) {
+    var tpl = b.querySelector('[data-mxrow].tpl');
+    if (!tpl) return;
+    var cols = [].slice.call(b.querySelectorAll('[data-mxcol]'))
+      .filter(function (c) { return c.checked; })
+      .map(function (c) { return c.dataset.mxcol; });
+    if (!cols.length) return;
+
+    var from = {};
+    cols.forEach(function (k) {
+      var inp = tpl.querySelector('[data-mx="' + k + '"]');
+      from[k] = inp ? inp.value.trim() : '';
+    });
+
+    var targets = mxPicked(b);
+    targets.forEach(function (tr) {
+      if (tr === tpl) return;
+      cols.forEach(function (k) {
+        var inp = tr.querySelector('[data-mx="' + k + '"]');
+        if (inp) inp.value = from[k];
+      });
+      tr.classList.add('flash');
+      setTimeout(function () { tr.classList.remove('flash'); }, 900);
+    });
+
+    syncMatrix(b);
+    matrixDone(b, false);
+    save(b.dataset.field);
+    setFlag(targets.length + ' × ' + cols.length + ' ' + say('mxCopied'), 'ok');
+    mxCloseCopy(b);
   }
 
   /** Eine bearbeitete Tabelle gilt als beantwortet - ohne die Zeile zusammenzuklappen. */
@@ -347,6 +425,50 @@
         // Cursor ans Ende - bei number/email wirft setSelectionRange, das ist egal.
         try { if (input.value) input.setSelectionRange(input.value.length, input.value.length); } catch (e) { /* egal */ }
       }
+    }
+  });
+
+  // Auswahl, Vorlage und Uebertrag in der Korridor-Tabelle.
+  document.addEventListener('click', function (ev) {
+    var el = ev.target;
+    var b = el.closest ? el.closest('.field.mx') : null;
+    if (!b) return;
+
+    if (el.closest('[data-mxtpl]')) { mxTemplate(b, el.closest('[data-mxrow]')); return; }
+    if (el.closest('[data-mxnone]')) {
+      b.querySelectorAll('[data-mxsel]').forEach(function (c) { c.checked = false; });
+      mxSync(b); return;
+    }
+    if (el.closest('[data-mxcancel]')) { mxCloseCopy(b); return; }
+    if (el.closest('[data-mxapply]')) { mxApply(b); return; }
+    var grp = el.closest('[data-mxgroup]');
+    if (grp) {
+      var mode = grp.dataset.mxgroup;
+      b.querySelectorAll('[data-mxcol]').forEach(function (c) {
+        var isPrice = ['min', 'base', 'max'].indexOf(c.dataset.mxcol) > -1;
+        c.checked = mode === 'all' || (mode === 'prices' ? isPrice : !isPrice);
+      });
+      return;
+    }
+  });
+
+  document.addEventListener('change', function (ev) {
+    var el = ev.target;
+    var b = el.closest ? el.closest('.field.mx') : null;
+    if (!b) return;
+    if (el.hasAttribute && el.hasAttribute('data-mxsel')) { mxSync(b); return; }
+    if (el.hasAttribute && el.hasAttribute('data-mxall')) {
+      b.querySelectorAll('[data-mxsel]').forEach(function (c) { c.checked = el.checked; });
+      mxSync(b); return;
+    }
+    if (el.hasAttribute && el.hasAttribute('data-mxcity')) {
+      var city = el.value;
+      b.querySelectorAll('[data-mxrow]').forEach(function (tr) {
+        var c = tr.querySelector('[data-mxsel]');
+        if (c && city) c.checked = tr.dataset.city === city;
+      });
+      el.value = '';
+      mxSync(b); return;
     }
   });
 

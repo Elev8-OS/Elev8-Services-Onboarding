@@ -339,7 +339,7 @@ select:focus{outline:2px solid var(--gold);outline-offset:-1px}
 .mxwrap{overflow-x:auto;border:1px solid var(--line);border-radius:9px;background:var(--bg);
   margin-top:4px;-webkit-overflow-scrolling:touch}
 table.mxt{border-collapse:collapse;width:100%;min-width:560px;font-size:14.5px}
-table.mxt thead th{position:sticky;top:0;z-index:1;text-align:left;
+table.mxt thead th{text-align:left;
   font-family:var(--f-mono);font-size:11.5px;font-weight:500;letter-spacing:.04em;
   text-transform:uppercase;color:var(--muted);background:var(--surface-2);
   padding:9px 12px;border-bottom:1px solid var(--line)}
@@ -409,3 +409,42 @@ table.mxt .money .cur{padding:0 8px;font-size:11px}
 .tsub{margin:20px 0 10px;padding-top:14px;border-top:1px solid var(--line);
   font-family:var(--f-mono);font-size:11px;letter-spacing:.05em;text-transform:uppercase;
   font-weight:500;color:var(--muted)}
+
+/* ---------- Korridor: Auswahl und Kopieren ---------- */
+.mxbar{position:sticky;top:52px;z-index:3;margin:10px 0 8px;padding:10px 12px;
+  border:1px solid var(--gold);border-radius:9px;background:var(--gold-tint)}
+.mxbarrow{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.mxbarrow + .mxbarrow{margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+.mxcount{font-family:var(--f-mono);font-size:11.5px;letter-spacing:.03em;color:var(--gold-ink)}
+.mxfrom{font-size:13px;color:var(--ink-2)}
+.mxfrom b{font-weight:600}
+.mxcity{border:1px solid var(--line-strong);border-radius:7px;padding:5px 9px;
+  font-size:13px;background:var(--bg);color:var(--ink-2)}
+.mxcols{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:12.5px;
+  border:1px solid var(--line-strong);border-radius:999px;padding:4px 10px;background:var(--bg)}
+.chip input{accent-color:var(--gold);margin:0}
+.chip:has(input:checked){border-color:var(--gold);background:var(--bg);font-weight:500}
+.mxgroups{display:flex;gap:6px}
+table.mxt th.mxpick,table.mxt td.mxpick{width:34px;padding-left:10px;padding-right:0;text-align:center}
+table.mxt td.mxpick input{accent-color:var(--gold);margin:0}
+table.mxt th.mxact,table.mxt td.mxact{text-align:right;padding-right:10px;white-space:nowrap}
+.mxh{display:block}
+.mxhint{display:block;margin-top:2px;font-family:var(--f-sans);font-size:10.5px;
+  text-transform:none;letter-spacing:0;color:var(--muted);font-weight:400;max-width:140px;line-height:1.35}
+.mxflags{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}
+.mxsrc{display:inline-block;font-family:var(--f-mono);font-size:10px;letter-spacing:.03em;
+  color:var(--muted);background:var(--surface-2);border:1px solid var(--line);
+  border-radius:999px;padding:1px 7px;cursor:help}
+.nights{display:flex;align-items:stretch}
+.nights input{border-radius:7px 0 0 7px;width:58px;min-width:48px;text-align:right;padding:7px 8px}
+.nights .unit{display:flex;align-items:center;padding:0 8px;font-size:11px;color:var(--muted);
+  background:var(--surface-2);border:1px solid var(--line-strong);border-left:0;border-radius:0 7px 7px 0}
+table.mxt tr.tpl th,table.mxt tr.tpl td{background:var(--gold-tint)}
+table.mxt tr.flash th,table.mxt tr.flash td{background:var(--gold-tint);transition:background .6s}
+table.mxt{min-width:920px}
+@media (max-width:720px){
+  .mxbar{position:static}
+  table.mxt .money input{width:70px;min-width:60px}
+  .nights input{width:50px;min-width:44px}
+}
