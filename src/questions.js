@@ -29,16 +29,6 @@ const YESNO = [
   o('ask', 'Nach Rücksprache', 'After checking with you')
 ];
 
-const SCOPE_OPTIONS = [
-  o('messages', 'Gästenachrichten auf allen verbundenen Kanälen', 'Guest messages on all connected channels'),
-  o('pre_booking', 'Anfragen vor der Buchung', 'Pre-booking enquiries'),
-  o('complaints', 'Beschwerden aufnehmen und lösen', 'Taking and resolving complaints'),
-  o('escalation', 'Eskalation an Sie nach Ihren Regeln', 'Escalation to you under your rules'),
-  o('extensions', 'Verlängerung, Late Check-out, Zusatzleistungen', 'Extensions, late check-out, extras'),
-  o('tasks', 'Aufträge an Ihr Team vor Ort über Elev8 Suite', 'Dispatching your on-site team via Elev8 Suite'),
-  o('phone', 'Telefonische Erreichbarkeit für Gäste', 'Phone availability for guests')
-];
-
 const ESC_OPTIONS = [
   o('fire', 'Feuer oder Rauch', 'Fire or smoke'),
   o('water', 'Wasserschaden', 'Water damage'),
@@ -96,6 +86,7 @@ const SECTIONS = [
 
   {
     id: 'betrieb',
+    module: 'gro',
     title: L('Betrieb und Anreise', 'Operations and arrival'),
     intro: L('Was ein Gast erlebt, wenn er ankommt — und was wir ihm sagen können, wenn etwas nicht wie geplant läuft.',
       'What a guest experiences on arrival — and what we can tell them when something goes wrong.'),
@@ -223,29 +214,11 @@ const SECTIONS = [
 
   {
     id: 'auftrag',
+    module: 'gro',
     title: L('Was wir übernehmen sollen', 'What we should take on'),
-    intro: L('Umfang und Zeiten. Danach richten wir unsere Schichtplanung aus.',
-      'Scope and hours. We plan our shifts around this.'),
+    intro: L('Ihr gebuchter Umfang steht oben. Hier geht es um die Sprachen und darum, wann bei Ihnen viel los ist — danach richten wir unsere Schichtplanung aus.',
+      'Your booked scope is shown above. Here it is about languages and about when you are busy — we plan our shifts around this.'),
     fields: [
-      { id: 'scope', type: 'multi', required: true, contract: true,
-        label: L('Welche Aufgaben soll unser Guest Relations Officer übernehmen?',
-          'Which tasks should our Guest Relations Officer take on?'),
-        options: SCOPE_OPTIONS,
-        preset: SCOPE_OPTIONS.map(function (x) { return x.code; }).join(', '),
-        presetNote: L('Unser Standardumfang — hier abwählen, was für Sie nicht gilt',
-          'Our standard scope — deselect anything that does not apply to you') },
-      { id: 'scope_extra', type: 'text', contract: true, label: L('Fehlt etwas?', 'Anything missing?') },
-      { id: 'coverage', type: 'radio', required: true, contract: true,
-        label: L('Welche Zeiten sollen wir abdecken?', 'Which hours should we cover?'),
-        options: [
-          o('h24_7', '24/7', '24/7'),
-          o('h12_7', '12/7 (Tagesschicht)', '12/7 (day shift)'),
-          o('other', 'Andere Zeiten', 'Other hours')
-        ] },
-      { id: 'coverage_custom', type: 'text', contract: true,
-        label: L('Welche Zeiten genau?', 'Which hours exactly?'),
-        placeholder: L('08:00–20:00 Ortszeit, täglich', '08:00–20:00 local time, daily'),
-        dependsOn: { field: 'coverage', equals: 'other' } },
       { id: 'languages', type: 'multi', required: true, contract: true,
         label: L('In welchen Sprachen sollen wir antworten?', 'In which languages should we reply?'),
         help: L('Mehrfachauswahl. Andere Sprachen können wir derzeit nicht zusagen.',
@@ -271,22 +244,16 @@ const SECTIONS = [
         ] },
       { id: 'peaks_note', type: 'text',
         label: L('Konkrete Termine, die wir kennen sollten', 'Specific dates we should know about'),
-        placeholder: L('Messe Stuttgart, 12.–15. März', 'Stuttgart trade fair, 12–15 March') },
-      { id: 'revenue_package', type: 'radio', required: true, contract: true,
-        label: L('Haben Sie zusätzlich das Revenue-Management-Paket gebucht?',
-          'Have you also booked the revenue management package?'),
-        help: L('Bei „Ja" folgt weiter unten ein eigener Abschnitt dazu.',
-          'If "Yes", a separate section on this follows below.'),
-        options: [o('yes', 'Ja', 'Yes'), o('no', 'Nein', 'No'), o('open', 'Noch offen', 'Still open')] }
+        placeholder: L('Messe Stuttgart, 12.–15. März', 'Stuttgart trade fair, 12–15 March') }
     ]
   },
 
   {
     id: 'revenue',
+    module: 'rm',
     title: L('Revenue Management', 'Revenue management'),
-    intro: L('Nur für Kunden mit Revenue-Management-Paket. Das meiste steht schon in Elev8 Suite — Sie prüfen vor allem den Preiskorridor.',
-      'Only for clients with the revenue management package. Most of it is already in Elev8 Suite — mainly you check the price corridor.'),
-    dependsOn: { field: 'revenue_package', equals: 'yes' },
+    intro: L('Das meiste steht schon in Elev8 Suite — Sie prüfen vor allem den Preiskorridor und legen die Grenzen fest, innerhalb derer wir ohne Rückfrage arbeiten.',
+      'Most of it is already in Elev8 Suite — mainly you check the price corridor and set the limits within which we work without asking.'),
     fields: [
       { id: 'rm_goal', type: 'radio', required: true, contract: true,
         label: L('Worauf sollen wir optimieren?', 'What should we optimise for?'),
@@ -296,8 +263,7 @@ const SECTIONS = [
           o('adr', 'Höherer Durchschnittspreis, auch bei weniger Nächten', 'Higher average rate, even at fewer nights'),
           o('occupancy', 'Höhere Auslastung, auch zu tieferen Preisen', 'Higher occupancy, even at lower rates'),
           o('balanced', 'Ausgewogen auf den Umsatz je verfügbare Einheit', 'Balanced towards revenue per available unit')
-        ],
-        dependsOn: { field: 'revenue_package', equals: 'yes' } },
+        ] },
       { id: 'rm_target_occupancy', type: 'radio',
         label: L('Zielauslastung im Jahresmittel', 'Target occupancy on annual average'),
         options: [
@@ -306,13 +272,11 @@ const SECTIONS = [
           o('70_80', '70 bis 80 %', '70 to 80%'),
           o('gt80', 'über 80 %', 'over 80%'),
           o('none', 'Kein festes Ziel', 'No fixed target')
-        ],
-        dependsOn: { field: 'revenue_package', equals: 'yes' } },
+        ] },
       { id: 'rm_breakeven', type: 'money',
         label: L('Kostenschwelle je Einheit und Nacht', 'Cost threshold per unit and night'),
         help: L('Unter diesem Betrag lohnt sich eine Nacht für Sie nicht. Freiwillig, hilft uns beim Vorschlag für den Mindestpreis.',
-          'Below this amount a night is not worth it for you. Optional, helps us propose the minimum price.'),
-        dependsOn: { field: 'revenue_package', equals: 'yes' } },
+          'Below this amount a night is not worth it for you. Optional, helps us propose the minimum price.') },
 
       { id: 'rm_corridor', type: 'matrix', required: true, contract: true,
         label: L('Preiskorridor je Einheit', 'Price corridor per unit'),
@@ -322,8 +286,7 @@ const SECTIONS = [
           { key: 'min', label: L('Minimum', 'Minimum') },
           { key: 'base', label: L('Basispreis', 'Base price') },
           { key: 'max', label: L('Maximum', 'Maximum') }
-        ],
-        dependsOn: { field: 'revenue_package', equals: 'yes' } },
+        ] },
       { id: 'rm_minstay', type: 'radio', contract: true,
         label: L('In welcher Spanne dürfen wir den Mindestaufenthalt setzen?',
           'Within which range may we set the minimum stay?'),
@@ -332,8 +295,7 @@ const SECTIONS = [
           o('1_5', '1 bis 5 Nächte', '1 to 5 nights'),
           o('1_7', '1 bis 7 Nächte', '1 to 7 nights'),
           o('2_7', '2 bis 7 Nächte', '2 to 7 nights')
-        ],
-        dependsOn: { field: 'revenue_package', equals: 'yes' } },
+        ] },
       { id: 'rm_discount_max', type: 'radio', contract: true,
         label: L('Maximaler Rabatt auf den Basispreis', 'Maximum discount on the base price'),
         options: [
@@ -341,24 +303,21 @@ const SECTIONS = [
           o('p15', 'bis 15 %', 'up to 15%'),
           o('p20', 'bis 20 %', 'up to 20%'),
           o('p25', 'bis 25 %', 'up to 25%')
-        ],
-        dependsOn: { field: 'revenue_package', equals: 'yes' } },
+        ] },
       { id: 'rm_lastminute', type: 'radio', contract: true,
         label: L('Last-Minute-Rabatte', 'Last-minute discounts'),
         options: [
           o('d7', 'Ab 7 Tagen vor Anreise', 'From 7 days before arrival'),
           o('d3', 'Ab 3 Tagen vor Anreise', 'From 3 days before arrival'),
           o('none', 'Keine Last-Minute-Rabatte', 'No last-minute discounts')
-        ],
-        dependsOn: { field: 'revenue_package', equals: 'yes' } },
+        ] },
       { id: 'rm_earlybird', type: 'radio', contract: true,
         label: L('Frühbucherrabatte', 'Early-bird discounts'),
         options: [
           o('d90', 'Ab 90 Tagen vor Anreise', 'From 90 days before arrival'),
           o('d180', 'Ab 180 Tagen vor Anreise', 'From 180 days before arrival'),
           o('none', 'Keine Frühbucherrabatte', 'No early-bird discounts')
-        ],
-        dependsOn: { field: 'revenue_package', equals: 'yes' } },
+        ] },
 
       { id: 'rm_history', type: 'radio',
         label: L('Können Sie uns zwölf Monate Historie liefern?', 'Can you provide twelve months of history?'),
@@ -368,8 +327,7 @@ const SECTIONS = [
           o('yes', 'Ja, wir liefern sie', 'Yes, we will provide it'),
           o('partly', 'Nur teilweise', 'Only partly'),
           o('no', 'Nein, haben wir nicht', 'No, we do not have it')
-        ],
-        dependsOn: { field: 'revenue_package', equals: 'yes' } },
+        ] },
       { id: 'rm_channels_wanted', type: 'multi',
         label: L('Welche Kanäle sollen wir zusätzlich öffnen?', 'Which channels should we additionally open?'),
         help: L('Die Verträge mit den Portalen schliessen Sie selbst; wir richten ein und pflegen.',
@@ -382,58 +340,51 @@ const SECTIONS = [
           o('google', 'Google Vacation Rentals', 'Google Vacation Rentals'),
           o('direct', 'Direktbuchung über die eigene Website', 'Direct booking via your own website'),
           o('none', 'Keine weiteren', 'None further')
-        ],
-        dependsOn: { field: 'revenue_package', equals: 'yes' } },
+        ] },
       { id: 'rm_parity', type: 'radio', contract: true,
         label: L('Wie halten wir es mit der Preisparität?', 'How do we handle rate parity?'),
         options: [
           o('strict', 'Überall derselbe Preis', 'The same price everywhere'),
           o('direct_cheaper', 'Direktbuchung darf günstiger sein', 'Direct booking may be cheaper'),
           o('free', 'Keine Vorgabe', 'No requirement')
-        ],
-        dependsOn: { field: 'revenue_package', equals: 'yes' } },
+        ] },
 
       { id: 'note_rm_phase2', type: 'note',
         label: L('Die folgenden drei Fragen betreffen Titel, Beschreibungen und Bilder auf den Buchungsportalen. Diese Leistung aktivieren wir, sobald die Content-Schnittstelle zu den Portalen verfügbar ist — ohne Preisänderung und ohne Nachtrag.',
-          'The next three questions concern titles, descriptions and images on the booking portals. We activate this service as soon as the content interface to the portals is available — at no change in price and without an addendum.'),
-        dependsOn: { field: 'revenue_package', equals: 'yes' } },
+          'The next three questions concern titles, descriptions and images on the booking portals. We activate this service as soon as the content interface to the portals is available — at no change in price and without an addendum.') },
       { id: 'rm_photos', type: 'radio',
         label: L('Wie steht es um Ihr Bildmaterial?', 'What about your photography?'),
         options: [
           o('professional', 'Professionelle Fotos vorhanden', 'Professional photos available'),
           o('mixed', 'Gemischt, einige Einheiten brauchen neue', 'Mixed, some units need new ones'),
           o('needed', 'Neue Fotos werden gebraucht', 'New photos are needed')
-        ],
-        dependsOn: { field: 'revenue_package', equals: 'yes' } },
+        ] },
       { id: 'rm_content_langs', type: 'multi',
         label: L('In welchen Sprachen sollen Titel und Beschreibungen laufen?',
           'In which languages should titles and descriptions run?'),
-        options: [o('de', 'Deutsch', 'German'), o('en', 'Englisch', 'English')],
-        dependsOn: { field: 'revenue_package', equals: 'yes' } },
+        options: [o('de', 'Deutsch', 'German'), o('en', 'Englisch', 'English')] },
       { id: 'rm_content_approval', type: 'radio', contract: true,
         label: L('Wer gibt Texte und Bilder frei?', 'Who approves texts and images?'),
         options: [
           o('client', 'Wir geben jede Änderung frei', 'We approve every change'),
           o('elev8', 'Sie dürfen selbst entscheiden', 'You may decide yourselves')
-        ],
-        dependsOn: { field: 'revenue_package', equals: 'yes' } },
+        ] },
 
       { id: 'rm_report_rhythm', type: 'radio', contract: true,
         label: L('Wie oft wünschen Sie den Bericht?', 'How often would you like the report?'),
         options: [
           o('monthly', 'Monatlich', 'Monthly'),
           o('biweekly', 'Alle zwei Wochen', 'Every two weeks')
-        ],
-        dependsOn: { field: 'revenue_package', equals: 'yes' } },
+        ] },
       { id: 'rm_report_to', type: 'text', contract: true,
         label: L('An wen geht der Bericht?', 'Who receives the report?'),
-        placeholder: L('Name und E-Mail-Adresse', 'Name and email address'),
-        dependsOn: { field: 'revenue_package', equals: 'yes' } }
+        placeholder: L('Name und E-Mail-Adresse', 'Name and email address') }
     ]
   },
 
   {
     id: 'mandat',
+    module: 'gro',
     title: L('Was unser GRO entscheiden darf', 'What our GRO may decide'),
     intro: L('Der wichtigste Teil. Ohne klare Grenzen muss unser Team bei jeder Kleinigkeit nachfragen — und Ihre Gäste warten.',
       'The most important part. Without clear limits our team has to ask about every detail — and your guests wait.'),
@@ -513,6 +464,7 @@ const SECTIONS = [
 
   {
     id: 'eskalation',
+    module: 'gro',
     title: L('Eskalation und Erreichbarkeit', 'Escalation and availability'),
     intro: L('Wen rufen wir an, wenn es brennt — wörtlich und im übertragenen Sinn.',
       'Who do we call when there is a fire — literally and figuratively.'),
@@ -560,6 +512,7 @@ const SECTIONS = [
 
   {
     id: 'vorort',
+    module: 'gro',
     title: L('Team und Partner vor Ort', 'On-site team and partners'),
     intro: L('Unser GRO sitzt nicht im Haus. Alles, was Hände braucht, läuft über Ihre Leute.',
       'Our GRO is not in the building. Anything that needs hands goes through your people.'),
@@ -596,6 +549,7 @@ const SECTIONS = [
 
   {
     id: 'auftritt',
+    module: 'gro',
     title: L('Auftreten gegenüber Gästen', 'How we appear to guests'),
     intro: L('Der Gast soll Ihr Haus sehen, nicht uns.', 'The guest should see your property, not us.'),
     fields: [
@@ -640,6 +594,7 @@ const SECTIONS = [
 
   {
     id: 'geld',
+    module: 'gro',
     title: L('Zusatzleistungen und Zahlungen', 'Extras and payments'),
     fields: [
       { id: 'upsells', type: 'multi',
@@ -793,7 +748,7 @@ const ALL_FIELDS = [];
 const FIELD_MAP = new Map();
 SECTIONS.forEach(function (sec) {
   sec.fields.forEach(function (f) {
-    const rec = Object.assign({ section: sec.id, sectionTitle: sec.title }, f);
+    const rec = Object.assign({ section: sec.id, sectionTitle: sec.title, module: sec.module || null }, f);
     ALL_FIELDS.push(rec);
     FIELD_MAP.set(f.id, rec);
   });

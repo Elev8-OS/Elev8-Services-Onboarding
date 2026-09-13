@@ -2,6 +2,7 @@
 
 const { SECTIONS, INPUT_FIELDS, isInput, mergePrefill, valueLabel } = require('./questions');
 const { t, UI, clientStrings, DEFAULT_LANG } = require('./i18n');
+const modules = require('./modules');
 
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -230,6 +231,27 @@ function field(f, value, source, pre, conflict, lang, units, opts) {
 </div>`;
 }
 
+/**
+ * Der gebuchte Leistungsumfang. Er wird im Admin gepflegt; der Tenant sieht
+ * ihn, damit die folgenden Fragen Sinn ergeben, kann ihn aber nicht ändern.
+ */
+function scopeBox(mod, terms, lang) {
+  const items = modules.scopeLabels(terms, mod.id, lang);
+  const cov = mod.coverage ? modules.coverageText(terms, mod.id, lang) : '';
+  if (!items.length && !cov) return '';
+  return `<div class="scopebox">
+  <div class="sbhead">
+    <span class="sblabel">${esc(t(UI.bookedScope, lang))}</span>
+    <span class="sbmod">${esc(t(mod.name, lang))}</span>
+  </div>
+  ${items.length ? '<ul class="sblist">' + items.map(function (x) {
+    return '<li>' + esc(x) + '</li>';
+  }).join('') + '</ul>' : ''}
+  ${cov ? '<div class="sbkv"><span>' + esc(t(mod.coverage.label, lang)) + '</span><b>' + esc(cov) + '</b></div>' : ''}
+  <p class="sbnote">${esc(t(UI.bookedScopeNote, lang))}</p>
+</div>`;
+}
+
 /* ---------------- readiness panel ---------------- */
 
 function readinessRows(rows, lang) {
@@ -281,6 +303,10 @@ function readinessPanel(rows, facts, opts) {
 
 /* ---------------- tenant form ---------------- */
 
+const SECTION_MODULE = {};
+SECTIONS.forEach(function (s) { SECTION_MODULE[s.id] = s.module || null; });
+function sectionModule(id) { return SECTION_MODULE[id] || null; }
+
 function tenantForm(intake, answers, sources, snapshot, opts) {
   const o = opts || {};
   const lang = o.lang || DEFAULT_LANG;
@@ -290,11 +316,14 @@ function tenantForm(intake, answers, sources, snapshot, opts) {
   const lockedSet = o.locked || {};
   // Elev8-Suite-Daten plus unsere eigenen Vorschlaege (z. B. der Leistungsumfang).
   const pre = mergePrefill(snapshot && snapshot.prefill);
-  const filled = INPUT_FIELDS.filter(function (f) { return (answers[f.id] || '').trim() !== ''; }).length;
-  const open = INPUT_FIELDS.filter(function (f) {
+  const live = INPUT_FIELDS.filter(function (f) {
+    return modules.sectionAllowed({ module: (f.module || sectionModule(f.section)) }, o.terms || {});
+  });
+  const filled = live.filter(function (f) { return (answers[f.id] || '').trim() !== ''; }).length;
+  const open = live.filter(function (f) {
     return (answers[f.id] || '').trim() === '' && !(pre[f.id] && pre[f.id].value);
   }).length;
-  const waiting = INPUT_FIELDS.filter(function (f) {
+  const waiting = live.filter(function (f) {
     return (answers[f.id] || '').trim() === '' && pre[f.id] && pre[f.id].value;
   }).length;
   const submitted = intake.status === 'submitted';
@@ -303,14 +332,22 @@ function tenantForm(intake, answers, sources, snapshot, opts) {
   const units = (snapshot && snapshot.facts && snapshot.facts.unitList) || [];
   const currency = (units.find(function (u) { return u.currency; }) || {}).currency || 'EUR';
 
-  const nav = SECTIONS.map(function (s, i) {
+  // Nur die Abschnitte, deren Modul freigeschaltet ist.
+  const terms = o.terms || {};
+  const visible = SECTIONS.filter(function (s) { return modules.sectionAllowed(s, terms); });
+  const scopeBoxes = {};
+  modules.activeModules(terms).forEach(function (m) {
+    if (m.scopeSection) scopeBoxes[m.scopeSection] = scopeBox(m, terms, lang);
+  });
+
+  const nav = visible.map(function (s, i) {
     const d = s.dependsOn
       ? ` data-navdep="${esc(s.dependsOn.field)}" data-navdep-value="${esc([].concat(s.dependsOn.equals).join('|'))}"`
       : '';
     return `<a href="#s-${s.id}" data-navsec="${s.id}"${d}><span class="n">${String(i + 1).padStart(2, '0')}</span>${esc(t(s.title, lang))}</a>`;
   }).join('');
 
-  const body = SECTIONS.map(function (s, i) {
+  const body = visible.map(function (s, i) {
     const secPre = s.fields.filter(function (f) {
       return isInput(f) && (answers[f.id] || '').trim() === '' && pre[f.id] && pre[f.id].value;
     }).length;
@@ -325,6 +362,7 @@ function tenantForm(intake, answers, sources, snapshot, opts) {
     <span class="sec-prog" data-secprog="${s.id}"></span>
   </div>
   ${s.intro ? '<p class="sec-intro">' + esc(t(s.intro, lang)) + '</p>' : ''}
+  ${scopeBoxes[s.id] || ''}
   ${secPre ? '<div class="secbulk"><button class="mini primary" type="button" data-act="okall" data-sec="' + s.id + '">' + esc(bulkLabel) + '</button></div>' : ''}
   <div class="fields">${s.fields.map(function (f) {
       const withLock = lockedSet[f.id] ? Object.assign({}, f, { lockedNow: true }) : f;
@@ -408,7 +446,7 @@ function tenantForm(intake, answers, sources, snapshot, opts) {
         });
         return m;
       })(),
-      sections: SECTIONS.map(function (s) {
+      sections: visible.map(function (s) {
         return { id: s.id, fields: s.fields.filter(isInput).map(function (f) { return f.id; }) };
       })
     })}</script>
@@ -682,11 +720,47 @@ function termsPanel(intake, extra) {
     </div>`;
   };
   const filled = function (k) { return String(tm[k] || '').trim() !== ''; };
-  const rmOrdered = String((extra.answers || {}).revenue_package || '') === 'yes';
+  const on = function (id) { return modules.isActive(tm, id); };
+  const rmOrdered = on('rm');
+  const signedKind = function (k) { return !!byKind[k]; };
+
+  // Schalter fuer ein Modul. Nach der Unterschrift des Leistungsscheins
+  // steht die Freischaltung fest - abschalten ginge nur per Nachtrag.
+  const modSwitch = function (m) {
+    const active = on(m.id);
+    const locked = signedKind(m.kind);
+    return `<label class="modsw${active ? ' on' : ''}${locked ? ' fixed' : ''}">
+      <input type="checkbox" name="mod_${m.id}" value="1"${active ? ' checked' : ''}${locked ? ' disabled' : ''}>
+      <span>${active ? 'aktiv' : 'nicht aktiv'}</span>
+    </label>` + (locked ? '<input type="hidden" name="mod_' + m.id + '" value="' + (active ? '1' : '') + '">' : '');
+  };
+
+  // Leistungsumfang: Checkboxen plus Abdeckungszeiten, rein im Admin.
+  const scopeCtrl = function (m) {
+    const picked = modules.scopeCodes(tm, m.id);
+    const boxes = m.scope.options.map(function (x, i) {
+      return `<label class="choice"><input type="checkbox" name="${m.scope.key}" value="${esc(x.code)}"${picked.indexOf(x.code) > -1 ? ' checked' : ''}><span>${esc(x.de)}</span></label>`;
+    }).join('');
+    const cov = m.coverage ? `<div class="field">
+        <label class="flabel">Abdeckungszeiten</label>
+        <div class="choices">${m.coverage.options.map(function (x) {
+          return `<label class="choice"><input type="radio" name="${m.coverage.key}" value="${esc(x.code)}"${String(tm[m.coverage.key] || '') === x.code ? ' checked' : ''}><span>${esc(x.de)}</span></label>`;
+        }).join('')}</div>
+      </div>
+      ${inp(m.coverage.customKey, 'Falls andere Zeiten: welche genau?', tm[m.coverage.customKey], '08:00–20:00 Ortszeit, täglich', true)}` : '';
+    return `<div class="field wide">
+        <label class="flabel">Leistungsumfang</label>
+        <div class="choices">${boxes}</div>
+      </div>
+      ${m.extra ? inp(m.extra.key, 'Zusätzlich vereinbart (erscheint als eigener Punkt)', tm[m.extra.key], 'leer = nichts', true) : ''}
+      ${cov}`;
+  };
   const platformPriceKey = tm.platform_model === 'per_booking' ? 'platform_price_per_booking' : 'platform_price_per_unit';
-  const ready = filled(platformPriceKey) && filled('price_per_unit') &&
-    filled('term_months') && filled('notice_months') &&
-    (!rmOrdered || (filled('rm_price_per_unit') && filled('rm_term_months') && filled('rm_notice_months')));
+  const ready = filled(platformPriceKey) &&
+    (!on('gro') || (modules.scopeReady(tm, 'gro') && filled('price_per_unit') &&
+      filled('term_months') && filled('notice_months'))) &&
+    (!rmOrdered || (modules.scopeReady(tm, 'rm') && filled('rm_price_per_unit') &&
+      filled('rm_term_months') && filled('rm_notice_months')));
   const perBooking = tm.platform_model === 'per_booking';
 
   return `<section class="panel">
@@ -710,8 +784,14 @@ function termsPanel(intake, extra) {
       </div>
     </div>
 
-    <div class="tgroup">
-      <h3>Leistungsschein Guest Relations</h3>
+    <div class="tgroup mod${on('gro') ? '' : ' off'}">
+      <div class="modhead">
+        <h3>Modul Guest Relations</h3>
+        ${modSwitch(modules.BY_ID.gro)}
+      </div>
+      <p class="modhint">Aktiv heisst: der Tenant bekommt die Abschnitte Betrieb, Auftrag, Mandat, Eskalation, Team vor Ort, Auftreten und Zusatzleistungen zu sehen, und der Leistungsschein wird unterschreibbar.</p>
+      ${scopeCtrl(modules.BY_ID.gro)}
+      <h4 class="tsub">Preis und Laufzeit</h4>
       <div class="tgrid">
         ${inp('price_per_unit', 'Preis je Einheit/Monat', tm.price_per_unit, '9.50')}
         ${inp('setup_fee', 'Einrichtung einmalig', tm.setup_fee, 'leer = entfällt')}
@@ -720,8 +800,14 @@ function termsPanel(intake, extra) {
       </div>
     </div>
 
-    <div class="tgroup${rmOrdered ? '' : ' off'}">
-      <h3>Leistungsschein Revenue Management${rmOrdered ? '' : ' <span class="tnote">nicht bestellt</span>'}</h3>
+    <div class="tgroup mod${rmOrdered ? '' : ' off'}">
+      <div class="modhead">
+        <h3>Modul Revenue Management</h3>
+        ${modSwitch(modules.BY_ID.rm)}
+      </div>
+      <p class="modhint">Aktiv heisst: der Tenant bekommt den Abschnitt Revenue Management mit der Korridor-Tabelle, und der Leistungsschein wird unterschreibbar.</p>
+      ${scopeCtrl(modules.BY_ID.rm)}
+      <h4 class="tsub">Preis und Laufzeit</h4>
       <div class="tgrid">
         ${inp('rm_price_per_unit', 'Preis je Einheit/Monat', tm.rm_price_per_unit, '6.50')}
         ${inp('rm_tier_from', 'Staffel ab Einheiten', tm.rm_tier_from, '25')}
@@ -745,7 +831,7 @@ function termsPanel(intake, extra) {
   <div class="clist">
     ${row('platform', 'Rahmenvertrag Elev8 Suite')}
     ${row('avv', 'Vertrag zur Auftragsverarbeitung')}
-    ${row('gro', 'Leistungsschein Guest Relations')}
+    ${on('gro') ? row('gro', 'Leistungsschein Guest Relations') : ''}
     ${rmOrdered ? row('rm', 'Leistungsschein Revenue Management') : ''}
   </div>
   <p class="lede small">${ready
@@ -758,7 +844,10 @@ function termsPanel(intake, extra) {
 
 function adminDetail(intake, answers, sources, baseUrl, flash, extra) {
   const pre = (intake.snapshot && intake.snapshot.prefill) || {};
-  const blocks = SECTIONS.map(function (s) {
+  const mterms = (extra && extra.terms) || intake.terms || {};
+  const blocks = SECTIONS.filter(function (s) {
+    return modules.sectionAllowed(s, mterms);
+  }).map(function (s) {
     const inputs = s.fields.filter(isInput);
     const rows = inputs.map(function (f) {
       const v = (answers[f.id] || '').trim();
@@ -807,13 +896,23 @@ function adminDetail(intake, answers, sources, baseUrl, flash, extra) {
 }
 
 function exportMarkdown(intake, answers, sources) {
+  const terms = intake.terms || {};
   const out = [];
   out.push('# Tenant-Aufnahme — ' + intake.tenant_name);
   out.push('');
   out.push('Stand: ' + new Date().toLocaleString('de-CH'));
   out.push('Status: ' + (intake.status === 'submitted' ? 'abgeschlossen' : 'offen'));
   out.push('');
-  SECTIONS.forEach(function (s) {
+  modules.activeModules(terms).forEach(function (m) {
+    out.push('## ' + t(m.name, 'de') + ' — gebuchter Leistungsumfang');
+    out.push('');
+    modules.scopeLabels(terms, m.id, 'de').forEach(function (x) { out.push('- ' + x); });
+    if (m.coverage) out.push('', '**Abdeckungszeiten** ' + (modules.coverageText(terms, m.id, 'de') || '—'));
+    out.push('');
+  });
+  SECTIONS.filter(function (s) {
+    return modules.sectionAllowed(s, terms);
+  }).forEach(function (s) {
     out.push('## ' + t(s.title, 'de'));
     out.push('');
     s.fields.filter(isInput).forEach(function (f) {
