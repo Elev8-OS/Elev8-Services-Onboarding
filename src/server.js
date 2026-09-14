@@ -497,6 +497,68 @@ app.post('/admin/i/:id/refresh', requireAdmin, async function (req, res, next) {
   } catch (e) { next(e); }
 });
 
+/**
+ * Archivieren: der Fall ist erledigt - gekündigt, abgesprungen, erledigt -
+ * bleibt aber vollständig nachlesbar. Der Tenant-Link funktioniert weiter,
+ * das Formular nimmt aber nichts mehr an.
+ */
+app.post('/admin/i/:id/archive', requireAdmin, async function (req, res, next) {
+  try {
+    const intake = await db.getIntakeById(Number(req.params.id));
+    if (!intake) return res.redirect('/admin');
+    const on = String(req.body.on || '1') === '1';
+    await db.setArchived(intake.id, on);
+    res.redirect('/admin?msg=' + encodeURIComponent(
+      on ? 'Aufnahme archiviert.' : 'Aufnahme wieder aktiv.'));
+  } catch (e) { next(e); }
+});
+
+/**
+ * Löschen: nur für Tests und Fehlanlagen. Sobald ein Vertrag unterzeichnet
+ * ist, wird nicht mehr gelöscht - das Dokument und der Nachweis der
+ * Unterschrift bleiben aufbewahrungspflichtig. Dann bleibt das Archiv.
+ */
+app.post('/admin/i/:id/delete', requireAdmin, async function (req, res, next) {
+  try {
+    const intake = await db.getIntakeById(Number(req.params.id));
+    if (!intake) return res.redirect('/admin');
+    const signed = await db.listContracts(intake.id);
+    if (signed.length) {
+      return res.redirect('/admin/i/' + intake.id + '?msg=' + encodeURIComponent(
+        'Nicht gelöscht: zu dieser Aufnahme gehören ' + signed.length +
+        ' unterzeichnete Verträge. Archivieren Sie sie stattdessen.'));
+    }
+    await db.deleteIntake(intake.id);
+    res.redirect('/admin?msg=' + encodeURIComponent('Aufnahme gelöscht.'));
+  } catch (e) { next(e); }
+});
+
+app.post('/admin/tenants/:id/archive', requireAdmin, async function (req, res, next) {
+  try {
+    const t = await db.getTenant(Number(req.params.id));
+    if (!t) return res.redirect('/admin/tenants');
+    const on = String(req.body.on || '1') === '1';
+    await db.setTenantArchived(t.id, on);
+    res.redirect('/admin/tenants?msg=' + encodeURIComponent(
+      on ? 'Tenant archiviert.' : 'Tenant wieder aktiv.'));
+  } catch (e) { next(e); }
+});
+
+app.post('/admin/tenants/:id/delete', requireAdmin, async function (req, res, next) {
+  try {
+    const t = await db.getTenant(Number(req.params.id));
+    if (!t) return res.redirect('/admin/tenants');
+    const signed = await db.signedCountForTenant(t.id);
+    if (signed) {
+      return res.redirect('/admin/tenants?msg=' + encodeURIComponent(
+        'Nicht gelöscht: an diesem Tenant hängen ' + signed +
+        ' unterzeichnete Verträge. Archivieren Sie ihn stattdessen.'));
+    }
+    await db.deleteTenant(t.id);
+    res.redirect('/admin/tenants?msg=' + encodeURIComponent('Tenant und seine Aufnahmen gelöscht.'));
+  } catch (e) { next(e); }
+});
+
 app.post('/admin/i/:id/terms', requireAdmin, async function (req, res, next) {
   try {
     const intake = await db.getIntakeById(Number(req.params.id));
@@ -782,6 +844,7 @@ app.post('/api/f/:token/answer', async function (req, res, next) {
         message: i18n.t(i18n.UI.lockedHint, i18n.normLang(intake.lang) || 'de')
       });
     }
+    if (intake.archived_at) return res.status(409).json({ error: 'archived' });
     const fdef = FIELD_MAP.get(fieldId);
     if (!mods.fieldAllowed(fdef, intake.terms || {})) {
       return res.status(409).json({ error: 'module_off' });
@@ -957,6 +1020,7 @@ app.post('/api/f/:token/sign', async function (req, res, next) {
   try {
     const intake = await db.getIntakeByToken(req.params.token);
     if (!intake) return res.status(404).json({ error: 'unknown token' });
+    if (intake.archived_at) return res.status(409).json({ error: 'archived' });
     const kind = String(req.body.kind || '');
     if (KINDS.indexOf(kind) < 0) return res.status(400).json({ error: 'unknown kind' });
 
