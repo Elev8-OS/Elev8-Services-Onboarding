@@ -217,6 +217,10 @@ function field(f, value, source, pre, conflict, lang, units, opts) {
     return `<div class="field note" data-field="${f.id}"${dep}><p class="notebox">${nl2br(t(f.label, lang))}</p></div>`;
   }
 
+  if (f.type === 'elev8') {
+    return elev8Block(f, (opts && opts.facts) || {}, lang);
+  }
+
   const head = `<label class="flabel" for="f_${f.id}">${esc(t(f.label, lang))}${f.required ? '<span class="star" title="' + esc(t(UI.required, lang)) + '">*</span>' : ''}</label>` +
     (f.help ? '<p class="fhelp">' + esc(t(f.help, lang)) + '</p>' : '');
 
@@ -289,6 +293,71 @@ function field(f, value, source, pre, conflict, lang, units, opts) {
   return `<div class="field${f.required ? ' req' : ''}" data-field="${f.id}"${dep}>
   ${head}
   ${control(f, v, lang)}
+</div>`;
+}
+
+/**
+ * Was in Elev8 Suite je Einheit gepflegt ist, fragen wir nicht noch einmal.
+ * Der Block zeigt den Stand aus dem letzten Abgleich und verweist für die
+ * Pflege dorthin - je Einheit, nicht als eine Antwort fürs ganze Portfolio.
+ */
+function elev8Block(f, facts, lang) {
+  const en = lang === 'en';
+  const t0 = facts && facts.total ? facts.total : 0;
+  const of = function (n) { return n + (en ? ' of ' : ' von ') + t0; };
+  const lines = [];
+
+  if (f.topic === 'stay') {
+    if (t0) {
+      const smart = facts.smartLocks || 0;
+      lines.push(en
+        ? 'Access: ' + (smart ? of(smart) + ' units with a smart lock' : 'no smart lock stored') +
+          (smart && smart < t0 ? ', the rest with a manual code' : '')
+        : 'Zugang: ' + (smart ? of(smart) + ' Einheiten mit Smart Lock' : 'kein Smart Lock hinterlegt') +
+          (smart && smart < t0 ? ', der Rest mit manuellem Code' : ''));
+      if (facts.checkin && facts.checkin.n) {
+        lines.push(en
+          ? 'Check-in instructions: stored for ' + of(facts.checkin.n) + ' units'
+          : 'Check-in-Anleitung: für ' + of(facts.checkin.n) + ' Einheiten hinterlegt');
+      }
+      if (facts.wifiCount) {
+        const names = (facts.ssids || []).length;
+        lines.push(en
+          ? 'Wi-Fi: ' + of(facts.wifiCount) + ' units' + (names > 1 ? ', ' + names + ' different network names' : '')
+          : 'WLAN: ' + of(facts.wifiCount) + ' Einheiten' + (names > 1 ? ', ' + names + ' verschiedene Netznamen' : ''));
+      }
+    }
+    lines.push(en
+      ? 'Check-in and check-out times, door codes and the Wi-Fi password are read by our team directly in Elev8 Suite.'
+      : 'Check-in- und Check-out-Zeiten, Türcodes und das WLAN-Passwort liest unser Team direkt in Elev8 Suite.');
+  }
+
+  if (f.topic === 'extras') {
+    if (t0 && facts.depositRequired) {
+      const d = (facts.deposits || [])[0];
+      lines.push(en
+        ? 'Deposit: required for ' + of(facts.depositRequired) + ' units' + (d ? ' (' + d.value.trim() + ')' : '')
+        : 'Kaution: bei ' + of(facts.depositRequired) + ' Einheiten verlangt' + (d ? ' (' + d.value.trim() + ')' : ''));
+    } else if (t0) {
+      lines.push(en ? 'Deposit: none stored.' : 'Kaution: keine hinterlegt.');
+    }
+    if (t0) {
+      lines.push(en
+        ? 'Extras: assigned to ' + of(facts.upsells || 0) + ' units in the upsell catalogue.'
+        : 'Zusatzleistungen: bei ' + of(facts.upsells || 0) + ' Einheiten im Upsell-Katalog hinterlegt.');
+    }
+    lines.push(en
+      ? 'Prices, lead times and availability of the extras are maintained per unit in Elev8 Suite.'
+      : 'Preise, Vorlaufzeiten und Verfügbarkeit der Zusatzleistungen pflegen Sie je Einheit in Elev8 Suite.');
+  }
+
+  return `<div class="field e8box" data-field="${f.id}">
+  <div class="e8head">
+    <span class="src elev8"><span class="dot"></span>${esc(t(UI.e8src, lang))}</span>
+    <span class="e8ttl">${esc(t(f.label, lang))}</span>
+  </div>
+  <ul class="e8list">${lines.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('')}</ul>
+  <p class="e8note">${esc(t(UI.e8note, lang))}</p>
 </div>`;
 }
 
@@ -428,7 +497,7 @@ function tenantForm(intake, answers, sources, snapshot, opts) {
     }).map(function (f) {
       const withLock = lockedSet[f.id] ? Object.assign({}, f, { lockedNow: true }) : f;
       return field(withLock, answers[f.id], sources[f.id], pre[f.id], clashes[f.id], lang,
-        units, { currency: currency });
+        units, { currency: currency, facts: (snapshot && snapshot.facts) || {} });
     }).join('')}</div>
 </section>`;
   }).join('');
