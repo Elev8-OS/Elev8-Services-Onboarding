@@ -377,7 +377,7 @@ app.get('/admin', requireAdmin, async function (req, res, next) {
 });
 
 /**
- * Memberverträge ohne Aufnahme. Ein Interessent bekommt so die Dokumente zur
+ * Musterverträge ohne Aufnahme. Ein Interessent bekommt so die Dokumente zur
  * Prüfung, bevor er überhaupt als Tenant angelegt ist. Es wird nichts
  * gespeichert - die Angaben aus dem Formular gehen direkt in den Entwurf.
  */
