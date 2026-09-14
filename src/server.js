@@ -376,6 +376,66 @@ app.get('/admin', requireAdmin, async function (req, res, next) {
   } catch (e) { next(e); }
 });
 
+/**
+ * Musterverträge ohne Aufnahme. Ein Interessent bekommt so die Dokumente zur
+ * Prüfung, bevor er überhaupt als Tenant angelegt ist. Es wird nichts
+ * gespeichert - die Angaben aus dem Formular gehen direkt in den Entwurf.
+ */
+app.get('/admin/muster', requireAdmin, function (req, res) {
+  res.type('html').send(view.musterPage(req.query || {}, null));
+});
+
+/** Baut aus den Formularangaben eine Aufnahme-Attrappe für den Entwurf. */
+function musterSource(q) {
+  const pick = function (k, max) { return String(q[k] == null ? '' : q[k]).trim().slice(0, max || 120); };
+  const company = pick('company', 160);
+  const modGro = String(q.mod_gro || '') === '1';
+  const modRm = String(q.mod_rm || '') === '1';
+
+  const terms = Object.assign({}, contracts.DEFAULT_TERMS, {
+    currency: pick('currency', 8) || 'EUR',
+    platform_price_per_unit: pick('platform_price_per_unit', 20),
+    price_per_unit: pick('price_per_unit', 20),
+    rm_price_per_unit: pick('rm_price_per_unit', 20),
+    rm_tier_from: pick('rm_tier_from', 6),
+    rm_tier_price: pick('rm_tier_price', 20),
+    mod_gro: modGro ? '1' : '',
+    mod_rm: modRm ? '1' : ''
+  }, modGro ? mods.defaults('gro') : {}, modRm ? { rm_scope: mods.defaults('rm').rm_scope } : {});
+
+  const answers = {};
+  const put = function (id, val) { if (val) answers[id] = val; };
+  put('company', company);
+  put('address', pick('address', 200));
+  put('contact_main', pick('contact', 120));
+  put('contact_email', pick('email', 120));
+  put('units', pick('units', 8).replace(/\D/g, ''));
+
+  return {
+    intake: { id: 0, tenant_name: company || 'Muster GmbH', terms: terms },
+    answers: answers,
+    terms: terms
+  };
+}
+
+app.get('/admin/muster/pdf', requireAdmin, async function (req, res, next) {
+  try {
+    const kind = String(req.query.kind || '');
+    if (KINDS.indexOf(kind) < 0) return res.status(404).type('text/plain').send('Nicht gefunden');
+    const wantEn = i18n.normLang(req.query.lang) === 'en';
+    const src = musterSource(req.query || {});
+    const doc = contracts.build(kind, src.intake, src.answers, src.terms,
+      wantEn ? 'en' : CONTRACT_LANG);
+    const buf = await pdfout.render(doc, null, { draft: wantEn ? DRAFT_MARK_EN : DRAFT_MARK });
+    const stem = String(src.intake.tenant_name).replace(/[^A-Za-z0-9_-]+/g, '-') || 'Muster';
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename="' +
+      (wantEn ? 'Sample-' : 'Muster-') + kind + '-' + stem + '.pdf"');
+    res.setHeader('Cache-Control', 'no-store');
+    res.send(buf);
+  } catch (e) { next(e); }
+});
+
 app.post('/admin/intakes', requireAdmin, async function (req, res, next) {
   try {
     const tenant = await db.getTenant(Number(req.body.tenant_id));
@@ -498,7 +558,6 @@ app.get('/admin/i/:id/vertrag/:kind.pdf', requireAdmin, async function (req, res
     const id = Number(req.params.id);
     const kind = String(req.params.kind);
     if (KINDS.indexOf(kind) < 0) return res.status(404).type('text/plain').send('Nicht gefunden');
-
     const wantEn = i18n.normLang(req.query.lang) === 'en';
     if (String(req.query.muster || '') === '1') {
       const intake = await db.getIntakeById(id);
