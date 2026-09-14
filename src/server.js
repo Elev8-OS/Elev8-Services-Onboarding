@@ -558,6 +558,7 @@ app.get('/admin/i/:id/vertrag/:kind.pdf', requireAdmin, async function (req, res
     const id = Number(req.params.id);
     const kind = String(req.params.kind);
     if (KINDS.indexOf(kind) < 0) return res.status(404).type('text/plain').send('Nicht gefunden');
+
     const wantEn = i18n.normLang(req.query.lang) === 'en';
     if (String(req.query.muster || '') === '1') {
       const intake = await db.getIntakeById(id);
