@@ -228,7 +228,7 @@ function titleBlock(d, doc, draft) {
   if (draft) { draftBanner(d, draft); } else { d.y = 92; }
   reset(d);
   d.font(F.b).fontSize(7.8).fillColor(GOLD)
-    .text('ELEV8 READY', M, d.y, { width: W, characterSpacing: 1.4 });
+    .text('ELEV8 SUITE', M, d.y, { width: W, characterSpacing: 1.4 });
   reset(d);
   d.y += 16;
   d.font(F.b).fontSize(23).fillColor(INK).text(doc.title, M, d.y, { width: W, lineGap: 2 });
