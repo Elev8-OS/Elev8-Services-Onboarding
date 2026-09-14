@@ -81,6 +81,9 @@ async function init() {
   // Jeder Vertrag wird in beiden Sprachen ausgestellt; verbindlich ist Deutsch.
   await pool.query(`ALTER TABLE contracts ADD COLUMN IF NOT EXISTS pdf_en BYTEA`);
   await pool.query(`ALTER TABLE contracts ADD COLUMN IF NOT EXISTS doc_text_en TEXT`);
+  // Gekündigte Kunden bleiben lesbar, verschwinden aber aus dem Alltag.
+  await pool.query(`ALTER TABLE intakes ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ`);
+  await pool.query(`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ`);
   await migrateOptionCodes();
   await migrateModules();
 }
@@ -155,13 +158,13 @@ async function migrateOptionCodes() {
 
 async function listTenants() {
   const { rows } = await pool.query(`
-    SELECT t.id, t.name, t.external_id, t.note, t.synced_at, t.sync_error,
+    SELECT t.id, t.name, t.external_id, t.note, t.synced_at, t.sync_error, t.archived_at,
            (t.elev8_token IS NOT NULL AND t.elev8_token <> '') AS has_token,
            t.facts, t.readiness,
            COALESCE(c.n, 0) AS intake_count
     FROM tenants t
     LEFT JOIN (SELECT tenant_id, COUNT(*) AS n FROM intakes GROUP BY tenant_id) c ON c.tenant_id = t.id
-    ORDER BY lower(t.name)
+    ORDER BY (t.archived_at IS NOT NULL), lower(t.name)
   `);
   return rows;
 }
@@ -204,7 +207,13 @@ async function saveTenantSync(id, result, error) {
   );
 }
 
+/**
+ * Löscht den Tenant samt seiner Aufnahmen. Ohne das blieben die Aufnahmen
+ * als Waisen stehen - die Fremdschlüsselregel setzt nur tenant_id auf NULL.
+ * Aufgerufen wird das nur, wenn kein Vertrag unterzeichnet ist.
+ */
 async function deleteTenant(id) {
+  await pool.query('DELETE FROM intakes WHERE tenant_id = $1', [id]);
   await pool.query('DELETE FROM tenants WHERE id = $1', [id]);
 }
 
@@ -212,15 +221,38 @@ async function deleteTenant(id) {
 
 async function listIntakes() {
   const { rows } = await pool.query(`
-    SELECT i.*, COALESCE(a.filled, 0) AS filled
+    SELECT i.*, COALESCE(a.filled, 0) AS filled, COALESCE(c.n, 0) AS signed_count
     FROM intakes i
     LEFT JOIN (
       SELECT intake_id, COUNT(*) AS filled
       FROM answers WHERE value <> '' GROUP BY intake_id
     ) a ON a.intake_id = i.id
+    LEFT JOIN (
+      SELECT intake_id, COUNT(*) AS n FROM contracts GROUP BY intake_id
+    ) c ON c.intake_id = i.id
     ORDER BY i.created_at DESC
   `);
   return rows;
+}
+
+/** Archivieren statt löschen: der Fall bleibt nachlesbar, ist aber erledigt. */
+async function setArchived(intakeId, on) {
+  await pool.query('UPDATE intakes SET archived_at = ' + (on ? 'now()' : 'NULL') +
+    ' WHERE id = $1', [intakeId]);
+}
+
+async function setTenantArchived(id, on) {
+  await pool.query('UPDATE tenants SET archived_at = ' + (on ? 'now()' : 'NULL') +
+    ' WHERE id = $1', [id]);
+}
+
+/** Wie viele unterzeichnete Verträge hängen an diesem Tenant? */
+async function signedCountForTenant(id) {
+  const { rows } = await pool.query(
+    `SELECT COUNT(*)::int AS n FROM contracts c
+       JOIN intakes i ON i.id = c.intake_id
+      WHERE i.tenant_id = $1`, [id]);
+  return rows[0] ? rows[0].n : 0;
 }
 
 async function createIntake(tenant, token, snapshot) {
@@ -353,5 +385,6 @@ module.exports = {
   listTenants, getTenant, upsertTenant, updateTenantToken, saveTenantSync, deleteTenant,
   listIntakes, createIntake, getIntakeByToken, getIntakeById, setIntakeSnapshot, linkIntakeTenant,
   listIntakesForResync, setIntakeLang, setTerms, listContracts, getContract, saveContract,
-  getAnswers, saveAnswer, setStatus, deleteIntake
+  getAnswers, saveAnswer, setStatus, deleteIntake,
+  setArchived, setTenantArchived, signedCountForTenant
 };
