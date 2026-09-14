@@ -573,6 +573,7 @@ function adminList(intakes, tenants, baseUrl, flash) {
     <p class="lede">Tenant auswählen, Link verschicken, Antworten mitlesen. Was in Elev8 Suite schon steht, füllt sich von selbst.</p>
     <div class="actions">
       <a class="btn ghost" href="/admin/tenants">Tenants verwalten (${tenants.length})</a>
+      <a class="btn ghost" href="/admin/muster">Musterverträge</a>
       <form method="post" action="/admin/resync-sweep"><button class="btn ghost" type="submit">Alle Aufnahmen aus Elev8 Suite auffrischen</button></form>
     </div>
   </header>
@@ -907,6 +908,122 @@ function termsPanel(intake, extra) {
 </section>`;
 }
 
+/**
+ * Musterverträge ohne Aufnahme. Für Interessenten, die die Dokumente prüfen
+ * wollen, bevor sie überhaupt Tenant sind. Die Angaben im Formular landen
+ * unverändert im Entwurf; leer gelassene Felder erscheinen als Platzhalter.
+ */
+function musterPage(q, flash) {
+  const v = function (k, dflt) {
+    const x = q && q[k] != null ? String(q[k]) : '';
+    return x.trim() !== '' ? x : (dflt || '');
+  };
+  const inp = function (name, label, dflt, ph, wide) {
+    return `<div class="field${wide ? ' wide' : ''}">
+      <label class="flabel" for="m_${name}">${esc(label)}</label>
+      <input type="text" id="m_${name}" name="${name}" value="${esc(v(name, dflt))}" placeholder="${esc(ph || '')}">
+    </div>`;
+  };
+  const on = function (k, dflt) {
+    const raw = q && q[k] != null ? String(q[k]) : (dflt ? '1' : '');
+    return raw === '1';
+  };
+
+  const qs = function (kind, lang) {
+    const parts = ['kind=' + kind];
+    if (lang === 'en') parts.push('lang=en');
+    ['company', 'address', 'contact', 'email', 'units', 'currency',
+      'platform_price_per_unit', 'price_per_unit', 'rm_price_per_unit',
+      'rm_tier_from', 'rm_tier_price'].forEach(function (k) {
+      const x = v(k);
+      if (x) parts.push(k + '=' + encodeURIComponent(x));
+    });
+    if (on('mod_gro', true)) parts.push('mod_gro=1');
+    if (on('mod_rm', false)) parts.push('mod_rm=1');
+    return '/admin/muster/pdf?' + parts.join('&');
+  };
+
+  const docs = [
+    ['platform', 'Rahmenvertrag Elev8 Suite', 'Gilt für jeden Kunden. Nutzungsrecht, Abrechnung, Haftung, Recht.'],
+    ['avv', 'Vertrag zur Auftragsverarbeitung', 'DSGVO Art. 28, mit Unterauftragsverarbeitern und Drittlandübermittlung.'],
+    ['gro', 'Leistungsschein Guest Relations', 'Erscheint mit vollem Standardumfang, wenn das Modul oben aktiv ist.'],
+    ['rm', 'Leistungsschein Revenue Management', 'Erscheint mit vollem Standardumfang, wenn das Modul oben aktiv ist.']
+  ];
+  const rows = docs.map(function (d) {
+    const off = (d[0] === 'gro' && !on('mod_gro', true)) || (d[0] === 'rm' && !on('mod_rm', false));
+    return `<div class="crow${off ? ' cdim' : ''}">
+    <div>
+      <div class="cttl">${esc(d[1])}</div>
+      <div class="cmeta">${esc(d[2])}</div>
+    </div>
+    <div class="cacts">
+      <a class="btn ghost" href="${qs(d[0], 'de')}" target="_blank" rel="noopener">Deutsch</a>
+      <a class="btn ghost" href="${qs(d[0], 'en')}" target="_blank" rel="noopener">English</a>
+    </div>
+  </div>`;
+  }).join('');
+
+  return layout({
+    title: 'Musterverträge',
+    bodyClass: 'admin',
+    body: `<div class="page">
+  <header class="hero tight">
+    <p class="eyebrow">Elev8 Suite · intern</p>
+    <h1>Musterverträge</h1>
+    <p class="lede">Gekennzeichnete Entwürfe zum Verschicken — ohne Tenant, ohne Aufnahme. Die Angaben unten sind freiwillig: was leer bleibt, steht im Dokument als Platzhalter und wird vor der Unterzeichnung gemeinsam festgelegt.</p>
+    <div class="actions"><a class="btn ghost" href="/admin">Zurück zur Übersicht</a></div>
+  </header>
+
+  ${flash ? '<p class="banner done">' + esc(flash) + '</p>' : ''}
+
+  <form class="panel" method="get" action="/admin/muster">
+    <div class="panel-head"><h2>Angaben für den Entwurf</h2></div>
+    <div class="tgroup">
+      <h3>Interessent</h3>
+      <div class="tgrid">
+        ${inp('company', 'Firma', '', 'Cloud 7 Living GmbH')}
+        ${inp('units', 'Anzahl Einheiten', '', '24')}
+        ${inp('contact', 'Ansprechpartner', '', 'Name, Rolle')}
+        ${inp('email', 'E-Mail', '', 'name@firma.de')}
+      </div>
+      ${inp('address', 'Adresse des Objekts', '', 'Strasse 1, 12345 Ort', true)}
+    </div>
+
+    <div class="tgroup">
+      <h3>Module im Entwurf</h3>
+      <div class="choices">
+        <label class="choice"><input type="checkbox" name="mod_gro" value="1"${on('mod_gro', true) ? ' checked' : ''}><span>Guest Relations</span></label>
+        <label class="choice"><input type="checkbox" name="mod_rm" value="1"${on('mod_rm', false) ? ' checked' : ''}><span>Revenue Management</span></label>
+      </div>
+      <p class="modhint">Steuert nur, welche Leistungsscheine sinnvoll sind und welcher Umfang im Entwurf steht. Der volle Standardumfang ist voreingestellt.</p>
+    </div>
+
+    <div class="tgroup">
+      <h3>Preise (optional)</h3>
+      <div class="tgrid">
+        ${inp('currency', 'Währung', 'EUR', 'EUR')}
+        ${inp('platform_price_per_unit', 'Plattform je Einheit', '', '4.90')}
+        ${inp('price_per_unit', 'Guest Relations je Einheit', '', '9.50')}
+        ${inp('rm_price_per_unit', 'Revenue je Einheit', '', '6.50')}
+        ${inp('rm_tier_from', 'Revenue Staffel ab', '', '25')}
+        ${inp('rm_tier_price', 'Revenue Staffelpreis', '', '5.50')}
+      </div>
+    </div>
+
+    <div class="actions"><button class="btn" type="submit">Angaben übernehmen</button></div>
+  </form>
+
+  <section class="panel">
+    <div class="panel-head"><h2>Dokumente</h2></div>
+    <p class="lede small">Jedes Dokument öffnet als PDF mit der Kennzeichnung „Muster" beziehungsweise „Sample". Verbindlich ist immer die deutsche Fassung; die englische trägt den Hinweis dazu.</p>
+    <div class="clist">${rows}</div>
+  </section>
+
+  <footer class="foot"><p><a href="/admin">Zurück</a> · <a href="/admin/logout">Abmelden</a></p></footer>
+</div>`
+  });
+}
+
 function adminDetail(intake, answers, sources, baseUrl, flash, extra) {
   const pre = (intake.snapshot && intake.snapshot.prefill) || {};
   const mterms = (extra && extra.terms) || intake.terms || {};
@@ -995,5 +1112,5 @@ function exportMarkdown(intake, answers, sources) {
 
 module.exports = {
   layout, tenantForm, loginPage, adminList, adminDetail, tenantsPage, tenantDetail,
-  diagnosePage, exportMarkdown, esc, ago
+  musterPage, diagnosePage, exportMarkdown, esc, ago
 };
