@@ -423,39 +423,6 @@ function prefillAnswers(facts, tenantName, pricelabsData) {
     }).join(', '), L('Kanalverteilung des letzten Monats aus Elev8 Suite', 'Channel mix of the last month from Elev8 Suite'));
   }
 
-  const lock = lockSummary(facts);
-  if (lock) {
-    const extra = facts.checkin.n
-      ? '\nCheck-in-Anleitung in Elev8 Suite hinterlegt für ' + facts.checkin.n + ' von ' + facts.total +
-        ' Einheiten (' + plural(facts.checkin.avg, 'Schritt', 'Schritte') + ' im Schnitt, max. ' + facts.checkin.max + ').'
-      : '';
-    put('access_note', 'Schlosssystem: ' + lock + '.' + extra,
-      L('Lock-Typ und Check-in-Steps aus Elev8 Suite', 'Lock type and check-in steps from Elev8 Suite'));
-  }
-
-  // Nur vorschlagen, wenn der Wert zu einer der Auswahlmoeglichkeiten passt.
-  if (facts.smartLocks > 0) {
-    if (facts.smartLocks === facts.total) {
-      put('access', 'smart_lock', L('Alle Einheiten haben in Elev8 Suite ein Smart Lock',
-        'All units have a smart lock in Elev8 Suite'));
-    } else {
-      put('access', 'mixed', L(
-        facts.smartLocks + ' von ' + facts.total + ' Einheiten haben in Elev8 Suite ein Smart Lock',
-        facts.smartLocks + ' of ' + facts.total + ' units have a smart lock in Elev8 Suite'));
-    }
-    put('smartlock', 'elev8_auto', L(
-      plural(facts.smartLocks, 'Einheit ist', 'Einheiten sind') + ' mit einem Smart Lock verbunden',
-      facts.smartLocks + (facts.smartLocks === 1 ? ' unit is' : ' units are') + ' connected to a smart lock'));
-  }
-
-  if (facts.ssids.length === 1 && facts.wifiCount === facts.total) {
-    put('wifi', facts.ssids[0].value, L('WLAN-Name aus Elev8 Suite', 'Wi-Fi name from Elev8 Suite'));
-  } else if (facts.ssids.length) {
-    put('wifi', facts.ssids.map(function (x) { return x.value; }).join(', '), L(
-      'WLAN-Namen aus Elev8 Suite (' + facts.wifiCount + ' von ' + facts.total + ' Einheiten)',
-      'Wi-Fi names from Elev8 Suite (' + facts.wifiCount + ' of ' + facts.total + ' units)'));
-  }
-
   const p = facts.profile;
   if (p) {
     const fromProfile = L('aus Ihrem Elev8-Suite-Profil', 'from your Elev8 Suite profile');
@@ -463,11 +430,6 @@ function prefillAnswers(facts, tenantName, pricelabsData) {
     put('contact_phone', p.phone, fromProfile);
     put('contact_email', p.email, fromProfile);
   }
-
-  const ci = (facts.checkinTime && facts.checkinTime.value) || (p && p.checkin);
-  const co = (facts.checkoutTime && facts.checkoutTime.value) || (p && p.checkout);
-  put('checkin_time', ci, L('Check-in-Zeit aus Elev8 Suite', 'Check-in time from Elev8 Suite'));
-  put('checkout_time', co, L('Check-out-Zeit aus Elev8 Suite', 'Check-out time from Elev8 Suite'));
 
   const corridor = corridorProposal(facts, pricelabsData);
   if (corridor.rows.length) {
@@ -486,14 +448,6 @@ function prefillAnswers(facts, tenantName, pricelabsData) {
     put('rm_corridor', JSON.stringify(corridor.rows),
       L(src.de + tail.de + '. Aufenthaltsregeln aus Ihrer durchschnittlichen Aufenthaltsdauer.',
         src.en + tail.en + '. Stay rules from your average length of stay.'));
-  }
-
-  if (facts.deposits.length === 1) {
-    put('deposit_amount', facts.deposits[0].value.trim(), L(
-      'Kaution aus Elev8 Suite (' + plural(facts.deposits[0].n, 'Einheit', 'Einheiten') + ')',
-      'Deposit from Elev8 Suite (' + facts.deposits[0].n + (facts.deposits[0].n === 1 ? ' unit' : ' units') + ')'));
-  } else if (!facts.deposits.length && facts.total) {
-    put('deposit', 'none', L('In Elev8 Suite ist keine Kaution hinterlegt', 'No deposit is stored in Elev8 Suite'));
   }
 
   return out;
