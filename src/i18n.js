@@ -68,6 +68,10 @@ const UI = {
   bothLangs: L('Der Vertrag wird in beiden Sprachen ausgestellt. Verbindlich ist die deutsche Fassung.',
     'The agreement is issued in both languages. The German version is the binding one.'),
 
+  e8src: L('Steht in Elev8 Suite', 'Already in Elev8 Suite'),
+  e8note: L('Das fragen wir nicht ab. Pflegen Sie es je Einheit in Elev8 Suite — unser Team liest es dort und sieht sofort, wenn sich etwas ändert.',
+    'We do not ask for this. Maintain it per unit in Elev8 Suite — our team reads it there and sees changes immediately.'),
+
   mxUnit: L('Einheit', 'Unit'),
   mxNote: L('Alle Beträge je Nacht, netto — ohne Steuern, Abgaben, Reinigung und Nebenkosten. Der Mindestpreis ist verbindlich, der Höchstpreis ein Ausgangswert.',
     'All amounts per night, net — excluding taxes, levies, cleaning and ancillary charges. The minimum price is binding, the maximum price a starting value.'),

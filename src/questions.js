@@ -93,9 +93,10 @@ const SECTIONS = [
     fields: [
       { id: 'reception', type: 'radio', required: true,
         label: L('Gibt es bei Ihnen eine Rezeption?', 'Do you have a reception desk?'),
-        help: L('Bei „Nein" überspringen wir alles, was eine Rezeption voraussetzt.',
-          'If "No", we skip everything that assumes a reception desk.'),
-        options: [o('yes', 'Ja', 'Yes'), o('no', 'Nein', 'No')] },
+        help: L('Bei „Nein" überspringen wir alles, was eine Rezeption voraussetzt. Ist es je Objekt verschieden, wählen Sie das — die Einzelheiten stehen dann je Einheit in Elev8 Suite unter Good to Know.',
+          'If "No", we skip everything that assumes a reception desk. If it differs by property, choose that — the details then belong per unit in Elev8 Suite under Good to Know.'),
+        options: [o('yes', 'Ja', 'Yes'), o('no', 'Nein', 'No'),
+          o('varies', 'Unterschiedlich je Einheit', 'Varies by unit')] },
       { id: 'reception_hours', type: 'radio',
         label: L('Rezeptionszeiten', 'Reception hours'),
         options: [
@@ -121,28 +122,19 @@ const SECTIONS = [
         dependsOn: { field: 'reception_hours', equals: ['h07_22', 'h08_20', 'other'] } },
       { id: 'after_hours_custom', type: 'text', label: L('Wie genau?', 'How exactly?'),
         dependsOn: { field: 'after_hours', equals: 'other' } },
-      { id: 'selfcheckin', type: 'radio', label: L('Gibt es Self-Check-in?', 'Is there self check-in?'),
-        options: [o('yes', 'Ja', 'Yes'), o('no', 'Nein', 'No'), o('partly', 'Teilweise', 'Partly')] },
-      { id: 'access', type: 'radio', required: true,
-        label: L('Wie kommt der Gast in Haus und Zimmer?', 'How does a guest get into the building and the room?'),
-        options: [
-          o('smart_lock', 'Smart Lock mit Code', 'Smart lock with a code'),
-          o('keybox', 'Schlüsselbox', 'Key box'),
-          o('in_person', 'Persönliche Übergabe', 'Handover in person'),
-          o('partner', 'Schlüssel bei Partner oder Nachbar', 'Key with a partner or neighbour'),
-          o('mixed', 'Unterschiedlich je Einheit', 'Varies by unit')
-        ] },
-      { id: 'access_note', type: 'textarea',
-        label: L('Ablauf in Stichworten, falls nötig', 'The procedure in short, if needed') },
-      { id: 'checkin_time', type: 'text', label: L('Check-in ab', 'Check-in from'), placeholder: L('15:00', '15:00') },
-      { id: 'checkout_time', type: 'text', label: L('Check-out bis', 'Check-out until'), placeholder: L('11:00', '11:00') },
 
+      { id: 'elev8_stay', type: 'elev8', topic: 'stay',
+        label: L('Zugang, WLAN und Zeiten stehen in Elev8 Suite',
+          'Access, Wi-Fi and times are in Elev8 Suite') },
       { id: 'breakfast', type: 'radio', required: true,
         label: L('Bieten Sie Frühstück an?', 'Do you serve breakfast?'),
+        help: L('Ist es je Objekt verschieden, wählen Sie „unterschiedlich" — die Einzelheiten stehen dann je Einheit in Elev8 Suite unter Good to Know.',
+          'If it differs by property, choose “varies” — the details then belong per unit in Elev8 Suite under Good to Know.'),
         options: [
           o('included', 'Ja, im Preis inbegriffen', 'Yes, included in the rate'),
           o('paid', 'Optional gegen Aufpreis', 'Optional, for an extra charge'),
-          o('none', 'Nein', 'No')
+          o('none', 'Nein', 'No'),
+          o('varies', 'Unterschiedlich je Einheit', 'Varies by unit')
         ] },
       { id: 'breakfast_hours', type: 'text', label: L('Frühstückszeiten', 'Breakfast hours'),
         placeholder: L('07:00–10:00, Sa/So bis 11:00', '07:00–10:00, Sat/Sun until 11:00'),
@@ -177,11 +169,14 @@ const SECTIONS = [
 
       { id: 'parking', type: 'radio', required: true,
         label: L('Gibt es Parkmöglichkeiten?', 'Is there parking?'),
+        help: L('Ist es je Objekt verschieden, wählen Sie „unterschiedlich" — die Einzelheiten stehen dann je Einheit in Elev8 Suite unter Good to Know.',
+          'If it differs by property, choose “varies” — the details then belong per unit in Elev8 Suite under Good to Know.'),
         options: [
           o('onsite', 'Ja, eigene Plätze am Haus', 'Yes, our own spaces at the property'),
           o('nearby', 'Ja, Partnergarage oder Parkplatz in der Nähe', 'Yes, a partner garage or car park nearby'),
           o('public', 'Nur öffentliche Parkplätze', 'Public parking only'),
-          o('none', 'Nein', 'No')
+          o('none', 'Nein', 'No'),
+          o('varies', 'Unterschiedlich je Einheit', 'Varies by unit')
         ] },
       { id: 'parking_cost', type: 'radio', label: L('Kostenpflichtig?', 'Chargeable?'),
         options: [o('free', 'Kostenlos', 'Free'), o('paid', 'Kostenpflichtig', 'Chargeable')],
@@ -201,10 +196,6 @@ const SECTIONS = [
         placeholder: L('Zufahrt, Einfahrtshöhe, Adresse der Garage', 'Access, height limit, garage address'),
         dependsOn: { field: 'parking', equals: PARK_ANY } },
 
-      { id: 'wifi', type: 'text', label: L('WLAN-Name (SSID)', 'Wi-Fi name (SSID)') },
-      { id: 'wifi_pass', type: 'text', required: true, label: L('WLAN-Passwort', 'Wi-Fi password'),
-        help: L('Bitte prüfen Sie, ob es noch stimmt — das ist die häufigste Gastfrage.',
-          'Please check it is still correct — this is the most common guest question.') },
       { id: 'quirks', type: 'textarea',
         label: L('Was fragen Ihre Gäste am häufigsten?', 'What do your guests ask most often?'),
         help: L('Die drei bis fünf häufigsten Fragen sparen uns Wochen Einarbeitung.',
@@ -595,23 +586,11 @@ const SECTIONS = [
   {
     id: 'geld',
     module: 'gro',
-    title: L('Zusatzleistungen und Zahlungen', 'Extras and payments'),
+    title: L('Zahlungen', 'Payments'),
     fields: [
-      { id: 'upsells', type: 'multi',
-        label: L('Welche Zusatzleistungen können Sie liefern?', 'Which extras can you provide?'),
-        options: [
-          o('breakfast', 'Frühstück', 'Breakfast'),
-          o('late_checkout', 'Late Check-out', 'Late check-out'),
-          o('early_checkin', 'Early Check-in', 'Early check-in'),
-          o('parking', 'Parkplatz', 'Parking'),
-          o('transfer', 'Flughafentransfer', 'Airport transfer'),
-          o('pet', 'Haustier', 'Pets'),
-          o('extra_bed', 'Zusatzbett', 'Extra bed'),
-          o('laundry', 'Wäscheservice', 'Laundry service'),
-          o('welcome', 'Willkommenspaket', 'Welcome package')
-        ] },
-      { id: 'upsells_note', type: 'text', label: L('Preise und Vorlaufzeit', 'Prices and lead time'),
-        placeholder: L('Transfer 65 EUR, 24 h vorher', 'Transfer EUR 65, 24 h in advance') },
+      { id: 'elev8_extras', type: 'elev8', topic: 'extras',
+        label: L('Kaution und Zusatzleistungen stehen in Elev8 Suite',
+          'Deposit and extras are in Elev8 Suite') },
       { id: 'payment', type: 'multi', label: L('Wie wird kassiert?', 'How is payment taken?'),
         options: [
           o('card_onsite', 'Vor Ort per Karte', 'By card on site'),
@@ -621,16 +600,6 @@ const SECTIONS = [
           o('invoice', 'Rechnung an die Firma', 'Invoice to the company'),
           o('prepay', 'Vorkasse per Überweisung', 'Advance bank transfer')
         ] },
-      { id: 'deposit', type: 'radio', label: L('Kaution', 'Deposit'),
-        options: [
-          o('none', 'Keine Kaution', 'No deposit'),
-          o('cc_preauth', 'Kreditkarten-Vorautorisierung', 'Credit card pre-authorisation'),
-          o('cash', 'Bar vor Ort', 'Cash on site'),
-          o('link', 'Zahlungslink', 'Payment link'),
-          o('channel', 'Über den Kanal', 'Through the channel')
-        ] },
-      { id: 'deposit_amount', type: 'money', label: L('Höhe der Kaution', 'Deposit amount'),
-        dependsOn: { field: 'deposit', equals: ['cc_preauth', 'cash', 'link', 'channel'] } }
     ]
   },
 
@@ -658,7 +627,8 @@ const SECTIONS = [
           o('in_rate', 'Ja, im Zimmerpreis enthalten', 'Yes, included in the room rate'),
           o('onsite', 'Ja, wird vor Ort erhoben', 'Yes, collected on site'),
           o('channel', 'Ja, über den Buchungskanal', 'Yes, via the booking channel'),
-          o('none', 'Nein, fällt nicht an', 'No, does not apply')
+          o('none', 'Nein, fällt nicht an', 'No, does not apply'),
+          o('varies', 'Unterschiedlich je Gemeinde', 'Varies by municipality')
         ] },
       { id: 'dpo', type: 'text', contract: true,
         label: L('Ansprechpartner für Datenschutz auf Ihrer Seite', 'Data protection contact on your side') },
@@ -689,16 +659,6 @@ const SECTIONS = [
           o('we_create', 'Wir legen sie an', 'We will create them'),
           o('elev8_creates', 'Bitte legt Elevate Software AG sie an', 'Please have Elevate Software AG create them'),
           o('open', 'Noch offen', 'Still open')
-        ] },
-      { id: 'smartlock', type: 'radio',
-        label: L('Wie werden Türcodes erzeugt und an Gäste geschickt?',
-          'How are door codes generated and sent to guests?'),
-        options: [
-          o('elev8_auto', 'Automatisch über Elev8 Suite', 'Automatically through Elev8 Suite'),
-          o('manual_team', 'Manuell durch unser Team', 'Manually by our team'),
-          o('fixed_per_unit', 'Fester Code je Einheit', 'A fixed code per unit'),
-          o('keybox_fixed', 'Schlüsselbox mit festem Code', 'Key box with a fixed code'),
-          o('none', 'Kein Code nötig', 'No code needed')
         ] },
       { id: 'whatsapp', type: 'radio', label: L('Nutzen Sie WhatsApp Business?', 'Do you use WhatsApp Business?'),
         options: [
@@ -742,7 +702,8 @@ const SECTIONS = [
 ];
 
 /** Nur Felder, die der Tenant tatsächlich beantwortet (Hinweise zählen nicht). */
-function isInput(f) { return f.type !== 'note'; }
+/** Reine Hinweise und Elev8-Blöcke sind keine Fragen. */
+function isInput(f) { return f.type !== 'note' && f.type !== 'elev8'; }
 
 const ALL_FIELDS = [];
 const FIELD_MAP = new Map();
