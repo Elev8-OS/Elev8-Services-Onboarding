@@ -547,16 +547,38 @@ function tenantOption(t) {
 }
 
 function adminList(intakes, tenants, baseUrl, flash) {
-  const rows = intakes.length ? intakes.map(function (i) {
+  const live = intakes.filter(function (i) { return !i.archived_at; });
+  const gone = intakes.filter(function (i) { return i.archived_at; });
+
+  const intakeRow = function (i) {
     const pct = Math.round((Number(i.filled) / INPUT_FIELDS.length) * 100);
-    return `<tr>
+    const signed = Number(i.signed_count || 0);
+    const arch = !!i.archived_at;
+    // Unterzeichnete Verträge sind aufbewahrungspflichtig - dann nur Archiv.
+    const del = signed
+      ? '<span class="tnote" title="' + signed + ' unterzeichnete Verträge">nicht löschbar</span>'
+      : '<form method="post" action="/admin/i/' + i.id + '/delete" class="inl"' +
+        ' data-confirm="Aufnahme ' + esc(i.tenant_name) + ' endgültig löschen? Antworten und Entwürfe sind dann weg.">' +
+        '<button class="linkbtn danger" type="submit">Löschen</button></form>';
+    return `<tr${arch ? ' class="arch"' : ''}>
   <td><a class="tname" href="/admin/i/${i.id}">${esc(i.tenant_name)}</a>${i.note ? '<span class="tnote">' + esc(i.note) + '</span>' : ''}</td>
-  <td><span class="pill ${i.status === 'submitted' ? 'ok' : 'open'}">${i.status === 'submitted' ? 'Abgeschlossen' : 'Offen'}</span></td>
+  <td><span class="pill ${arch ? 'gone' : (i.status === 'submitted' ? 'ok' : 'open')}">${arch ? 'Archiviert' : (i.status === 'submitted' ? 'Abgeschlossen' : 'Offen')}</span>${signed ? '<span class="tnote">' + signed + ' unterzeichnet</span>' : ''}</td>
   <td class="num">${pct}&thinsp;%</td>
   <td class="num">${new Date(i.created_at).toLocaleDateString('de-CH')}</td>
-  <td><button class="linkbtn copy" type="button" data-link="${esc(baseUrl)}/f/${esc(i.token)}">Link kopieren</button></td>
+  <td class="rowacts">
+    <button class="linkbtn copy" type="button" data-link="${esc(baseUrl)}/f/${esc(i.token)}">Link</button>
+    <form method="post" action="/admin/i/${i.id}/archive" class="inl">
+      <input type="hidden" name="on" value="${arch ? '0' : '1'}">
+      <button class="linkbtn" type="submit">${arch ? 'Reaktivieren' : 'Archivieren'}</button>
+    </form>
+    ${arch ? del : ''}
+  </td>
 </tr>`;
-  }).join('') : '<tr><td colspan="5" class="muted">Noch keine Aufnahme angelegt.</td></tr>';
+  };
+
+  const rows = live.length ? live.map(intakeRow).join('')
+    : '<tr><td colspan="5" class="muted">Noch keine Aufnahme angelegt.</td></tr>';
+  const archRows = gone.map(intakeRow).join('');
 
   // Auswaehlbar ist jeder angelegte Tenant. Fehlt das Token, entsteht die
   // Aufnahme eben ohne Vorbelegung - das steht dann auch in der Option.
@@ -601,6 +623,15 @@ function adminList(intakes, tenants, baseUrl, flash) {
     <tbody>${rows}</tbody>
   </table>
 
+  ${archRows ? `<details class="archbox">
+    <summary>Archiv (${gone.length})</summary>
+    <p class="fhelp">Gekündigt oder erledigt. Der Link bleibt lesbar, das Formular nimmt nichts mehr an. Ohne unterzeichnete Verträge lässt sich eine archivierte Aufnahme endgültig löschen.</p>
+    <table class="tbl">
+      <thead><tr><th>Tenant</th><th>Status</th><th class="num">Ausgefüllt</th><th class="num">Angelegt</th><th></th></tr></thead>
+      <tbody>${archRows}</tbody>
+    </table>
+  </details>` : ''}
+
   <footer class="foot"><p><a href="/admin/logout">Abmelden</a></p></footer>
 </div>`
   });
@@ -613,13 +644,23 @@ function tenantsPage(tenants, flash, error, discovery) {
         : t.synced_at ? '<span class="pill ok">Synchronisiert</span>'
           : '<span class="pill open">Noch nie geholt</span>';
     const facts = t.facts || {};
-    return `<tr>
-  <td><a class="tname" href="/admin/tenants/${t.id}">${esc(t.name)}</a>${t.note ? '<span class="tnote">' + esc(t.note) + '</span>' : ''}</td>
+    return `<tr${t.archived_at ? ' class="arch"' : ''}>
+  <td><a class="tname" href="/admin/tenants/${t.id}">${esc(t.name)}</a>${t.archived_at ? '<span class="tnote">archiviert</span>' : ''}${t.note ? '<span class="tnote">' + esc(t.note) + '</span>' : ''}</td>
   <td>${state}</td>
   <td class="num">${facts.total || '–'}</td>
   <td class="num">${t.synced_at ? new Date(t.synced_at).toLocaleDateString('de-CH') : '–'}</td>
   <td class="num">${t.intake_count}</td>
-  <td><form method="post" action="/admin/tenants/${t.id}/sync"><button class="linkbtn" type="submit">Jetzt holen</button></form></td>
+  <td class="rowacts">
+    <form method="post" action="/admin/tenants/${t.id}/sync" class="inl"><button class="linkbtn" type="submit">Holen</button></form>
+    <form method="post" action="/admin/tenants/${t.id}/archive" class="inl">
+      <input type="hidden" name="on" value="${t.archived_at ? '0' : '1'}">
+      <button class="linkbtn" type="submit">${t.archived_at ? 'Reaktivieren' : 'Archivieren'}</button>
+    </form>
+    <form method="post" action="/admin/tenants/${t.id}/delete" class="inl"
+      data-confirm="Tenant ${esc(t.name)} und seine ${t.intake_count} Aufnahme(n) endgültig löschen?">
+      <button class="linkbtn danger" type="submit">Löschen</button>
+    </form>
+  </td>
 </tr>`;
   }).join('') : '<tr><td colspan="6" class="muted">Noch kein Tenant angelegt.</td></tr>';
 
