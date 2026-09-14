@@ -214,12 +214,12 @@ function kindsFor(terms) {
 const DRAFT_MARK = {
   label: 'Muster',
   stamp: 'MUSTER',
-  note: 'Unverbindlicher Entwurf zur Prüfung. Dieses Dokument ist nicht unterzeichnet und begründet keine Rechte oder Pflichten. Kaufmännische Angaben und die in eckigen Klammern stehenden Felder werden vor der Unterzeichnung gemeinsam festgelegt. Der verbindliche Vertrag entsteht erst durch die elektronische Unterzeichnung über Elev8 Ready.'
+  note: 'Unverbindlicher Entwurf zur Prüfung. Dieses Dokument ist nicht unterzeichnet und begründet keine Rechte oder Pflichten. Kaufmännische Angaben und die in eckigen Klammern stehenden Felder werden vor der Unterzeichnung gemeinsam festgelegt. Der verbindliche Vertrag entsteht erst durch die elektronische Unterzeichnung über Elev8 Suite.'
 };
 const DRAFT_MARK_EN = {
   label: 'Sample',
   stamp: 'SAMPLE',
-  note: 'Non-binding draft for review. This document is not signed and creates no rights or obligations. Commercial figures and the fields shown in square brackets are agreed before signature. The binding agreement comes into existence only through electronic signature via Elev8 Ready. Translation for convenience — the German version governs.'
+  note: 'Non-binding draft for review. This document is not signed and creates no rights or obligations. Commercial figures and the fields shown in square brackets are agreed before signature. The binding agreement comes into existence only through electronic signature via Elev8 Suite. Translation for convenience — the German version governs.'
 };
 // Verbindlich ist die deutsche Fassung. Englisch gibt es nur zum Lesen.
 const CONTRACT_LANG = 'de';
@@ -377,7 +377,7 @@ app.get('/admin', requireAdmin, async function (req, res, next) {
 });
 
 /**
- * Musterverträge ohne Aufnahme. Ein Interessent bekommt so die Dokumente zur
+ * Memberverträge ohne Aufnahme. Ein Interessent bekommt so die Dokumente zur
  * Prüfung, bevor er überhaupt als Tenant angelegt ist. Es wird nichts
  * gespeichert - die Angaben aus dem Formular gehen direkt in den Entwurf.
  */
